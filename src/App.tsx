@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from './gameEngine';
-import { RIDE_CONFIGS, RideType, GRID_SIZE, STAFF_CONFIGS, StaffType, RideCategory, CITIES } from './types';
+import { RIDE_CONFIGS, RideType, RideIntensity, GRID_SIZE, STAFF_CONFIGS, StaffType, RideCategory, CITIES } from './types';
 import { 
   Coins, 
   Users, 
@@ -37,12 +37,47 @@ import {
   Zap,
   Home,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  Sun,
+  Cloud,
+  CloudRain,
+  Snowflake,
+  Thermometer
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const MONTH_NAMES = [
+  'Mar', 'Apr', 'May', // Spring
+  'Jun', 'Jul', 'Aug', // Summer
+  'Sep', 'Oct', 'Nov', // Autumn
+  'Dec', 'Jan', 'Feb'  // Winter
+];
+
+const getWeatherIcon = (type: string) => {
+  switch (type) {
+    case 'SUNNY': return <Sun size={10} />;
+    case 'CLOUDY': return <Cloud size={10} />;
+    case 'RAINY': return <CloudRain size={10} />;
+    case 'SNOWY': return <Snowflake size={10} />;
+    case 'FREEZING': return <Thermometer size={10} />;
+    case 'STORMY': return <Zap size={10} />;
+    default: return <Sun size={10} />;
+  }
+};
+
+const getWeatherColor = (type: string) => {
+  switch (type) {
+    case 'SUNNY': return 'bg-amber-100 text-amber-600';
+    case 'CLOUDY': return 'bg-slate-100 text-slate-600';
+    case 'RAINY': return 'bg-blue-100 text-blue-600';
+    case 'SNOWY': return 'bg-indigo-100 text-indigo-600';
+    case 'FREEZING': return 'bg-cyan-100 text-cyan-600';
+    case 'STORMY': return 'bg-purple-100 text-purple-600';
+    default: return 'bg-amber-100 text-amber-600';
+  }
+};
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,6 +93,8 @@ export default function App() {
   const [isManagementOpen, setIsManagementOpen] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<RideCategory | 'ALL'>('ALL');
+  const [shopIntensity, setShopIntensity] = useState<RideIntensity | 'ALL'>('ALL');
+  const [inventoryIntensity, setInventoryIntensity] = useState<RideIntensity | 'ALL'>('ALL');
   const [activeManagementTab, setActiveManagementTab] = useState<'settings' | 'travel' | 'staff' | 'budget' | 'warehouse' | 'pricing'>('settings');
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [camera, setCamera] = useState({ x: 100, y: -400, zoom: 0.8 });
@@ -1017,7 +1054,18 @@ export default function App() {
                                   <div className={`p-2 rounded-lg ${net >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
                                     {net >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                                   </div>
-                                  <span className="text-xs font-bold text-slate-700">Day {gameState.time.day - (idx + 1)}</span>
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-700">Day {gameState.time.day - (idx + 1)}</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                      {(() => {
+                                        const hDay = gameState.time.day - (idx + 1);
+                                        if (hDay <= 0) return 'PRE-OPENING';
+                                        const hMonth = Math.floor(((hDay - 1) % 120) / 10) + 1;
+                                        const hDayOfMonth = ((hDay - 1) % 10) + 1;
+                                        return `${MONTH_NAMES[hMonth - 1]} ${hDayOfMonth}`;
+                                      })()}
+                                    </span>
+                                  </div>
                                 </div>
                                 <div className="text-right">
                                   <p className={`text-sm font-black ${net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -1042,6 +1090,12 @@ export default function App() {
                         <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Park Operations</h3>
                       </div>
                       <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                        {!engine.canParkOpen().canOpen && (
+                          <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-[10px] font-bold uppercase tracking-wider">
+                            <AlertCircle size={14} />
+                            <span>{engine.canParkOpen().reason}</span>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold text-slate-900">Manual Override</p>
@@ -1643,7 +1697,7 @@ export default function App() {
                             
                             {!isCurrent && (
                               <button
-                                disabled={!canAfford || gameState.rides.length > 0}
+                                disabled={!canAfford || gameState.rides.length > 0 || (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')}
                                 onClick={() => {
                                   if (engine.travelToCity(city.id)) {
                                     setGameState(engine.getState());
@@ -1656,12 +1710,16 @@ export default function App() {
                                   }
                                 }}
                                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all
-                                  ${canAfford && gameState.rides.length === 0
+                                  ${canAfford && gameState.rides.length === 0 && !(gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
                                     ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200' 
                                     : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
                                 `}
                               >
-                                {gameState.rides.length > 0 ? 'Dismantle First' : 'Travel'}
+                                {gameState.rides.length > 0 
+                                  ? 'Dismantle First' 
+                                  : (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
+                                    ? 'Island Locked'
+                                    : 'Travel'}
                               </button>
                             )}
                             {isCurrent && (
@@ -1772,8 +1830,19 @@ export default function App() {
                 <span>{gameState.cities.find(c => c.id === gameState.company.currentCityId)?.name}</span>
                 <span>•</span>
                 <span className="text-indigo-600 font-black">
-                  {DAY_NAMES[gameState.time.dayOfWeek]} {gameState.time.hours.toString().padStart(2, '0')}:{gameState.time.minutes.toString().padStart(2, '0')}
+                  {MONTH_NAMES[gameState.time.month - 1]} {gameState.time.dayOfMonth}, {DAY_NAMES[gameState.time.dayOfWeek]} {gameState.time.hours.toString().padStart(2, '0')}:{gameState.time.minutes.toString().padStart(2, '0')}
                 </span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${getWeatherColor(gameState.currentWeather.type)}`}>
+                  {getWeatherIcon(gameState.currentWeather.type)}
+                  <span>{gameState.currentWeather.type}</span>
+                  <span>•</span>
+                  <span>{gameState.currentWeather.temperature}°C</span>
+                </div>
+                <div className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  {gameState.time.season}
+                </div>
               </div>
             </div>
           </div>
@@ -2030,42 +2099,83 @@ export default function App() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">Your Inventory</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Your Inventory</h2>
+                  <div className="flex gap-1">
+                    {['ALL', 'GENTLE', 'THRILL', 'EXTREME'].map(intensity => (
+                      <button
+                        key={intensity}
+                        onClick={() => setInventoryIntensity(intensity as any)}
+                        className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-tighter transition-all
+                          ${inventoryIntensity === intensity 
+                            ? 'bg-indigo-600 text-white shadow-sm' 
+                            : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}
+                        `}
+                      >
+                        {intensity === 'ALL' ? 'All' : intensity[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 {gameState.inventory.length === 0 ? (
                   <div className="text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                     <p className="text-xs font-bold text-slate-400 uppercase">Inventory Empty</p>
                   </div>
                 ) : (
                   <div className="grid gap-3">
-                    {gameState.inventory.map(ride => {
-                      const config = RIDE_CONFIGS[ride.type];
-                      const isPlacing = placingRideId === ride.id;
+                    {gameState.inventory
+                      .filter(ride => {
+                        const config = RIDE_CONFIGS[ride.type];
+                        return inventoryIntensity === 'ALL' || config.intensity === inventoryIntensity;
+                      })
+                      .map(ride => {
+                        const config = RIDE_CONFIGS[ride.type];
+                        const isPlacing = placingRideId === ride.id;
 
-                      return (
-                        <div
-                          key={ride.id}
-                          className={`flex items-center gap-4 rounded-xl border p-3 transition-all duration-200
-                            ${isPlacing ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100'}
-                          `}
-                        >
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xl">
-                            {config.icon}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-xs truncate">{config.name}</p>
-                            <p className="text-[9px] text-slate-400 uppercase">{config.width}x{config.height} Tiles</p>
-                          </div>
-                          <button
-                            onClick={() => setPlacingRideId(isPlacing ? null : ride.id)}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                              ${isPlacing ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'}
+                        return (
+                          <div
+                            key={ride.id}
+                            className={`flex items-center gap-4 rounded-xl border p-3 transition-all duration-200
+                              ${isPlacing ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100'}
                             `}
                           >
-                            {isPlacing ? 'Cancel' : 'Place'}
-                          </button>
-                        </div>
-                      );
-                    })}
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xl">
+                              {config.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-xs truncate">{config.name}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-[9px] text-slate-400 uppercase">{config.width}x{config.height}</p>
+                                {config.category === 'RIDE' && (
+                                  <span className={`text-[8px] font-bold px-1 rounded ${
+                                    config.intensity === 'GENTLE' ? 'bg-emerald-50 text-emerald-600' :
+                                    config.intensity === 'THRILL' ? 'bg-orange-50 text-orange-600' :
+                                    'bg-rose-50 text-rose-600'
+                                  }`}>
+                                    {config.intensity[0]}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setPlacingRideId(isPlacing ? null : ride.id)}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
+                                ${isPlacing ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'}
+                              `}
+                            >
+                              {isPlacing ? 'Cancel' : 'Place'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    {gameState.inventory.filter(ride => {
+                      const config = RIDE_CONFIGS[ride.type];
+                      return inventoryIntensity === 'ALL' || config.intensity === inventoryIntensity;
+                    }).length === 0 && (
+                      <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">No {inventoryIntensity.toLowerCase()} items</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.section>
@@ -2304,26 +2414,52 @@ export default function App() {
                 </div>
 
                 {/* Categories */}
-                <div className="flex gap-2">
-                  {[
-                    { id: 'ALL', label: 'All Items', icon: <ShoppingBag size={14} /> },
-                    { id: 'RIDE', label: 'Rides', icon: <Ticket size={14} /> },
-                    { id: 'FOOD', label: 'Food & Drink', icon: <Coffee size={14} /> },
-                    { id: 'FACILITY', label: 'Facilities', icon: <Tent size={14} /> }
-                  ].map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setShopCategory(cat.id as any)}
-                      className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all
-                        ${shopCategory === cat.id 
-                          ? 'bg-white text-indigo-600 shadow-lg' 
-                          : 'bg-indigo-500/50 text-white hover:bg-indigo-500'}
-                      `}
-                    >
-                      {cat.icon}
-                      {cat.label}
-                    </button>
-                  ))}
+                <div className="flex flex-col gap-4">
+                  <div className="flex gap-2">
+                    {[
+                      { id: 'ALL', label: 'All Items', icon: <ShoppingBag size={14} /> },
+                      { id: 'RIDE', label: 'Rides', icon: <Ticket size={14} /> },
+                      { id: 'FOOD', label: 'Food & Drink', icon: <Coffee size={14} /> },
+                      { id: 'FACILITY', label: 'Facilities', icon: <Tent size={14} /> }
+                    ].map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setShopCategory(cat.id as any)}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all
+                          ${shopCategory === cat.id 
+                            ? 'bg-white text-indigo-600 shadow-lg' 
+                            : 'bg-indigo-500/50 text-white hover:bg-indigo-500'}
+                        `}
+                      >
+                        {cat.icon}
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {shopCategory === 'RIDE' && (
+                    <div className="flex gap-2">
+                      {[
+                        { id: 'ALL', label: 'All Intensities' },
+                        { id: 'GENTLE', label: 'Gentle' },
+                        { id: 'THRILL', label: 'Thrill' },
+                        { id: 'EXTREME', label: 'Extreme' }
+                      ].map(intensity => (
+                        <button
+                          key={intensity.id}
+                          onClick={() => setShopIntensity(intensity.id as any)}
+                          className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
+                            ${shopIntensity === intensity.id 
+                              ? 'bg-white/20 text-white border-white' 
+                              : 'bg-transparent text-indigo-200 border-indigo-400/30 hover:text-white hover:border-white/50'}
+                            border
+                          `}
+                        >
+                          {intensity.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2331,7 +2467,12 @@ export default function App() {
               <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {(Object.keys(RIDE_CONFIGS) as RideType[])
-                    .filter(type => shopCategory === 'ALL' || RIDE_CONFIGS[type].category === shopCategory)
+                    .filter(type => {
+                      const config = RIDE_CONFIGS[type];
+                      const categoryMatch = shopCategory === 'ALL' || config.category === shopCategory;
+                      const intensityMatch = shopIntensity === 'ALL' || config.intensity === shopIntensity || config.category !== 'RIDE';
+                      return categoryMatch && intensityMatch;
+                    })
                     .map(type => {
                       const config = RIDE_CONFIGS[type];
                       const canAfford = gameState.money >= config.cost;
@@ -2361,8 +2502,17 @@ export default function App() {
 
                           <div className="mb-6">
                             <h3 className="text-lg font-black text-slate-900 mb-1">{config.name}</h3>
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                               <span className="px-2 py-0.5 rounded bg-slate-100">{config.category}</span>
+                              {config.category === 'RIDE' && (
+                                <span className={`px-2 py-0.5 rounded ${
+                                  config.intensity === 'GENTLE' ? 'bg-emerald-50 text-emerald-600' :
+                                  config.intensity === 'THRILL' ? 'bg-orange-50 text-orange-600' :
+                                  'bg-rose-50 text-rose-600'
+                                }`}>
+                                  {config.intensity}
+                                </span>
+                              )}
                               <span>•</span>
                               <span>{config.width}x{config.height} Tiles</span>
                             </div>

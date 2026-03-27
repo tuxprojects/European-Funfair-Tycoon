@@ -1,4 +1,4 @@
-import { RideInstance, Visitor, Position, RIDE_CONFIGS, GameTime, ParkSettings, GameState, CompanyInfo, CITIES, StaffInstance, StaffType, STAFF_CONFIGS, RideType, FinanceStats } from './types';
+import { RideInstance, Visitor, Position, RIDE_CONFIGS, RideIntensity, GameTime, ParkSettings, GameState, CompanyInfo, CITIES, StaffInstance, StaffType, STAFF_CONFIGS, RideType, FinanceStats, Season, WeatherType, WeatherInfo } from './types';
 
 export class GameEngine {
   rides: RideInstance[] = [];
@@ -7,7 +7,7 @@ export class GameEngine {
   visitors: Visitor[] = [];
   money: number = 2000;
   lastUpdate: number = Date.now();
-  time: GameTime = { hours: 8, minutes: 0, day: 1, dayOfWeek: 0 };
+  time: GameTime = { hours: 8, minutes: 0, day: 1, dayOfWeek: 0, season: 'SPRING', month: 1, dayOfMonth: 1 };
   settings: ParkSettings = { 
     openTime: 8, 
     closeTime: 22, 
@@ -24,6 +24,13 @@ export class GameEngine {
   cities = CITIES;
   finances: FinanceStats = this.getEmptyFinances();
   dailyHistory: FinanceStats[] = [];
+  currentWeather: WeatherInfo = {
+    type: 'SUNNY',
+    temperature: 20,
+    visitorMultiplier: 1.0,
+    canOpen: true,
+    description: 'Sunny and pleasant.'
+  };
   tutorialStep: number = 0;
   showTutorial: boolean = true;
   private timeAccumulator: number = 0;
@@ -33,6 +40,11 @@ export class GameEngine {
   constructor(saveData?: any) {
     if (saveData) {
       this.loadFromData(saveData);
+    } else {
+      // New game: initialize season and weather
+      this.time.season = this.getSeason(this.time.day);
+      const city = CITIES.find(c => c.id === this.company.currentCityId) || CITIES[0];
+      this.currentWeather = this.generateWeather(city, this.time.season);
     }
   }
 
@@ -41,10 +53,11 @@ export class GameEngine {
     this.inventory = data.inventory || [];
     this.staff = data.staff || [];
     this.money = data.money ?? 2000;
-    this.time = data.time || { hours: 8, minutes: 0, day: 1, dayOfWeek: 0 };
+    this.time = data.time || { hours: 8, minutes: 0, day: 1, dayOfWeek: 0, season: 'SPRING', month: 1, dayOfMonth: 1 };
     if (this.time.dayOfWeek === undefined) {
       this.time.dayOfWeek = (this.time.day - 1) % 7;
     }
+    this.updateTimeDetails();
     this.settings = data.settings || { 
       openTime: 8, 
       closeTime: 22, 
@@ -131,6 +144,13 @@ export class GameEngine {
     }));
     this.lastSalaryPaymentHour = data.lastSalaryPaymentHour ?? -1;
     this.tutorialStep = data.tutorialStep ?? 0;
+    this.currentWeather = data.currentWeather || {
+      type: 'SUNNY',
+      temperature: 20,
+      visitorMultiplier: 1.0,
+      canOpen: true,
+      description: 'Sunny and pleasant.'
+    };
     this.showTutorial = data.showTutorial ?? true;
     this.lastUpdate = Date.now();
     this.visitors = []; // Don't save visitors, they are transient
@@ -219,7 +239,7 @@ export class GameEngine {
     this.rides = [];
     this.inventory = [];
     this.visitors = [];
-    this.time = { hours: 8, minutes: 0, day: 1, dayOfWeek: 0 };
+    this.time = { hours: 8, minutes: 0, day: 1, dayOfWeek: 0, season: 'SPRING', month: 1, dayOfMonth: 1 };
     this.finances = this.getEmptyFinances();
     this.dailyHistory = [];
     this.tutorialStep = 0;
@@ -302,10 +322,13 @@ export class GameEngine {
     const id = Math.random().toString(36).substr(2, 9);
     
     // Randomly select 2-3 preferred ride types
-    const allRideTypes: RideType[] = ['TEA_CUPS', 'CAROUSEL', 'FERRIS_WHEEL', 'ROLLERCOASTER', 'BUMPER_CARS', 'HAUNTED_HOUSE', 'LOG_FLUME', 'DROP_TOWER', 'SWING_RIDE', 'PIRATE_SHIP'];
+    const allRideTypes = (Object.keys(RIDE_CONFIGS) as RideType[]).filter(type => RIDE_CONFIGS[type].category === 'RIDE');
     const preferredRideTypes = allRideTypes
       .sort(() => 0.5 - Math.random())
       .slice(0, 2 + Math.floor(Math.random() * 2));
+
+    const intensities: RideIntensity[] = ['GENTLE', 'THRILL', 'EXTREME'];
+    const preferredIntensity = intensities[Math.floor(Math.random() * intensities.length)];
 
     const visitor: Visitor = {
       id,
@@ -322,6 +345,7 @@ export class GameEngine {
       timeEntered: Date.now(),
       color: `hsl(${Math.random() * 360}, 70%, 60%)`,
       preferredRideTypes,
+      preferredIntensity,
       hasWristband: false,
       hasSeasonPass: false,
       remainingBundleRides: 0
@@ -373,7 +397,7 @@ export class GameEngine {
     const parkRating = this.getParkRating();
     const ratingFactor = 0.5 + (parkRating / 100);
     
-    return ticketFactor * 0.4 + wristbandFactor * 0.3 + seasonFactor * 0.3 + ratingFactor * 0.5;
+    return (ticketFactor * 0.4 + wristbandFactor * 0.3 + seasonFactor * 0.3 + ratingFactor * 0.5) * this.currentWeather.visitorMultiplier;
   }
 
   getState(): GameState {
@@ -385,6 +409,7 @@ export class GameEngine {
       staff: [...this.staff],
       visitors: [...this.visitors],
       time: { ...this.time },
+      currentWeather: { ...this.currentWeather },
       settings: { ...this.settings },
       company: { ...this.company },
       cities: [...CITIES],
@@ -419,7 +444,10 @@ export class GameEngine {
           const daysPassed = Math.floor(this.time.hours / 24);
           this.time.day += daysPassed;
           this.time.hours %= 24;
-          this.time.dayOfWeek = (this.time.dayOfWeek + daysPassed) % 7;
+          this.updateTimeDetails();
+
+          // Generate Weather for the new day
+          this.currentWeather = this.generateWeather(city, this.time.season || 'SPRING');
 
           // Day transition: Save finances to history and reset
           this.dailyHistory.unshift({ ...this.finances });
@@ -708,8 +736,11 @@ export class GameEngine {
             );
             
             if (availableRides.length > 0) {
-              // Prefer preferred types
-              const preferred = availableRides.filter(r => v.preferredRideTypes.includes(r.type));
+              // Prefer preferred types AND preferred intensity
+              const preferred = availableRides.filter(r => 
+                v.preferredRideTypes.includes(r.type) || 
+                RIDE_CONFIGS[r.type].intensity === v.preferredIntensity
+              );
               const pool = preferred.length > 0 ? preferred : availableRides;
               const ride = pool[Math.floor(Math.random() * pool.length)];
               
@@ -891,13 +922,13 @@ export class GameEngine {
       const maxVisitorsBase = isWeekend ? 150 : 100; // Increased base to make it less of a hard cap
       // Add some hourly variance to max visitors
       const hourlyVariance = 1 + (Math.sin(this.time.hours * 0.5) * 0.2);
-      const maxVisitors = Math.floor(maxVisitorsBase * city.visitorMultiplier * ratingMult * hourlyVariance * demandMult);
+      const maxVisitors = Math.floor(maxVisitorsBase * city.visitorMultiplier * this.currentWeather.visitorMultiplier * ratingMult * hourlyVariance * demandMult);
 
       // Enforce a minimum delay between spawns (at least 1-3 seconds)
-      const spawnCooldown = (1000 + Math.random() * 2000) / demandMult;
+      const spawnCooldown = (1000 + Math.random() * 2000) / (demandMult * this.currentWeather.visitorMultiplier);
       const canSpawn = (now - this.lastSpawnTime) > spawnCooldown;
 
-      if (this.visitors.length < maxVisitors && canSpawn && Math.random() < spawnRate * city.visitorMultiplier * ratingMult * demandMult) {
+      if (this.visitors.length < maxVisitors && canSpawn && Math.random() < spawnRate * city.visitorMultiplier * this.currentWeather.visitorMultiplier * ratingMult * demandMult) {
         // Sometimes spawn a group (1-3 people)
         const groupSize = Math.random() > 0.8 ? (Math.random() > 0.5 ? 3 : 2) : 1;
         for (let j = 0; j < groupSize; j++) {
@@ -925,6 +956,7 @@ export class GameEngine {
       staff: [...this.staff],
       visitors: [...this.visitors],
       time: { ...this.time },
+      currentWeather: { ...this.currentWeather },
       settings: { ...this.settings },
       company: { ...this.company },
       cities: [...CITIES],
@@ -1100,12 +1132,68 @@ export class GameEngine {
     return false;
   }
 
+  private updateTimeDetails() {
+    this.time.season = this.getSeason(this.time.day);
+    this.time.month = Math.floor(((this.time.day - 1) % 120) / 10) + 1;
+    this.time.dayOfMonth = ((this.time.day - 1) % 10) + 1;
+    this.time.dayOfWeek = (this.time.day - 1) % 7;
+  }
+
+  private getSeason(day: number): Season {
+    // 30 days per season
+    const seasonIndex = Math.floor(((day - 1) % 120) / 30);
+    const seasons: Season[] = ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
+    return seasons[seasonIndex];
+  }
+
+  private generateWeather(city: any, season: Season): WeatherInfo {
+    const probs = city.weatherProbabilities[season];
+    const rand = Math.random();
+    let cumulative = 0;
+    let selectedType: WeatherType = 'SUNNY';
+
+    for (const [type, prob] of Object.entries(probs)) {
+      cumulative += prob as number;
+      if (rand <= cumulative) {
+        selectedType = type as WeatherType;
+        break;
+      }
+    }
+
+    const weatherConfigs: Record<WeatherType, Partial<WeatherInfo>> = {
+      SUNNY: { temperature: 25, visitorMultiplier: 1.2, canOpen: true, description: 'A beautiful sunny day!' },
+      CLOUDY: { temperature: 18, visitorMultiplier: 1.0, canOpen: true, description: 'A bit cloudy, but fine for a funfair.' },
+      RAINY: { temperature: 15, visitorMultiplier: 0.6, canOpen: true, description: 'Rainy day. Some guests might stay home.' },
+      SNOWY: { temperature: -2, visitorMultiplier: 0.3, canOpen: false, description: 'Heavy snow! The park must remain closed.' },
+      FREEZING: { temperature: -10, visitorMultiplier: 0.1, canOpen: false, description: 'Freezing cold! Too dangerous to open.' },
+      STORMY: { temperature: 12, visitorMultiplier: 0.2, canOpen: false, description: 'Severe storm! Safety first, park is closed.' }
+    };
+
+    const config = weatherConfigs[selectedType];
+    
+    // Add some randomness to temperature
+    const baseTemp = config.temperature || 20;
+    const tempVariation = Math.floor(Math.random() * 10) - 5;
+
+    return {
+      type: selectedType,
+      temperature: baseTemp + tempVariation,
+      visitorMultiplier: config.visitorMultiplier || 1.0,
+      canOpen: config.canOpen ?? true,
+      description: config.description || 'Normal weather.'
+    };
+  }
+
   private isParkOpen(): boolean {
     if (this.settings.isManuallyClosed) return false;
     return this.canParkOpen().canOpen;
   }
 
   canParkOpen(): { canOpen: boolean; reason?: string } {
+    if (!this.currentWeather.canOpen) {
+      return { canOpen: false, reason: `Park is closed due to ${this.currentWeather.type.toLowerCase()} weather.` };
+    }
+
     const hasOperationalRides = this.rides.some(r => 
       r.status === 'OPERATIONAL' && r.isPlaced && r.operatorId
     );
@@ -1150,6 +1238,7 @@ export class GameEngine {
     this.time.hours = openTime;
     this.time.minutes = 0;
     this.time.day++;
+    this.updateTimeDetails();
     this.timeAccumulator = 0;
   }
 
@@ -1165,9 +1254,18 @@ export class GameEngine {
     if (this.rides.length > 0) {
       return false; // Must dismantle all rides first
     }
-    const city = CITIES.find(c => c.id === cityId);
-    if (city && this.money >= city.travelCost) {
-      this.money -= city.travelCost;
+    const currentCity = CITIES.find(c => c.id === this.company.currentCityId);
+    const targetCity = CITIES.find(c => c.id === cityId);
+
+    if (!targetCity) return false;
+
+    // Island restriction: Cannot leave UK if currently in UK
+    if (currentCity?.country === 'UK' && targetCity.country !== 'UK') {
+      return false;
+    }
+
+    if (this.money >= targetCity.travelCost) {
+      this.money -= targetCity.travelCost;
       this.company.currentCityId = cityId;
       // Clear current visitors when moving
       this.visitors = [];

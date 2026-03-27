@@ -1,8 +1,23 @@
+export type Season = 'SPRING' | 'SUMMER' | 'AUTUMN' | 'WINTER';
+
+export type WeatherType = 'SUNNY' | 'CLOUDY' | 'RAINY' | 'SNOWY' | 'FREEZING' | 'STORMY';
+
+export interface WeatherInfo {
+  type: WeatherType;
+  temperature: number;
+  description: string;
+  visitorMultiplier: number;
+  canOpen: boolean;
+}
+
 export interface GameTime {
   hours: number;
   minutes: number;
   day: number;
   dayOfWeek: number; // 0-6 (0=Mon, 1=Tue, ..., 5=Sat, 6=Sun)
+  season: Season;
+  month: number; // 1-12
+  dayOfMonth: number; // 1-10
 }
 
 export interface PricingSettings {
@@ -32,6 +47,7 @@ export interface City {
   mapWidth: number;
   mapHeight: number;
   terrain: TerrainType;
+  weatherProbabilities: Record<Season, Partial<Record<WeatherType, number>>>;
 }
 
 export interface CompanyInfo {
@@ -71,6 +87,7 @@ export interface GameState {
   staff: StaffInstance[];
   visitors: Visitor[];
   time: GameTime;
+  currentWeather: WeatherInfo;
   settings: ParkSettings;
   company: CompanyInfo;
   cities: City[];
@@ -80,6 +97,13 @@ export interface GameState {
   tutorialStep: number;
   showTutorial: boolean;
 }
+
+const DEFAULT_WEATHER_PROBABILITIES: Record<Season, Partial<Record<WeatherType, number>>> = {
+  SPRING: { SUNNY: 0.4, CLOUDY: 0.3, RAINY: 0.2, STORMY: 0.1 },
+  SUMMER: { SUNNY: 0.6, CLOUDY: 0.2, RAINY: 0.1, STORMY: 0.1 },
+  AUTUMN: { SUNNY: 0.3, CLOUDY: 0.4, RAINY: 0.2, STORMY: 0.1 },
+  WINTER: { SUNNY: 0.2, CLOUDY: 0.3, RAINY: 0.2, SNOWY: 0.2, FREEZING: 0.1 },
+};
 
 export const CITIES: City[] = [
   {
@@ -91,7 +115,138 @@ export const CITIES: City[] = [
     description: 'A classic park in the heart of London.',
     mapWidth: 40,
     mapHeight: 30,
-    terrain: 'GRASS'
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+  },
+  {
+    id: 'manchester',
+    name: 'Manchester',
+    country: 'UK',
+    visitorMultiplier: 1.1,
+    travelCost: 1500,
+    description: 'A vibrant city in the north of England, known for its rain.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      AUTUMN: { SUNNY: 0.2, CLOUDY: 0.4, RAINY: 0.3, STORMY: 0.1 },
+      WINTER: { SUNNY: 0.1, CLOUDY: 0.3, RAINY: 0.4, SNOWY: 0.1, FREEZING: 0.1 }
+    }
+  },
+  {
+    id: 'birmingham',
+    name: 'Birmingham',
+    country: 'UK',
+    visitorMultiplier: 1.1,
+    travelCost: 1200,
+    description: 'The heart of the Midlands, with more canals than Venice.',
+    mapWidth: 40,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+  },
+  {
+    id: 'liverpool',
+    name: 'Liverpool',
+    country: 'UK',
+    visitorMultiplier: 1.2,
+    travelCost: 1800,
+    description: 'A historic port city with a rich musical heritage.',
+    mapWidth: 30,
+    mapHeight: 40,
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+  },
+  {
+    id: 'glasgow',
+    name: 'Glasgow',
+    country: 'UK',
+    visitorMultiplier: 1.1,
+    travelCost: 2500,
+    description: 'A friendly Scottish city with a grand industrial past.',
+    mapWidth: 45,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.4, SNOWY: 0.2, FREEZING: 0.1 }
+    }
+  },
+  {
+    id: 'edinburgh',
+    name: 'Edinburgh',
+    country: 'UK',
+    visitorMultiplier: 1.4,
+    travelCost: 3000,
+    description: 'The stunning Scottish capital, overlooked by its castle.',
+    mapWidth: 30,
+    mapHeight: 45,
+    terrain: 'GRAVEL',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.3, SNOWY: 0.3, FREEZING: 0.1 }
+    }
+  },
+  {
+    id: 'cardiff',
+    name: 'Cardiff',
+    country: 'UK',
+    visitorMultiplier: 1.1,
+    travelCost: 2000,
+    description: 'The capital of Wales, a modern city with a medieval heart.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+  },
+  {
+    id: 'belfast',
+    name: 'Belfast',
+    country: 'UK',
+    visitorMultiplier: 1.1,
+    travelCost: 3500,
+    description: 'A city of shipyards and history across the Irish Sea.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+  },
+  {
+    id: 'bristol',
+    name: 'Bristol',
+    country: 'UK',
+    visitorMultiplier: 1.2,
+    travelCost: 1600,
+    description: 'A creative maritime city in the South West.',
+    mapWidth: 40,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+  },
+  {
+    id: 'leeds',
+    name: 'Leeds',
+    country: 'UK',
+    visitorMultiplier: 1.1,
+    travelCost: 1400,
+    description: 'A major hub in Yorkshire with a bustling city center.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+  },
+  {
+    id: 'newcastle',
+    name: 'Newcastle',
+    country: 'UK',
+    visitorMultiplier: 1.1,
+    travelCost: 2200,
+    description: 'A legendary party city in the North East.',
+    mapWidth: 35,
+    mapHeight: 40,
+    terrain: 'GRAVEL',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'paris',
@@ -102,7 +257,8 @@ export const CITIES: City[] = [
     description: 'An elegant urban plaza in Paris.',
     mapWidth: 30,
     mapHeight: 30,
-    terrain: 'ASPHALT'
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'berlin',
@@ -113,73 +269,8 @@ export const CITIES: City[] = [
     description: 'A gritty industrial space in Berlin.',
     mapWidth: 50,
     mapHeight: 25,
-    terrain: 'GRAVEL'
-  },
-  {
-    id: 'rome',
-    name: 'Rome',
-    country: 'Italy',
-    visitorMultiplier: 1.4,
-    travelCost: 6000,
-    description: 'Historic cobblestone square in Rome.',
-    mapWidth: 25,
-    mapHeight: 40,
-    terrain: 'ASPHALT'
-  },
-  {
-    id: 'madrid',
-    name: 'Madrid',
-    country: 'Spain',
-    visitorMultiplier: 1.3,
-    travelCost: 4500,
-    description: 'Sun-drenched park in Madrid.',
-    mapWidth: 45,
-    mapHeight: 35,
-    terrain: 'GRASS'
-  },
-  {
-    id: 'amsterdam',
-    name: 'Amsterdam',
-    country: 'Netherlands',
-    visitorMultiplier: 1.6,
-    travelCost: 7000,
-    description: 'Compact canal-side lot in Amsterdam.',
-    mapWidth: 20,
-    mapHeight: 50,
-    terrain: 'ASPHALT'
-  },
-  {
-    id: 'vienna',
-    name: 'Vienna',
-    country: 'Austria',
-    visitorMultiplier: 1.2,
-    travelCost: 4000,
-    description: 'Grand imperial grounds in Vienna.',
-    mapWidth: 35,
-    mapHeight: 35,
-    terrain: 'GRASS'
-  },
-  {
-    id: 'warsaw',
-    name: 'Warsaw',
-    country: 'Poland',
-    visitorMultiplier: 1.1,
-    travelCost: 2500,
-    description: 'Reconstructed historic plaza in Warsaw.',
-    mapWidth: 40,
-    mapHeight: 40,
-    terrain: 'GRAVEL'
-  },
-  {
-    id: 'prague',
-    name: 'Prague',
-    country: 'Czech Republic',
-    visitorMultiplier: 1.4,
-    travelCost: 5500,
-    description: 'Medieval square in the heart of Prague.',
-    mapWidth: 30,
-    mapHeight: 45,
-    terrain: 'ASPHALT'
+    terrain: 'GRAVEL',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'athens',
@@ -190,18 +281,12 @@ export const CITIES: City[] = [
     description: 'Ancient dusty grounds near the Acropolis.',
     mapWidth: 50,
     mapHeight: 30,
-    terrain: 'GRAVEL'
-  },
-  {
-    id: 'stockholm',
-    name: 'Stockholm',
-    country: 'Sweden',
-    visitorMultiplier: 1.3,
-    travelCost: 8000,
-    description: 'Clean, modern waterfront in Stockholm.',
-    mapWidth: 35,
-    mapHeight: 25,
-    terrain: 'ASPHALT'
+    terrain: 'GRAVEL',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      SUMMER: { SUNNY: 0.8, CLOUDY: 0.1, RAINY: 0.05, STORMY: 0.05 },
+      WINTER: { SUNNY: 0.6, CLOUDY: 0.2, RAINY: 0.2 }
+    }
   },
   {
     id: 'lisbon',
@@ -212,7 +297,11 @@ export const CITIES: City[] = [
     description: 'Coastal terrace in Lisbon.',
     mapWidth: 30,
     mapHeight: 35,
-    terrain: 'GRASS'
+    terrain: 'GRASS',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.5, CLOUDY: 0.3, RAINY: 0.2 }
+    }
   },
   {
     id: 'munich',
@@ -223,7 +312,8 @@ export const CITIES: City[] = [
     description: 'Home of the world-famous Oktoberfest.',
     mapWidth: 50,
     mapHeight: 50,
-    terrain: 'GRASS'
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'hamburg',
@@ -234,7 +324,8 @@ export const CITIES: City[] = [
     description: 'Host of the massive Hamburger Dom funfair.',
     mapWidth: 45,
     mapHeight: 45,
-    terrain: 'ASPHALT'
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'cologne',
@@ -245,7 +336,8 @@ export const CITIES: City[] = [
     description: 'Vibrant fairgrounds by the Rhine river.',
     mapWidth: 40,
     mapHeight: 40,
-    terrain: 'ASPHALT'
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'dusseldorf',
@@ -256,7 +348,8 @@ export const CITIES: City[] = [
     description: 'Home to the "Biggest Fair on the Rhine".',
     mapWidth: 45,
     mapHeight: 40,
-    terrain: 'GRASS'
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'stuttgart',
@@ -267,7 +360,8 @@ export const CITIES: City[] = [
     description: 'Cannstatter Wasen, a huge traditional festival.',
     mapWidth: 40,
     mapHeight: 45,
-    terrain: 'GRAVEL'
+    terrain: 'GRAVEL',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'frankfurt',
@@ -278,7 +372,8 @@ export const CITIES: City[] = [
     description: 'Dippemess fairgrounds in the financial hub.',
     mapWidth: 35,
     mapHeight: 35,
-    terrain: 'ASPHALT'
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'bremen',
@@ -289,7 +384,8 @@ export const CITIES: City[] = [
     description: 'Historic Freimarkt, one of Germany\'s oldest fairs.',
     mapWidth: 30,
     mapHeight: 40,
-    terrain: 'GRAVEL'
+    terrain: 'GRAVEL',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'leipzig',
@@ -300,7 +396,8 @@ export const CITIES: City[] = [
     description: 'The Kleinmesse fairgrounds in eastern Germany.',
     mapWidth: 35,
     mapHeight: 30,
-    terrain: 'GRASS'
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'nuremberg',
@@ -311,7 +408,8 @@ export const CITIES: City[] = [
     description: 'Traditional Volksfest in a historic setting.',
     mapWidth: 40,
     mapHeight: 35,
-    terrain: 'GRAVEL'
+    terrain: 'GRAVEL',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'hanover',
@@ -322,7 +420,8 @@ export const CITIES: City[] = [
     description: 'Host of the world\'s largest marksmen\'s fair.',
     mapWidth: 45,
     mapHeight: 35,
-    terrain: 'GRASS'
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'dortmund',
@@ -333,7 +432,8 @@ export const CITIES: City[] = [
     description: 'Industrial heartland with a love for funfairs.',
     mapWidth: 40,
     mapHeight: 40,
-    terrain: 'ASPHALT'
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'essen',
@@ -344,7 +444,8 @@ export const CITIES: City[] = [
     description: 'Urban space in the densely populated Ruhr area.',
     mapWidth: 35,
     mapHeight: 35,
-    terrain: 'ASPHALT'
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'duisburg',
@@ -355,7 +456,8 @@ export const CITIES: City[] = [
     description: 'Riverside fairgrounds in an industrial setting.',
     mapWidth: 30,
     mapHeight: 30,
-    terrain: 'GRAVEL'
+    terrain: 'GRAVEL',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'bochum',
@@ -366,7 +468,8 @@ export const CITIES: City[] = [
     description: 'Friendly local fair in the Ruhr region.',
     mapWidth: 30,
     mapHeight: 25,
-    terrain: 'ASPHALT'
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'wuppertal',
@@ -377,7 +480,8 @@ export const CITIES: City[] = [
     description: 'Fairgrounds near the famous suspension railway.',
     mapWidth: 25,
     mapHeight: 35,
-    terrain: 'GRASS'
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'brussels',
@@ -388,29 +492,141 @@ export const CITIES: City[] = [
     description: 'The Foire du Midi in the heart of Europe.',
     mapWidth: 35,
     mapHeight: 40,
-    terrain: 'ASPHALT'
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
-    id: 'copenhagen',
-    name: 'Copenhagen',
-    country: 'Denmark',
-    visitorMultiplier: 1.7,
-    travelCost: 8000,
-    description: 'Home to the historic Tivoli Gardens.',
-    mapWidth: 30,
+    id: 'rome',
+    name: 'Rome',
+    country: 'Italy',
+    visitorMultiplier: 1.5,
+    travelCost: 4500,
+    description: 'The Eternal City, where history comes alive.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'GRAVEL',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      SUMMER: { SUNNY: 0.8, CLOUDY: 0.1, RAINY: 0.1, STORMY: 0.0 },
+      WINTER: { SUNNY: 0.4, CLOUDY: 0.3, RAINY: 0.3, SNOWY: 0.0, FREEZING: 0.0 }
+    }
+  },
+  {
+    id: 'madrid',
+    name: 'Madrid',
+    country: 'Spain',
+    visitorMultiplier: 1.4,
+    travelCost: 4200,
+    description: 'A vibrant capital with world-class art and culture.',
+    mapWidth: 45,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      SUMMER: { SUNNY: 0.9, CLOUDY: 0.05, RAINY: 0.05, STORMY: 0.0 }
+    }
+  },
+  {
+    id: 'amsterdam',
+    name: 'Amsterdam',
+    country: 'Netherlands',
+    visitorMultiplier: 1.3,
+    travelCost: 3800,
+    description: 'A city of canals, bicycles, and artistic heritage.',
+    mapWidth: 35,
+    mapHeight: 45,
+    terrain: 'GRASS',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      AUTUMN: { SUNNY: 0.2, CLOUDY: 0.4, RAINY: 0.3, STORMY: 0.1 }
+    }
+  },
+  {
+    id: 'vienna',
+    name: 'Vienna',
+    country: 'Austria',
+    visitorMultiplier: 1.4,
+    travelCost: 4800,
+    description: 'The city of music and imperial grandeur.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'GRAVEL',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.2, CLOUDY: 0.3, RAINY: 0.2, SNOWY: 0.2, FREEZING: 0.1 }
+    }
+  },
+  {
+    id: 'prague',
+    name: 'Prague',
+    country: 'Czech Republic',
+    visitorMultiplier: 1.3,
+    travelCost: 4000,
+    description: 'The City of a Hundred Spires, magical and historic.',
+    mapWidth: 35,
+    mapHeight: 40,
+    terrain: 'GRAVEL',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.2, CLOUDY: 0.3, RAINY: 0.1, SNOWY: 0.3, FREEZING: 0.1 }
+    }
+  },
+  {
+    id: 'warsaw',
+    name: 'Warsaw',
+    country: 'Poland',
+    visitorMultiplier: 1.2,
+    travelCost: 3500,
+    description: 'A resilient city with a mix of modern and historic charm.',
+    mapWidth: 45,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.2, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.4, FREEZING: 0.1 }
+    }
+  },
+  {
+    id: 'stockholm',
+    name: 'Stockholm',
+    country: 'Sweden',
+    visitorMultiplier: 1.3,
+    travelCost: 5500,
+    description: 'A beautiful city spread across fourteen islands.',
+    mapWidth: 40,
     mapHeight: 30,
-    terrain: 'GRASS'
+    terrain: 'GRASS',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.5, FREEZING: 0.1 }
+    }
   },
   {
     id: 'oslo',
     name: 'Oslo',
     country: 'Norway',
-    visitorMultiplier: 1.3,
-    travelCost: 9000,
-    description: 'Modern waterfront space in the north.',
+    visitorMultiplier: 1.2,
+    travelCost: 5800,
+    description: 'A city surrounded by fjords and forests.',
     mapWidth: 35,
     mapHeight: 35,
-    terrain: 'ASPHALT'
+    terrain: 'GRASS',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.5, FREEZING: 0.1 }
+    }
+  },
+  {
+    id: 'copenhagen',
+    name: 'Copenhagen',
+    country: 'Denmark',
+    visitorMultiplier: 1.3,
+    travelCost: 5200,
+    description: 'A cozy capital known for its design and hygge.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'helsinki',
@@ -421,7 +637,11 @@ export const CITIES: City[] = [
     description: 'Cool, clean Nordic fairgrounds.',
     mapWidth: 30,
     mapHeight: 30,
-    terrain: 'GRAVEL'
+    terrain: 'GRAVEL',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.05, CLOUDY: 0.15, RAINY: 0.05, SNOWY: 0.5, FREEZING: 0.25 }
+    }
   },
   {
     id: 'dublin',
@@ -432,7 +652,12 @@ export const CITIES: City[] = [
     description: 'Lively green space in the Irish capital.',
     mapWidth: 35,
     mapHeight: 35,
-    terrain: 'GRASS'
+    terrain: 'GRASS',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      SPRING: { SUNNY: 0.3, CLOUDY: 0.3, RAINY: 0.3, STORMY: 0.1 },
+      AUTUMN: { SUNNY: 0.2, CLOUDY: 0.4, RAINY: 0.3, STORMY: 0.1 }
+    }
   },
   {
     id: 'zurich',
@@ -443,7 +668,11 @@ export const CITIES: City[] = [
     description: 'High-end lakeside fairgrounds.',
     mapWidth: 30,
     mapHeight: 30,
-    terrain: 'ASPHALT'
+    terrain: 'ASPHALT',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.2, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.3, FREEZING: 0.2 }
+    }
   },
   {
     id: 'budapest',
@@ -454,7 +683,8 @@ export const CITIES: City[] = [
     description: 'Grand fairgrounds by the Danube.',
     mapWidth: 40,
     mapHeight: 40,
-    terrain: 'GRAVEL'
+    terrain: 'GRAVEL',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'bucharest',
@@ -465,7 +695,8 @@ export const CITIES: City[] = [
     description: 'Spacious parks in the "Little Paris".',
     mapWidth: 45,
     mapHeight: 45,
-    terrain: 'GRASS'
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'milan',
@@ -476,7 +707,8 @@ export const CITIES: City[] = [
     description: 'Fashionable fairgrounds in northern Italy.',
     mapWidth: 35,
     mapHeight: 35,
-    terrain: 'ASPHALT'
+    terrain: 'ASPHALT',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'barcelona',
@@ -487,7 +719,11 @@ export const CITIES: City[] = [
     description: 'Sun-soaked plaza near the Mediterranean.',
     mapWidth: 40,
     mapHeight: 30,
-    terrain: 'ASPHALT'
+    terrain: 'ASPHALT',
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.6, CLOUDY: 0.3, RAINY: 0.1 }
+    }
   }
 ];
 
@@ -498,11 +734,14 @@ export interface Position {
 
 export type RideCategory = 'RIDE' | 'FOOD' | 'FACILITY';
 
-export type RideType = 'TEA_CUPS' | 'CAROUSEL' | 'FERRIS_WHEEL' | 'ROLLERCOASTER' | 'BUMPER_CARS' | 'FOOD_STALL' | 'RESTROOM' | 'BENCH' | 'HAUNTED_HOUSE' | 'LOG_FLUME' | 'DROP_TOWER' | 'SWING_RIDE' | 'PIRATE_SHIP' | 'COTTON_CANDY' | 'ICE_CREAM';
+export type RideIntensity = 'GENTLE' | 'THRILL' | 'EXTREME' | 'NONE';
+
+export type RideType = 'TEA_CUPS' | 'CAROUSEL' | 'FERRIS_WHEEL' | 'ROLLERCOASTER' | 'BUMPER_CARS' | 'FOOD_STALL' | 'RESTROOM' | 'BENCH' | 'HAUNTED_HOUSE' | 'LOG_FLUME' | 'DROP_TOWER' | 'SWING_RIDE' | 'PIRATE_SHIP' | 'COTTON_CANDY' | 'ICE_CREAM' | 'BUNGEE_JUMP' | 'SLINGSHOT' | 'TOP_SPIN' | 'ENTERPRISE' | 'WALTZER' | 'HELTER_SKELTER' | 'KIDDIE_COASTER' | 'PONY_TREK';
 
 export interface RideConfig {
   type: RideType;
   category: RideCategory;
+  intensity: RideIntensity;
   name: string;
   cost: number;
   baseIncome: number;
@@ -519,6 +758,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   TEA_CUPS: {
     type: 'TEA_CUPS',
     category: 'RIDE',
+    intensity: 'GENTLE',
     name: 'Tea Cups',
     cost: 500,
     baseIncome: 3,
@@ -533,6 +773,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   CAROUSEL: {
     type: 'CAROUSEL',
     category: 'RIDE',
+    intensity: 'GENTLE',
     name: 'Carousel',
     cost: 1200,
     baseIncome: 4,
@@ -547,6 +788,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   BUMPER_CARS: {
     type: 'BUMPER_CARS',
     category: 'RIDE',
+    intensity: 'THRILL',
     name: 'Bumper Cars',
     cost: 2500,
     baseIncome: 6,
@@ -561,6 +803,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   FERRIS_WHEEL: {
     type: 'FERRIS_WHEEL',
     category: 'RIDE',
+    intensity: 'GENTLE',
     name: 'Ferris Wheel',
     cost: 5000,
     baseIncome: 8,
@@ -575,6 +818,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   ROLLERCOASTER: {
     type: 'ROLLERCOASTER',
     category: 'RIDE',
+    intensity: 'EXTREME',
     name: 'Rollercoaster',
     cost: 15000,
     baseIncome: 10,
@@ -589,6 +833,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   FOOD_STALL: {
     type: 'FOOD_STALL',
     category: 'FOOD',
+    intensity: 'NONE',
     name: 'Hot Dog Stand',
     cost: 800,
     baseIncome: 5,
@@ -603,6 +848,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   RESTROOM: {
     type: 'RESTROOM',
     category: 'FACILITY',
+    intensity: 'NONE',
     name: 'Restroom',
     cost: 1000,
     baseIncome: 0,
@@ -617,6 +863,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   BENCH: {
     type: 'BENCH',
     category: 'FACILITY',
+    intensity: 'NONE',
     name: 'Park Bench',
     cost: 100,
     baseIncome: 0,
@@ -631,6 +878,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   HAUNTED_HOUSE: {
     type: 'HAUNTED_HOUSE',
     category: 'RIDE',
+    intensity: 'THRILL',
     name: 'Haunted House',
     cost: 4000,
     baseIncome: 7,
@@ -645,6 +893,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   LOG_FLUME: {
     type: 'LOG_FLUME',
     category: 'RIDE',
+    intensity: 'THRILL',
     name: 'Log Flume',
     cost: 8000,
     baseIncome: 9,
@@ -659,6 +908,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   DROP_TOWER: {
     type: 'DROP_TOWER',
     category: 'RIDE',
+    intensity: 'EXTREME',
     name: 'Drop Tower',
     cost: 6000,
     baseIncome: 8,
@@ -673,6 +923,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   SWING_RIDE: {
     type: 'SWING_RIDE',
     category: 'RIDE',
+    intensity: 'GENTLE',
     name: 'Swing Ride',
     cost: 3000,
     baseIncome: 5,
@@ -687,6 +938,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   PIRATE_SHIP: {
     type: 'PIRATE_SHIP',
     category: 'RIDE',
+    intensity: 'THRILL',
     name: 'Pirate Ship',
     cost: 3500,
     baseIncome: 6,
@@ -701,6 +953,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   COTTON_CANDY: {
     type: 'COTTON_CANDY',
     category: 'FOOD',
+    intensity: 'NONE',
     name: 'Cotton Candy',
     cost: 600,
     baseIncome: 4,
@@ -715,6 +968,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
   ICE_CREAM: {
     type: 'ICE_CREAM',
     category: 'FOOD',
+    intensity: 'NONE',
     name: 'Ice Cream Truck',
     cost: 700,
     baseIncome: 4,
@@ -725,6 +979,126 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🍦',
     buildTimeHours: 2,
     electricityCost: 8
+  },
+  BUNGEE_JUMP: {
+    type: 'BUNGEE_JUMP',
+    category: 'RIDE',
+    intensity: 'EXTREME',
+    name: 'Bungee Jump',
+    cost: 12000,
+    baseIncome: 15,
+    baseCapacity: 2,
+    width: 2,
+    height: 2,
+    color: '#00FF00',
+    icon: '🧗',
+    buildTimeHours: 6,
+    electricityCost: 5
+  },
+  SLINGSHOT: {
+    type: 'SLINGSHOT',
+    category: 'RIDE',
+    intensity: 'EXTREME',
+    name: 'Slingshot',
+    cost: 18000,
+    baseIncome: 20,
+    baseCapacity: 2,
+    width: 2,
+    height: 3,
+    color: '#FF8C00',
+    icon: '🚀',
+    buildTimeHours: 10,
+    electricityCost: 50
+  },
+  TOP_SPIN: {
+    type: 'TOP_SPIN',
+    category: 'RIDE',
+    intensity: 'EXTREME',
+    name: 'Top Spin',
+    cost: 9500,
+    baseIncome: 12,
+    baseCapacity: 20,
+    width: 4,
+    height: 3,
+    color: '#800080',
+    icon: '🔄',
+    buildTimeHours: 8,
+    electricityCost: 35
+  },
+  ENTERPRISE: {
+    type: 'ENTERPRISE',
+    category: 'RIDE',
+    intensity: 'THRILL',
+    name: 'Enterprise',
+    cost: 7500,
+    baseIncome: 9,
+    baseCapacity: 24,
+    width: 4,
+    height: 4,
+    color: '#4169E1',
+    icon: '🎡',
+    buildTimeHours: 7,
+    electricityCost: 25
+  },
+  WALTZER: {
+    type: 'WALTZER',
+    category: 'RIDE',
+    intensity: 'THRILL',
+    name: 'Waltzer',
+    cost: 4500,
+    baseIncome: 7,
+    baseCapacity: 16,
+    width: 3,
+    height: 3,
+    color: '#DC143C',
+    icon: '🌀',
+    buildTimeHours: 5,
+    electricityCost: 15
+  },
+  HELTER_SKELTER: {
+    type: 'HELTER_SKELTER',
+    category: 'RIDE',
+    intensity: 'GENTLE',
+    name: 'Helter Skelter',
+    cost: 2800,
+    baseIncome: 5,
+    baseCapacity: 10,
+    width: 2,
+    height: 2,
+    color: '#FFD700',
+    icon: '🗼',
+    buildTimeHours: 4,
+    electricityCost: 2
+  },
+  KIDDIE_COASTER: {
+    type: 'KIDDIE_COASTER',
+    category: 'RIDE',
+    intensity: 'GENTLE',
+    name: 'Kiddie Coaster',
+    cost: 3500,
+    baseIncome: 5,
+    baseCapacity: 8,
+    width: 4,
+    height: 3,
+    color: '#90EE90',
+    icon: '🎢',
+    buildTimeHours: 6,
+    electricityCost: 15
+  },
+  PONY_TREK: {
+    type: 'PONY_TREK',
+    category: 'RIDE',
+    intensity: 'GENTLE',
+    name: 'Pony Trek',
+    cost: 2200,
+    baseIncome: 4,
+    baseCapacity: 6,
+    width: 5,
+    height: 2,
+    color: '#DEB887',
+    icon: '🐎',
+    buildTimeHours: 4,
+    electricityCost: 0
   }
 };
 
@@ -767,6 +1141,7 @@ export interface Visitor {
   timeEntered: number; // Timestamp when they entered
   color: string;
   preferredRideTypes: RideType[];
+  preferredIntensity: RideIntensity;
   hasWristband: boolean;
   hasSeasonPass: boolean;
   remainingBundleRides: number;
