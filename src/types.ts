@@ -32,6 +32,9 @@ export interface ParkSettings {
   openTime: number; // 0-23
   closeTime: number; // 0-23
   isManuallyClosed: boolean;
+  isPaused: boolean;
+  musicVolume: number;
+  sfxVolume: number;
   pricing: PricingSettings;
 }
 
@@ -48,6 +51,8 @@ export interface City {
   mapHeight: number;
   terrain: TerrainType;
   weatherProbabilities: Record<Season, Partial<Record<WeatherType, number>>>;
+  x: number;
+  y: number;
 }
 
 export interface CompanyInfo {
@@ -116,7 +121,9 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 30,
     terrain: 'GRASS',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 0,
+    y: 0
   },
   {
     id: 'manchester',
@@ -132,7 +139,9 @@ export const CITIES: City[] = [
       ...DEFAULT_WEATHER_PROBABILITIES,
       AUTUMN: { SUNNY: 0.2, CLOUDY: 0.4, RAINY: 0.3, STORMY: 0.1 },
       WINTER: { SUNNY: 0.1, CLOUDY: 0.3, RAINY: 0.4, SNOWY: 0.1, FREEZING: 0.1 }
-    }
+    },
+    x: 0,
+    y: 200
   },
   {
     id: 'birmingham',
@@ -144,7 +153,9 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 35,
     terrain: 'GRASS',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 0,
+    y: 100
   },
   {
     id: 'liverpool',
@@ -156,7 +167,9 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 40,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -50,
+    y: 200
   },
   {
     id: 'glasgow',
@@ -171,7 +184,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.4, SNOWY: 0.2, FREEZING: 0.1 }
-    }
+    },
+    x: 0,
+    y: 400
   },
   {
     id: 'edinburgh',
@@ -186,7 +201,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.3, SNOWY: 0.3, FREEZING: 0.1 }
-    }
+    },
+    x: 50,
+    y: 400
   },
   {
     id: 'cardiff',
@@ -198,7 +215,9 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'GRASS',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -100,
+    y: 150
   },
   {
     id: 'belfast',
@@ -210,7 +229,9 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -200,
+    y: 300
   },
   {
     id: 'bristol',
@@ -222,7 +243,9 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 30,
     terrain: 'GRASS',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -100,
+    y: 100
   },
   {
     id: 'leeds',
@@ -234,7 +257,9 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 40,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 50,
+    y: 200
   },
   {
     id: 'newcastle',
@@ -246,7 +271,9 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 40,
     terrain: 'GRAVEL',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 50,
+    y: 300
   },
   {
     id: 'paris',
@@ -258,7 +285,9 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 30,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 100,
+    y: -200
   },
   {
     id: 'berlin',
@@ -270,7 +299,9 @@ export const CITIES: City[] = [
     mapWidth: 50,
     mapHeight: 25,
     terrain: 'GRAVEL',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 300,
+    y: -100
   },
   {
     id: 'athens',
@@ -286,7 +317,9 @@ export const CITIES: City[] = [
       ...DEFAULT_WEATHER_PROBABILITIES,
       SUMMER: { SUNNY: 0.8, CLOUDY: 0.1, RAINY: 0.05, STORMY: 0.05 },
       WINTER: { SUNNY: 0.6, CLOUDY: 0.2, RAINY: 0.2 }
-    }
+    },
+    x: 500,
+    y: -600
   },
   {
     id: 'lisbon',
@@ -301,7 +334,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.5, CLOUDY: 0.3, RAINY: 0.2 }
-    }
+    },
+    x: -200,
+    y: -500
   },
   {
     id: 'munich',
@@ -313,7 +348,9 @@ export const CITIES: City[] = [
     mapWidth: 50,
     mapHeight: 50,
     terrain: 'GRASS',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 250,
+    y: -200
   },
   {
     id: 'hamburg',
@@ -325,7 +362,9 @@ export const CITIES: City[] = [
     mapWidth: 45,
     mapHeight: 45,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 250,
+    y: 0
   },
   {
     id: 'cologne',
@@ -337,7 +376,9 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 40,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 200,
+    y: -100
   },
   {
     id: 'dusseldorf',
@@ -349,7 +390,9 @@ export const CITIES: City[] = [
     mapWidth: 45,
     mapHeight: 40,
     terrain: 'GRASS',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 200,
+    y: -80
   },
   {
     id: 'stuttgart',
@@ -361,7 +404,9 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 45,
     terrain: 'GRAVEL',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 220,
+    y: -200
   },
   {
     id: 'frankfurt',
@@ -373,7 +418,9 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 220,
+    y: -150
   },
   {
     id: 'bremen',
@@ -385,7 +432,9 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 40,
     terrain: 'GRAVEL',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 200,
+    y: 0
   },
   {
     id: 'leipzig',
@@ -397,7 +446,9 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 30,
     terrain: 'GRASS',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 280,
+    y: -100
   },
   {
     id: 'nuremberg',
@@ -409,7 +460,9 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 35,
     terrain: 'GRAVEL',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 260,
+    y: -150
   },
   {
     id: 'hanover',
@@ -421,7 +474,9 @@ export const CITIES: City[] = [
     mapWidth: 45,
     mapHeight: 35,
     terrain: 'GRASS',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 240,
+    y: -50
   },
   {
     id: 'dortmund',
@@ -433,7 +488,9 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 40,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 200,
+    y: -90
   },
   {
     id: 'essen',
@@ -445,7 +502,9 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 190,
+    y: -90
   },
   {
     id: 'duisburg',
@@ -457,7 +516,9 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 30,
     terrain: 'GRAVEL',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 180,
+    y: -90
   },
   {
     id: 'bochum',
@@ -469,7 +530,9 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 25,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 195,
+    y: -90
   },
   {
     id: 'wuppertal',
@@ -481,7 +544,9 @@ export const CITIES: City[] = [
     mapWidth: 25,
     mapHeight: 35,
     terrain: 'GRASS',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 195,
+    y: -110
   },
   {
     id: 'brussels',
@@ -493,7 +558,9 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 40,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 150,
+    y: -150
   },
   {
     id: 'rome',
@@ -509,7 +576,9 @@ export const CITIES: City[] = [
       ...DEFAULT_WEATHER_PROBABILITIES,
       SUMMER: { SUNNY: 0.8, CLOUDY: 0.1, RAINY: 0.1, STORMY: 0.0 },
       WINTER: { SUNNY: 0.4, CLOUDY: 0.3, RAINY: 0.3, SNOWY: 0.0, FREEZING: 0.0 }
-    }
+    },
+    x: 300,
+    y: -500
   },
   {
     id: 'madrid',
@@ -524,7 +593,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       SUMMER: { SUNNY: 0.9, CLOUDY: 0.05, RAINY: 0.05, STORMY: 0.0 }
-    }
+    },
+    x: 0,
+    y: -500
   },
   {
     id: 'amsterdam',
@@ -539,7 +610,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       AUTUMN: { SUNNY: 0.2, CLOUDY: 0.4, RAINY: 0.3, STORMY: 0.1 }
-    }
+    },
+    x: 150,
+    y: -50
   },
   {
     id: 'vienna',
@@ -554,7 +627,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.2, CLOUDY: 0.3, RAINY: 0.2, SNOWY: 0.2, FREEZING: 0.1 }
-    }
+    },
+    x: 350,
+    y: -250
   },
   {
     id: 'prague',
@@ -569,7 +644,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.2, CLOUDY: 0.3, RAINY: 0.1, SNOWY: 0.3, FREEZING: 0.1 }
-    }
+    },
+    x: 320,
+    y: -180
   },
   {
     id: 'warsaw',
@@ -584,7 +661,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.2, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.4, FREEZING: 0.1 }
-    }
+    },
+    x: 450,
+    y: -100
   },
   {
     id: 'stockholm',
@@ -599,7 +678,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.5, FREEZING: 0.1 }
-    }
+    },
+    x: 400,
+    y: 200
   },
   {
     id: 'oslo',
@@ -614,7 +695,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.5, FREEZING: 0.1 }
-    }
+    },
+    x: 300,
+    y: 300
   },
   {
     id: 'copenhagen',
@@ -626,7 +709,9 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 300,
+    y: 100
   },
   {
     id: 'helsinki',
@@ -641,7 +726,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.05, CLOUDY: 0.15, RAINY: 0.05, SNOWY: 0.5, FREEZING: 0.25 }
-    }
+    },
+    x: 500,
+    y: 300
   },
   {
     id: 'dublin',
@@ -657,7 +744,9 @@ export const CITIES: City[] = [
       ...DEFAULT_WEATHER_PROBABILITIES,
       SPRING: { SUNNY: 0.3, CLOUDY: 0.3, RAINY: 0.3, STORMY: 0.1 },
       AUTUMN: { SUNNY: 0.2, CLOUDY: 0.4, RAINY: 0.3, STORMY: 0.1 }
-    }
+    },
+    x: -200,
+    y: 200
   },
   {
     id: 'zurich',
@@ -672,7 +761,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.2, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.3, FREEZING: 0.2 }
-    }
+    },
+    x: 220,
+    y: -250
   },
   {
     id: 'budapest',
@@ -684,7 +775,9 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 40,
     terrain: 'GRAVEL',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 400,
+    y: -250
   },
   {
     id: 'bucharest',
@@ -696,7 +789,9 @@ export const CITIES: City[] = [
     mapWidth: 45,
     mapHeight: 45,
     terrain: 'GRASS',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 550,
+    y: -300
   },
   {
     id: 'milan',
@@ -708,7 +803,9 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 250,
+    y: -400
   },
   {
     id: 'barcelona',
@@ -723,7 +820,9 @@ export const CITIES: City[] = [
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.6, CLOUDY: 0.3, RAINY: 0.1 }
-    }
+    },
+    x: 100,
+    y: -500
   }
 ];
 
@@ -736,7 +835,7 @@ export type RideCategory = 'RIDE' | 'FOOD' | 'FACILITY';
 
 export type RideIntensity = 'GENTLE' | 'THRILL' | 'EXTREME' | 'NONE';
 
-export type RideType = 'TEA_CUPS' | 'CAROUSEL' | 'FERRIS_WHEEL' | 'ROLLERCOASTER' | 'BUMPER_CARS' | 'FOOD_STALL' | 'RESTROOM' | 'BENCH' | 'HAUNTED_HOUSE' | 'LOG_FLUME' | 'DROP_TOWER' | 'SWING_RIDE' | 'PIRATE_SHIP' | 'COTTON_CANDY' | 'ICE_CREAM' | 'BUNGEE_JUMP' | 'SLINGSHOT' | 'TOP_SPIN' | 'ENTERPRISE' | 'WALTZER' | 'HELTER_SKELTER' | 'KIDDIE_COASTER' | 'PONY_TREK';
+export type RideType = 'TEA_CUPS' | 'CAROUSEL' | 'FERRIS_WHEEL' | 'ROLLERCOASTER' | 'BUMPER_CARS' | 'FOOD_STALL' | 'RESTROOM' | 'BENCH' | 'HAUNTED_HOUSE' | 'LOG_FLUME' | 'DROP_TOWER' | 'SWING_RIDE' | 'PIRATE_SHIP' | 'COTTON_CANDY' | 'ICE_CREAM' | 'BUNGEE_JUMP' | 'SLINGSHOT' | 'TOP_SPIN' | 'ENTERPRISE' | 'WALTZER' | 'HELTER_SKELTER' | 'KIDDIE_COASTER' | 'PONY_TREK' | 'CARAVAN';
 
 export interface RideConfig {
   type: RideType;
@@ -1099,6 +1198,21 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🐎',
     buildTimeHours: 4,
     electricityCost: 0
+  },
+  CARAVAN: {
+    type: 'CARAVAN',
+    category: 'FACILITY',
+    intensity: 'NONE',
+    name: 'Staff Caravan',
+    cost: 1500,
+    baseIncome: 0,
+    baseCapacity: 4, // 4 staff can rest at once
+    width: 3,
+    height: 2,
+    color: '#F5F5DC',
+    icon: '🚐',
+    buildTimeHours: 3,
+    electricityCost: 5
   }
 };
 
@@ -1114,6 +1228,7 @@ export interface RideInstance {
   currentVisitors: number;
   lastIncomeTime: number;
   status: RideStatus;
+  isStaffResting?: boolean;
   condition: number; // 0-100
   isPlaced: boolean;
   buildProgress: number; // 0-100
@@ -1207,4 +1322,7 @@ export interface StaffInstance {
   lastPaidTime: number;
   assignedRideId?: string;
   happiness: number; // 0-100
+  stamina: number; // 0-100
+  state: 'WORKING' | 'RESTING' | 'IDLE';
+  restingAtId?: string; // ID of the caravan they are resting in
 }

@@ -48,6 +48,8 @@ import {
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { audioService } from './audioService';
+
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTH_NAMES = [
   'Mar', 'Apr', 'May', // Spring
@@ -146,6 +148,14 @@ export default function App() {
     }, 30000);
     return () => clearInterval(interval);
   }, [engine, isSetupOpen]);
+
+  // Sync Audio Settings
+  useEffect(() => {
+    audioService.updateSettings({
+      musicVolume: gameState.settings.musicVolume,
+      sfxVolume: gameState.settings.sfxVolume
+    });
+  }, [gameState.settings.musicVolume, gameState.settings.sfxVolume]);
 
   // Tutorial Progress Check
   useEffect(() => {
@@ -543,6 +553,13 @@ export default function App() {
         ctx.font = 'bold 10px Inter';
         ctx.textAlign = 'center';
         ctx.fillText('🛠️ REPAIRING', centerX, centerY);
+      } else if (ride.isStaffResting) {
+        ctx.fillStyle = 'rgba(124, 58, 237, 0.8)';
+        ctx.fillRect(px, py, width, height);
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 10px Inter';
+        ctx.textAlign = 'center';
+        ctx.fillText('💤 STAFF RESTING', centerX, centerY);
       } else if (ride.currentVisitors >= capacity) {
         ctx.fillStyle = 'rgba(79, 70, 229, 0.6)';
         ctx.font = 'bold 8px Inter';
@@ -728,12 +745,15 @@ export default function App() {
     } else if (e.button === 0 && placingRideId && hoveredCell) {
       const success = engine.placeRide(placingRideId, hoveredCell.x, hoveredCell.y);
       if (success) {
+        audioService.playSFX('place');
         confetti({
           particleCount: 100,
           spread: 70,
           origin: { y: 0.6 }
         });
         setPlacingRideId(null);
+      } else {
+        audioService.playSFX('error');
       }
     }
   };
@@ -1213,6 +1233,48 @@ export default function App() {
                       </div>
                     </section>
 
+                    {/* Audio Settings */}
+                    <section>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Zap size={18} className="text-indigo-600" />
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Audio Settings</h3>
+                      </div>
+                      <div className="space-y-6 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">Music Volume</label>
+                            <span className="text-xs font-bold text-slate-600">{Math.round(gameState.settings.musicVolume * 100)}%</span>
+                          </div>
+                          <input 
+                            type="range" min="0" max="1" step="0.01"
+                            value={gameState.settings.musicVolume}
+                            onChange={(e) => {
+                              const vol = parseFloat(e.target.value);
+                              engine.setAudioSettings(vol, gameState.settings.sfxVolume);
+                              setGameState(engine.getState());
+                            }}
+                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">Sound Effects</label>
+                            <span className="text-xs font-bold text-slate-600">{Math.round(gameState.settings.sfxVolume * 100)}%</span>
+                          </div>
+                          <input 
+                            type="range" min="0" max="1" step="0.01"
+                            value={gameState.settings.sfxVolume}
+                            onChange={(e) => {
+                              const vol = parseFloat(e.target.value);
+                              engine.setAudioSettings(gameState.settings.musicVolume, vol);
+                              setGameState(engine.getState());
+                            }}
+                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                          />
+                        </div>
+                      </div>
+                    </section>
+
                     {/* Park Hours */}
                     <section>
                       <div className="flex items-center gap-2 mb-4">
@@ -1388,6 +1450,7 @@ export default function App() {
                         <button
                           onClick={() => {
                             if (engine.upgradeWarehouse()) {
+                              audioService.playSFX('buy');
                               setGameState(engine.getState());
                               confetti({ particleCount: 50, spread: 60 });
                             }
@@ -1577,6 +1640,13 @@ export default function App() {
                                                 <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-600 text-white uppercase tracking-widest">
                                                   LVL {staff.level}
                                                 </span>
+                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
+                                                  staff.state === 'WORKING' ? 'bg-emerald-100 text-emerald-700' :
+                                                  staff.state === 'RESTING' ? 'bg-amber-100 text-amber-700' :
+                                                  'bg-slate-100 text-slate-700'
+                                                }`}>
+                                                  {staff.state}
+                                                </span>
                                                 {isUnhappy && (
                                                   <span className="animate-pulse text-[8px] font-black px-2 py-0.5 rounded-full bg-rose-600 text-white uppercase tracking-widest">
                                                     Risk of Quitting
@@ -1591,6 +1661,13 @@ export default function App() {
                                             </div>
                                           </div>
                                           <div className="flex items-center gap-4">
+                                            <div className="flex flex-col items-end">
+                                              <div className={`flex items-center gap-1 ${staff.stamina > 70 ? 'text-emerald-500' : staff.stamina > 30 ? 'text-amber-500' : 'text-rose-500'}`}>
+                                                <Zap size={14} />
+                                                <span className="text-[10px] font-black">{Math.floor(staff.stamina)}%</span>
+                                              </div>
+                                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Stamina</p>
+                                            </div>
                                             <div className="flex flex-col items-end">
                                               <div className={`flex items-center gap-1 ${happinessColor}`}>
                                                 <HappinessIcon size={14} />
@@ -1707,7 +1784,7 @@ export default function App() {
                                     x{city.visitorMultiplier} Visitors
                                   </span>
                                   <span className="text-[10px] font-bold text-emerald-600 uppercase">
-                                    Travel: ${city.travelCost}
+                                    Travel: ${engine.getTravelCost(city.id)}
                                   </span>
                                   <span className="text-[10px] font-bold text-slate-500 uppercase">
                                     Size: {city.mapWidth}x{city.mapHeight}
@@ -1721,9 +1798,10 @@ export default function App() {
                             
                             {!isCurrent && (
                               <button
-                                disabled={!canAfford || gameState.rides.length > 0 || (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')}
+                                disabled={gameState.money < engine.getTravelCost(city.id) || gameState.rides.length > 0 || (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')}
                                 onClick={() => {
                                   if (engine.travelToCity(city.id)) {
+                                    audioService.playSFX('buy');
                                     setGameState(engine.getState());
                                     setIsManagementOpen(false);
                                     confetti({
@@ -1734,7 +1812,7 @@ export default function App() {
                                   }
                                 }}
                                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all
-                                  ${canAfford && gameState.rides.length === 0 && !(gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
+                                  ${gameState.money >= engine.getTravelCost(city.id) && gameState.rides.length === 0 && !(gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
                                     ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200' 
                                     : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
                                 `}
@@ -1870,12 +1948,29 @@ export default function App() {
               </div>
             </div>
           </div>
-          <button 
-            onClick={() => setIsManagementOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-600 transition-all"
-          >
-            <Settings size={20} />
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => {
+                engine.togglePause();
+                setGameState(engine.getState());
+                audioService.playSFX('click');
+              }}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all
+                ${gameState.settings.isPaused 
+                  ? 'bg-amber-100 text-amber-600 hover:bg-amber-200' 
+                  : 'bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-600'}
+              `}
+              title={gameState.settings.isPaused ? "Resume Game" : "Pause Game"}
+            >
+              {gameState.settings.isPaused ? <Play size={20} fill="currentColor" /> : <Square size={20} fill="currentColor" />}
+            </button>
+            <button 
+              onClick={() => setIsManagementOpen(true)}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-600 transition-all"
+            >
+              <Settings size={20} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto pr-2 space-y-6">
@@ -1934,7 +2029,9 @@ export default function App() {
                           </div>
                           <div className="bg-white p-2 rounded-lg border border-slate-100">
                             <p className="text-[9px] font-bold text-slate-400 uppercase">Status</p>
-                            <p className="text-sm font-black text-indigo-600">{ride.status}</p>
+                            <p className={`text-sm font-black ${ride.isStaffResting ? 'text-violet-600' : 'text-indigo-600'}`}>
+                              {ride.isStaffResting ? `STAFF RESTING (${ride.status})` : ride.status}
+                            </p>
                           </div>
                           <div className="bg-white p-2 rounded-lg border border-slate-100">
                             <p className="text-[9px] font-bold text-slate-400 uppercase">Wait Time</p>
@@ -2087,6 +2184,7 @@ export default function App() {
                           <button 
                             onClick={() => {
                               engine.dismantleRide(ride.id);
+                              audioService.playSFX('sell');
                               setGameState(engine.getState());
                             }}
                             disabled={ride.status === 'DISMANTLING' || ride.status === 'CONSTRUCTING'}
@@ -2097,6 +2195,7 @@ export default function App() {
                           <button 
                             onClick={() => {
                               engine.sellRide(ride.id);
+                              audioService.playSFX('sell');
                               setSelectedRideId(null);
                               setGameState(engine.getState());
                             }}
@@ -2280,6 +2379,7 @@ export default function App() {
                               <button
                                 onClick={() => {
                                   if (engine.sellInventoryRide(ride.id)) {
+                                    audioService.playSFX('sell');
                                     setGameState(engine.getState());
                                   }
                                 }}
@@ -2665,6 +2765,7 @@ export default function App() {
                           <button
                             onClick={() => {
                               if (engine.buyRide(type)) {
+                                audioService.playSFX('buy');
                                 setGameState(engine.getState());
                                 setIsShopOpen(false);
                                 setActiveTab('inventory');

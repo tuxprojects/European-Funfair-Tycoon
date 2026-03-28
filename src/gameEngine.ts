@@ -12,6 +12,9 @@ export class GameEngine {
     openTime: 8, 
     closeTime: 22, 
     isManuallyClosed: false,
+    isPaused: false,
+    musicVolume: 0.5,
+    sfxVolume: 0.7,
     pricing: {
       ticketPrice: 5,
       wristbandPrice: 25,
@@ -62,6 +65,9 @@ export class GameEngine {
       openTime: 8, 
       closeTime: 22, 
       isManuallyClosed: false,
+      isPaused: false,
+      musicVolume: 0.5,
+      sfxVolume: 0.7,
       pricing: {
         ticketPrice: 5,
         wristbandPrice: 25,
@@ -70,6 +76,9 @@ export class GameEngine {
         bundleSize: 5
       }
     };
+    if (this.settings.isPaused === undefined) this.settings.isPaused = false;
+    if (this.settings.musicVolume === undefined) this.settings.musicVolume = 0.5;
+    if (this.settings.sfxVolume === undefined) this.settings.sfxVolume = 0.7;
     if (!this.settings.pricing) {
       this.settings.pricing = {
         ticketPrice: 5,
@@ -423,6 +432,10 @@ export class GameEngine {
   }
 
   update(): GameState {
+    if (this.settings.isPaused) {
+      this.lastUpdate = Date.now();
+      return this.getState();
+    }
     const now = Date.now();
     const dt = (now - this.lastUpdate) / 1000;
     this.lastUpdate = now;
@@ -488,7 +501,7 @@ export class GameEngine {
     const unassignedOperators = this.staff.filter(s => s.type === 'OPERATOR' && !s.assignedRideId);
     const ridesNeedingOperators = this.rides.filter(r => 
       (r.status === 'OPERATIONAL' || r.status === 'BROKEN' || r.status === 'CONSTRUCTING') && 
-      !r.operatorId
+      !r.operatorId && r.type !== 'CARAVAN' && r.type !== 'RESTROOM' && r.type !== 'BENCH'
     );
 
     for (let i = 0; i < Math.min(unassignedOperators.length, ridesNeedingOperators.length); i++) {
@@ -496,6 +509,7 @@ export class GameEngine {
       const ride = ridesNeedingOperators[i];
       ride.operatorId = operator.id;
       operator.assignedRideId = ride.id;
+      if (operator.state === 'IDLE') operator.state = 'WORKING';
     }
 
     // Auto-assign mechanics for maintenance/repairs
@@ -523,6 +537,7 @@ export class GameEngine {
       
       ride.mechanicId = mechanic.id;
       mechanic.assignedRideId = ride.id;
+      if (mechanic.state === 'IDLE') mechanic.state = 'WORKING';
     }
 
     // Update Salaries, Electricity, and Rent (every game hour)
@@ -552,7 +567,7 @@ export class GameEngine {
       this.lastSalaryPaymentHour = this.time.hours;
     }
 
-    // Update Staff Happiness and Quitting
+    // Update Staff Happiness, Stamina and Resting
     for (let i = this.staff.length - 1; i >= 0; i--) {
       const staff = this.staff[i];
       const config = STAFF_CONFIGS[staff.type];
@@ -566,6 +581,48 @@ export class GameEngine {
         staff.happiness = Math.min(100, staff.happiness + 0.1 * dt);
       } else {
         staff.happiness = Math.max(0, staff.happiness - 0.5 * dt);
+      }
+
+      // Stamina management
+      if (staff.state === 'WORKING') {
+        staff.stamina = Math.max(0, staff.stamina - 1.5 * dt); // Working is tiring
+        if (staff.stamina < 20) {
+          // Look for a caravan to rest
+          const availableCaravans = this.rides.filter(r => 
+            r.type === 'CARAVAN' && 
+            r.status === 'OPERATIONAL' && 
+            r.currentVisitors < RIDE_CONFIGS['CARAVAN'].baseCapacity
+          );
+          
+          if (availableCaravans.length > 0) {
+            const caravan = availableCaravans[0];
+            staff.state = 'RESTING';
+            staff.restingAtId = caravan.id;
+            caravan.currentVisitors++;
+          } else {
+            // No caravan available, happiness drops faster
+            staff.happiness = Math.max(0, staff.happiness - 1.0 * dt);
+            if (staff.stamina <= 0) {
+              // Forced rest if stamina is 0, even without caravan (but slower recovery)
+              staff.state = 'RESTING';
+            }
+          }
+        }
+      } else if (staff.state === 'RESTING') {
+        const recoveryRate = staff.restingAtId ? 10 : 2; // Faster recovery in caravan
+        staff.stamina = Math.min(100, staff.stamina + recoveryRate * dt);
+        
+        if (staff.stamina >= 100) {
+          staff.state = staff.assignedRideId ? 'WORKING' : 'IDLE';
+          if (staff.restingAtId) {
+            const caravan = this.rides.find(r => r.id === staff.restingAtId);
+            if (caravan) caravan.currentVisitors--;
+            staff.restingAtId = undefined;
+          }
+        }
+      } else if (staff.state === 'IDLE') {
+        staff.stamina = Math.min(100, staff.stamina + 1.0 * dt); // Idle staff recover slowly
+        if (staff.assignedRideId) staff.state = 'WORKING';
       }
 
       // Chance to quit if unhappy
@@ -589,9 +646,11 @@ export class GameEngine {
       ride.avgWaitTime = Math.round((queuingVisitors / capacity) * 4);
       
       if (ride.status === 'OPERATIONAL') {
-        // Check if it has an operator
+        // Check if it has an operator and they are working
         const operator = this.staff.find(s => s.id === ride.operatorId && s.type === 'OPERATOR');
-        if (operator) {
+        if (operator && operator.state === 'WORKING') {
+          ride.isStaffResting = false;
+          ride.status = 'OPERATIONAL';
           // Condition drops faster if more visitors are on it
           const wearRate = (0.05 + (ride.currentVisitors * 0.01)) * wearReduction;
           ride.condition = Math.max(0, ride.condition - wearRate * dt);
@@ -605,13 +664,19 @@ export class GameEngine {
               ride.operatorId = undefined;
             }
           }
+        } else if (operator && operator.state === 'RESTING') {
+          ride.isStaffResting = true;
+          ride.currentVisitors = 0;
         } else {
-          // No operator assigned, ride can't operate
+          // No operator assigned or idle, ride can't operate
+          ride.isStaffResting = false;
+          ride.status = 'OPERATIONAL';
           ride.currentVisitors = 0;
         }
       } else if (ride.status === 'MAINTENANCE' || ride.status === 'BROKEN') {
         const mechanic = this.staff.find(s => s.id === ride.mechanicId && s.type === 'MECHANIC');
-        if (mechanic) {
+        if (mechanic && mechanic.state === 'WORKING') {
+          ride.isStaffResting = false;
           // Repair speed depends on mechanic level and overall efficiency
           const baseRepairRate = 8;
           const mechanicBonus = 1 + (mechanic.level * 0.2);
@@ -623,6 +688,10 @@ export class GameEngine {
             mechanic.assignedRideId = undefined;
             ride.mechanicId = undefined;
           }
+        } else if (mechanic && mechanic.state === 'RESTING') {
+          ride.isStaffResting = true;
+        } else {
+          ride.isStaffResting = false;
         }
       } else if (ride.status === 'CONSTRUCTING') {
         // buildTimeHours is in game hours. 1 game hour = 60 game minutes = 60 real seconds.
@@ -1005,7 +1074,9 @@ export class GameEngine {
       salary: config.baseSalary,
       hiredTime: Date.now(),
       lastPaidTime: Date.now(),
-      happiness: 100
+      happiness: 100,
+      stamina: 100,
+      state: 'IDLE'
     };
     this.staff.push(staff);
     this.saveGame();
@@ -1050,11 +1121,17 @@ export class GameEngine {
 
   fireStaff(id: string) {
     const staff = this.staff.find(s => s.id === id);
-    if (staff && staff.assignedRideId) {
-      const ride = this.rides.find(r => r.id === staff.assignedRideId);
-      if (ride) {
-        if (staff.type === 'OPERATOR') ride.operatorId = undefined;
-        if (staff.type === 'MECHANIC') ride.mechanicId = undefined;
+    if (staff) {
+      if (staff.assignedRideId) {
+        const ride = this.rides.find(r => r.id === staff.assignedRideId);
+        if (ride) {
+          if (staff.type === 'OPERATOR') ride.operatorId = undefined;
+          if (staff.type === 'MECHANIC') ride.mechanicId = undefined;
+        }
+      }
+      if (staff.restingAtId) {
+        const caravan = this.rides.find(r => r.id === staff.restingAtId);
+        if (caravan) caravan.currentVisitors--;
       }
     }
     this.staff = this.staff.filter(s => s.id !== id);
@@ -1269,8 +1346,28 @@ export class GameEngine {
     this.settings = { ...this.settings, ...newSettings };
   }
 
-  updateCompanyName(name: string) {
-    this.company.name = name;
+  togglePause() {
+    this.settings.isPaused = !this.settings.isPaused;
+    this.saveGame();
+  }
+
+  setAudioSettings(musicVolume: number, sfxVolume: number) {
+    this.settings.musicVolume = musicVolume;
+    this.settings.sfxVolume = sfxVolume;
+    this.saveGame();
+  }
+
+  getTravelCost(targetCityId: string): number {
+    const currentCity = CITIES.find(c => c.id === this.company.currentCityId);
+    const targetCity = CITIES.find(c => c.id === targetCityId);
+    if (!currentCity || !targetCity) return 0;
+
+    const dx = targetCity.x - currentCity.x;
+    const dy = targetCity.y - currentCity.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Base cost + distance-based cost
+    return Math.floor(500 + distance * 10);
   }
 
   travelToCity(cityId: string) {
@@ -1287,11 +1384,13 @@ export class GameEngine {
       return false;
     }
 
-    if (this.money >= targetCity.travelCost) {
-      this.money -= targetCity.travelCost;
+    const cost = this.getTravelCost(cityId);
+    if (this.money >= cost) {
+      this.money -= cost;
       this.company.currentCityId = cityId;
       // Clear current visitors when moving
       this.visitors = [];
+      this.saveGame();
       return true;
     }
     return false;
