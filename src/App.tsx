@@ -88,6 +88,7 @@ export default function App() {
   const [setupCity, setSetupCity] = useState('london');
   const [selectedRideType, setSelectedRideType] = useState<RideType | null>(null);
   const [selectedRideId, setSelectedRideId] = useState<string | null>(null);
+  const [selectedVisitorId, setSelectedVisitorId] = useState<string | null>(null);
   const [placingRideId, setPlacingRideId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'inventory'>('inventory');
   const [isManagementOpen, setIsManagementOpen] = useState(false);
@@ -638,6 +639,14 @@ export default function App() {
       ctx.beginPath();
       ctx.arc(v.x - 2, v.y - 2 - bob, 2, 0, Math.PI * 2);
       ctx.fill();
+
+      if (selectedVisitorId === v.id) {
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(v.x, v.y - bob, 10, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     });
 
     // Day/Night Overlay
@@ -696,10 +705,24 @@ export default function App() {
 
       if (clickedRide) {
         setSelectedRideId(clickedRide.id);
+        setSelectedVisitorId(null);
       } else {
-        setSelectedRideId(null);
-        setIsDragging(true);
-        setLastMousePos({ x: e.clientX, y: e.clientY });
+        // Check if clicked a visitor
+        const clickedVisitor = gameState.visitors.find(v => {
+          const dx = mx - v.x;
+          const dy = my - v.y;
+          return Math.sqrt(dx*dx + dy*dy) < 10;
+        });
+
+        if (clickedVisitor) {
+          setSelectedVisitorId(clickedVisitor.id);
+          setSelectedRideId(null);
+        } else {
+          setSelectedRideId(null);
+          setSelectedVisitorId(null);
+          setIsDragging(true);
+          setLastMousePos({ x: e.clientX, y: e.clientY });
+        }
       }
     } else if (e.button === 0 && placingRideId && hoveredCell) {
       const success = engine.placeRide(placingRideId, hoveredCell.x, hoveredCell.y);
@@ -2083,6 +2106,101 @@ export default function App() {
                         </div>
                         <button 
                           onClick={() => setSelectedRideId(null)}
+                          className="w-full rounded-xl bg-white border border-slate-200 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                        >
+                          Deselect
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </motion.section>
+            ) : selectedVisitorId ? (
+              <motion.section
+                key="selected-visitor"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="rounded-2xl border-2 border-blue-600 bg-blue-50/50 p-4"
+              >
+                {(() => {
+                  const visitor = gameState.visitors.find(v => v.id === selectedVisitorId);
+                  if (!visitor) return null;
+                  return (
+                    <>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl shadow-sm" style={{ color: visitor.color }}>
+                          👤
+                        </div>
+                        <div>
+                          <h3 className="font-bold">Visitor {visitor.id.slice(0, 4)}</h3>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">{visitor.state}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-white p-2 rounded-lg border border-slate-100">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase">Happiness</p>
+                            <p className={`text-sm font-black ${visitor.happiness > 70 ? 'text-emerald-600' : visitor.happiness > 30 ? 'text-amber-600' : 'text-rose-600'}`}>
+                              {Math.floor(visitor.happiness)}%
+                            </p>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-slate-100">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase">Money</p>
+                            <p className="text-sm font-black text-blue-600">${Math.floor(visitor.money)}</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Needs</p>
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px] font-bold">
+                              <span>Hunger</span>
+                              <span>{Math.floor(visitor.hunger)}%</span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-orange-400" style={{ width: `${visitor.hunger}%` }} />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px] font-bold">
+                              <span>Bladder</span>
+                              <span>{Math.floor(visitor.bladder)}%</span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-blue-400" style={{ width: `${visitor.bladder}%` }} />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px] font-bold">
+                              <span>Stamina</span>
+                              <span>{Math.floor(visitor.stamina)}%</span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-400" style={{ width: `${visitor.stamina}%` }} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Recent Thoughts</p>
+                          <div className="space-y-2">
+                            {visitor.thoughts.length === 0 ? (
+                              <p className="text-[10px] text-slate-400 italic">No thoughts yet...</p>
+                            ) : (
+                              visitor.thoughts.map((thought, i) => (
+                                <div key={i} className="bg-white p-2 rounded-lg border border-slate-100 text-[10px] font-medium text-slate-600 flex gap-2">
+                                  <span className="text-blue-400">💭</span>
+                                  {thought}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={() => setSelectedVisitorId(null)}
                           className="w-full rounded-xl bg-white border border-slate-200 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
                         >
                           Deselect

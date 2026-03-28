@@ -1142,6 +1142,7 @@ export interface Visitor {
   color: string;
   preferredRideTypes: RideType[];
   preferredIntensity: RideIntensity;
+  thoughts: string[];
   hasWristband: boolean;
   hasSeasonPass: boolean;
   remainingBundleRides: number;

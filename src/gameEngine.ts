@@ -346,6 +346,7 @@ export class GameEngine {
       color: `hsl(${Math.random() * 360}, 70%, 60%)`,
       preferredRideTypes,
       preferredIntensity,
+      thoughts: ["Just arrived! Can't wait to try some rides."],
       hasWristband: false,
       hasSeasonPass: false,
       remainingBundleRides: 0
@@ -693,11 +694,13 @@ export class GameEngine {
             const foodStalls = this.rides.filter(r => r.status === 'OPERATIONAL' && RIDE_CONFIGS[r.type].category === 'FOOD');
             if (foodStalls.length > 0) {
               const stall = foodStalls[Math.floor(Math.random() * foodStalls.length)];
+              this.addThought(v, `I'm hungry, heading to ${RIDE_CONFIGS[stall.type].name}.`);
               v.state = 'EATING';
               v.targetRideId = stall.id;
               v.targetX = stall.x * 40 + (RIDE_CONFIGS[stall.type].width * 20);
               v.targetY = stall.y * 40 + (RIDE_CONFIGS[stall.type].height * 20);
             } else {
+              this.addThought(v, "I'm starving! Why is there no food in this park?");
               v.happiness -= 2 * dt; // Unhappy because no food
               this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
             }
@@ -706,11 +709,13 @@ export class GameEngine {
             const facilities = this.rides.filter(r => r.status === 'OPERATIONAL' && RIDE_CONFIGS[r.type].category === 'FACILITY' && r.type === 'RESTROOM');
             if (facilities.length > 0) {
               const facility = facilities[Math.floor(Math.random() * facilities.length)];
+              this.addThought(v, "I really need a restroom...");
               v.state = 'USING_FACILITY';
               v.targetRideId = facility.id;
               v.targetX = facility.x * 40 + (RIDE_CONFIGS[facility.type].width * 20);
               v.targetY = facility.y * 40 + (RIDE_CONFIGS[facility.type].height * 20);
             } else {
+              this.addThought(v, "I can't find a restroom anywhere!");
               v.happiness -= 2 * dt; // Unhappy because no restroom
               this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
             }
@@ -719,11 +724,13 @@ export class GameEngine {
             const benches = this.rides.filter(r => r.status === 'OPERATIONAL' && r.type === 'BENCH' && r.currentVisitors < RIDE_CONFIGS[r.type].baseCapacity);
             if (benches.length > 0) {
               const bench = benches[Math.floor(Math.random() * benches.length)];
+              this.addThought(v, "I'm so tired, I need to rest.");
               v.state = 'RESTING';
               v.targetRideId = bench.id;
               v.targetX = bench.x * 40 + (RIDE_CONFIGS[bench.type].width * 20);
               v.targetY = bench.y * 40 + (RIDE_CONFIGS[bench.type].height * 20);
             } else {
+              this.addThought(v, "My feet are killing me, and there's nowhere to sit!");
               v.happiness -= 1 * dt; // Unhappy because no bench
               this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
             }
@@ -746,15 +753,18 @@ export class GameEngine {
               
               const basePrice = RIDE_CONFIGS[ride.type].baseIncome;
               if (ride.price > basePrice * 1.5) {
+                this.addThought(v, `The price for ${RIDE_CONFIGS[ride.type].name} is a bit high...`);
                 v.happiness -= 5;
               }
 
               if (v.money >= ride.price) {
+                this.addThought(v, `Heading to ${RIDE_CONFIGS[ride.type].name}!`);
                 v.state = 'QUEUING';
                 v.targetRideId = ride.id;
                 v.targetX = ride.x * 40 + (RIDE_CONFIGS[ride.type].width * 20);
                 v.targetY = ride.y * 40 + (RIDE_CONFIGS[ride.type].height * 20);
               } else {
+                this.addThought(v, `I can't afford ${RIDE_CONFIGS[ride.type].name}. I need more money.`);
                 v.happiness -= 5;
                 this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
               }
@@ -803,13 +813,21 @@ export class GameEngine {
                   // If price is higher than baseIncome, satisfaction drops.
                   // If condition is low, satisfaction drops significantly.
                   const config = RIDE_CONFIGS[ride.type];
-                  const priceFactor = Math.max(0.5, 1 - (ride.price - config.baseIncome) / (config.baseIncome * 2));
+                  const priceFactor = Math.max(0.2, 1 - (ride.price - config.baseIncome) / (config.baseIncome));
                   
                   // Poor maintenance reduces happiness a lot (squared factor)
-                  const conditionFactor = Math.pow(ride.condition / 100, 2);
+                  const conditionFactor = Math.pow(ride.condition / 100, 1.5);
                   
-                  const actualHappinessGained = Math.round(happinessGained * priceFactor * conditionFactor);
+                  // Operator bonus/penalty
+                  const operatorBonus = ride.operatorId ? 1.1 : 0.7;
                   
+                  const actualHappinessGained = Math.round(happinessGained * priceFactor * conditionFactor * operatorBonus);
+                  
+                  if (priceFactor < 0.5) this.addThought(v, `${config.name} was way too expensive!`);
+                  if (conditionFactor < 0.5) this.addThought(v, `${config.name} felt unsafe and poorly maintained.`);
+                  if (!ride.operatorId) this.addThought(v, `There was no one even running ${config.name}!`);
+                  if (actualHappinessGained > 30) this.addThought(v, `That ride on ${config.name} was fantastic!`);
+
                   v.happiness = Math.min(100, v.happiness + actualHappinessGained);
                   v.stamina -= 10; // Riding is tiring
                   
@@ -881,6 +899,11 @@ export class GameEngine {
 
       if (v.happiness < 20 || v.money <= 0 || v.stamina < 10 || v.hunger > 95 || v.bladder > 95 || isBored) {
         if (v.state !== 'LEAVING' && v.state !== 'RIDING') {
+          if (v.money <= 0) this.addThought(v, "I'm out of money. Time to go home.");
+          else if (v.happiness < 20) this.addThought(v, "I'm not having any fun here. I'm leaving.");
+          else if (isBored) this.addThought(v, "I've seen enough. Heading out.");
+          else this.addThought(v, "I'm too tired or hungry to stay any longer.");
+
           v.state = 'LEAVING';
           v.targetX = 0;
           v.targetY = mapHeightPx / 2;
@@ -1277,8 +1300,8 @@ export class GameEngine {
   buyRide(type: import('./types').RideType) {
     const config = RIDE_CONFIGS[type];
     const capacity = this.getWarehouseCapacity();
-    if (this.inventory.length >= capacity) {
-      return false; // Warehouse full
+    if (this.rides.length + this.inventory.length >= capacity) {
+      return false; // Warehouse full (including built rides)
     }
     if (this.money >= config.cost) {
       this.money -= config.cost;
@@ -1407,6 +1430,14 @@ export class GameEngine {
       return true;
     }
     return false;
+  }
+
+  private addThought(v: Visitor, thought: string) {
+    if (v.thoughts[v.thoughts.length - 1] === thought) return;
+    v.thoughts.push(thought);
+    if (v.thoughts.length > 5) {
+      v.thoughts.shift();
+    }
   }
 
   private setWanderTargetNearRide(v: Visitor, mapWidthPx: number, mapHeightPx: number) {
