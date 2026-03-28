@@ -8,6 +8,7 @@ import {
   TrendingUp, 
   Info, 
   Map as MapIcon,
+  Package,
   MousePointer2,
   Settings,
   Globe,
@@ -1372,7 +1373,7 @@ export default function App() {
                       <div>
                         <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-70 mb-1">Warehouse Capacity</h3>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-4xl font-black">{gameState.inventory.length} / {engine.getWarehouseCapacity()}</span>
+                          <span className="text-4xl font-black">{gameState.rides.length + gameState.inventory.length} / {engine.getWarehouseCapacity()}</span>
                           <span className="text-sm font-bold opacity-70">Attractions</span>
                         </div>
                         <p className="text-[10px] font-bold opacity-60 mt-2 uppercase tracking-widest">
@@ -2275,14 +2276,26 @@ export default function App() {
                                 )}
                               </div>
                             </div>
-                            <button
-                              onClick={() => setPlacingRideId(isPlacing ? null : ride.id)}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                                ${isPlacing ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'}
-                              `}
-                            >
-                              {isPlacing ? 'Cancel' : 'Place'}
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  if (engine.sellInventoryRide(ride.id)) {
+                                    setGameState(engine.getState());
+                                  }
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all"
+                              >
+                                Sell
+                              </button>
+                              <button
+                                onClick={() => setPlacingRideId(isPlacing ? null : ride.id)}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
+                                  ${isPlacing ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'}
+                                `}
+                              >
+                                {isPlacing ? 'Cancel' : 'Place'}
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
@@ -2315,10 +2328,10 @@ export default function App() {
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MapIcon size={16} className="text-indigo-400" />
-                  <span className="text-sm font-medium opacity-80">Rides Built</span>
+                  <Package size={16} className="text-indigo-400" />
+                  <span className="text-sm font-medium opacity-80">Warehouse</span>
                 </div>
-                <span className="text-lg font-bold">{gameState.rides.length}</span>
+                <span className="text-lg font-bold">{gameState.rides.length + gameState.inventory.length} / {engine.getWarehouseCapacity()}</span>
               </div>
             </div>
           </section>
@@ -2520,7 +2533,9 @@ export default function App() {
                     </div>
                     <div>
                       <h2 className="text-3xl font-black tracking-tight">Ride Shop</h2>
-                      <p className="text-indigo-100 text-sm font-medium">Expand your park with new attractions</p>
+                      <p className="text-indigo-100 text-sm font-medium">
+                        Warehouse: {gameState.rides.length + gameState.inventory.length} / {engine.getWarehouseCapacity()}
+                      </p>
                     </div>
                   </div>
                   <button 
@@ -2660,14 +2675,14 @@ export default function App() {
                                 });
                               }
                             }}
-                            disabled={!canAfford}
+                            disabled={!canAfford || (gameState.rides.length + gameState.inventory.length >= engine.getWarehouseCapacity())}
                             className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all
-                              ${canAfford 
+                              ${canAfford && (gameState.rides.length + gameState.inventory.length < engine.getWarehouseCapacity())
                                 ? 'bg-slate-900 text-white hover:bg-indigo-600 shadow-lg shadow-slate-200' 
                                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
                             `}
                           >
-                            {canAfford ? 'Purchase Item' : 'Insufficient Funds'}
+                            {!canAfford ? 'Insufficient Funds' : (gameState.rides.length + gameState.inventory.length >= engine.getWarehouseCapacity()) ? 'Warehouse Full' : 'Purchase Item'}
                           </button>
                         </div>
                       );

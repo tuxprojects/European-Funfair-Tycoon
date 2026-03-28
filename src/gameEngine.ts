@@ -1432,6 +1432,19 @@ export class GameEngine {
     return false;
   }
 
+  sellInventoryRide(rideId: string) {
+    const rideIndex = this.inventory.findIndex(r => r.id === rideId);
+    if (rideIndex !== -1) {
+      const ride = this.inventory[rideIndex];
+      const config = RIDE_CONFIGS[ride.type];
+      this.money += Math.floor(config.cost * 0.5);
+      this.inventory.splice(rideIndex, 1);
+      this.saveGame();
+      return true;
+    }
+    return false;
+  }
+
   private addThought(v: Visitor, thought: string) {
     if (v.thoughts[v.thoughts.length - 1] === thought) return;
     v.thoughts.push(thought);
