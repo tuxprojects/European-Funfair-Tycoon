@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from './gameEngine';
-import { RIDE_CONFIGS, RideType, RideIntensity, GRID_SIZE, STAFF_CONFIGS, StaffType, RideCategory, CITIES } from './types';
+import { RIDE_CONFIGS, RideType, RideIntensity, GRID_SIZE, STAFF_CONFIGS, StaffType, RideCategory, CITIES, GARAGE_CONFIGS, TRUCK_COST, GameState } from './types';
 import { 
+  Truck,
+  Warehouse,
   Coins, 
   Users, 
   Plus, 
@@ -82,6 +84,82 @@ const getWeatherColor = (type: string) => {
   }
 };
 
+const TruckMinigame = ({ engine, gameState }: { engine: GameEngine, gameState: GameState }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const relativeY = e.clientY - rect.top;
+      engine.moveTruckMinigame(relativeY);
+    }
+  };
+
+  const targetCity = CITIES.find(c => c.id === gameState.travelingToCityId);
+
+  return (
+    <div 
+      ref={containerRef}
+      className="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center overflow-hidden cursor-none"
+      onMouseMove={handleMouseMove}
+    >
+      <div className="absolute top-10 left-10 right-10 flex flex-col items-center">
+        <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-2">
+          Travelling to {targetCity?.name}
+        </h2>
+        <div className="w-full max-w-2xl h-4 bg-slate-800 rounded-full overflow-hidden border-2 border-slate-700">
+          <motion.div 
+            className="h-full bg-amber-500"
+            initial={{ width: 0 }}
+            animate={{ width: `${gameState.travelProgress}%` }}
+          />
+        </div>
+        <p className="text-slate-400 mt-2 font-mono uppercase text-sm tracking-widest">
+          Avoid the obstacles! Hits cost money!
+        </p>
+      </div>
+
+      <div className="relative w-full h-[600px] bg-slate-800 border-y-4 border-slate-700 overflow-hidden">
+        {/* Road lines */}
+        <div className="absolute inset-0 flex flex-col justify-around opacity-20">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-1 bg-white w-full border-t-2 border-dashed border-white" />
+          ))}
+        </div>
+
+        {/* Truck */}
+        <motion.div 
+          className="absolute left-20 z-10"
+          animate={{ y: gameState.truckMinigameX - 40 }}
+          transition={{ type: 'spring', damping: 20, stiffness: 150 }}
+        >
+          <div className="relative">
+            <Truck size={80} className="text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
+            <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-12 bg-amber-600 rounded-l-md" />
+          </div>
+        </motion.div>
+
+        {/* Obstacles */}
+        {gameState.truckMinigameObstacles.map(obs => (
+          <div 
+            key={obs.id}
+            className="absolute"
+            style={{ left: obs.x, top: obs.y - 20 }}
+          >
+            <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center shadow-lg border-2 border-red-700 animate-pulse">
+              <AlertCircle size={24} className="text-white" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-10 text-slate-500 font-mono text-xs uppercase tracking-[0.2em]">
+        Use your mouse to steer the truck
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [engine] = useState(() => new GameEngine(GameEngine.getSaveData()));
@@ -99,8 +177,11 @@ export default function App() {
   const [shopCategory, setShopCategory] = useState<RideCategory | 'ALL'>('ALL');
   const [shopIntensity, setShopIntensity] = useState<RideIntensity | 'ALL'>('ALL');
   const [inventoryIntensity, setInventoryIntensity] = useState<RideIntensity | 'ALL'>('ALL');
-  const [activeManagementTab, setActiveManagementTab] = useState<'settings' | 'travel' | 'staff' | 'budget' | 'warehouse' | 'pricing'>('settings');
+  const [activeManagementTab, setActiveManagementTab] = useState<'settings' | 'travel' | 'staff' | 'budget' | 'warehouse' | 'pricing' | 'garage'>('settings');
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isZoningMode, setIsZoningMode] = useState(false);
+  const [zoningStart, setZoningStart] = useState<{ x: number, y: number } | null>(null);
+  const [zoningType, setZoningType] = useState<'FUNFAIR' | 'TRUCK' | 'STAFF'>('FUNFAIR');
   const [camera, setCamera] = useState({ x: 100, y: -400, zoom: 0.8 });
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
@@ -165,19 +246,22 @@ export default function App() {
     if (gameState.tutorialStep === 0 && gameState.rides.length > 0) {
       engine.advanceTutorial();
       advanced = true;
-    } else if (gameState.tutorialStep === 1 && gameState.staff.some(s => s.type === 'OPERATOR')) {
+    } else if (gameState.tutorialStep === 1 && gameState.zones.some(z => z.type === 'TRUCK')) {
       engine.advanceTutorial();
       advanced = true;
-    } else if (gameState.tutorialStep === 2 && !gameState.settings.isManuallyClosed) {
+    } else if (gameState.tutorialStep === 2 && gameState.staff.some(s => s.type === 'OPERATOR')) {
       engine.advanceTutorial();
       advanced = true;
-    } else if (gameState.tutorialStep === 3 && gameState.money >= 2500) {
+    } else if (gameState.tutorialStep === 3 && !gameState.settings.isManuallyClosed) {
       engine.advanceTutorial();
       advanced = true;
-    } else if (gameState.tutorialStep === 4 && gameState.rides.some(r => RIDE_CONFIGS[r.type].category === 'FOOD')) {
+    } else if (gameState.tutorialStep === 4 && gameState.money >= 2500) {
       engine.advanceTutorial();
       advanced = true;
-    } else if (gameState.tutorialStep === 5 && gameState.visitors.length >= 50) {
+    } else if (gameState.tutorialStep === 5 && gameState.rides.some(r => RIDE_CONFIGS[r.type].category === 'FOOD')) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 6 && gameState.visitors.length >= 50) {
       engine.advanceTutorial();
       advanced = true;
     }
@@ -247,6 +331,66 @@ export default function App() {
         ctx.arc(gx, gy, 1, 0, Math.PI * 2);
         ctx.stroke();
       }
+    }
+
+    // Draw Zones
+    ctx.lineWidth = 2;
+    gameState.zones.forEach(zone => {
+      const px = zone.x * GRID_SIZE;
+      const py = zone.y * GRID_SIZE;
+      const width = zone.width * GRID_SIZE;
+      const height = zone.height * GRID_SIZE;
+      
+      let color = '251, 191, 36'; // Amber for funfair
+      let label = 'FUNFAIR ZONE';
+      
+      if (zone.type === 'TRUCK') {
+        color = '59, 130, 246'; // Blue for truck
+        label = 'TRUCK AREA';
+      } else if (zone.type === 'STAFF') {
+        color = '16, 185, 129'; // Green for staff
+        label = 'STAFF AREA';
+      }
+      
+      ctx.strokeStyle = `rgba(${color}, 0.6)`;
+      ctx.setLineDash([10, 5]);
+      ctx.strokeRect(px, py, width, height);
+      ctx.fillStyle = `rgba(${color}, 0.1)`;
+      ctx.fillRect(px, py, width, height);
+      ctx.setLineDash([]);
+      
+      // Label
+      ctx.fillStyle = `rgba(${color}, 0.8)`;
+      ctx.font = 'bold 10px Inter';
+      ctx.textAlign = 'left';
+      ctx.fillText(label, px + 5, py + 15);
+      
+      // Delete button (only in zoning mode)
+      if (isZoningMode) {
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(px + width - 10, py + 10, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 12px Inter';
+        ctx.textAlign = 'center';
+        ctx.fillText('×', px + width - 10, py + 14);
+        ctx.textAlign = 'left';
+      }
+    });
+
+    // Draw Current Zoning Selection
+    if (isZoningMode && zoningStart && hoveredCell) {
+      const startX = Math.min(zoningStart.x, hoveredCell.x);
+      const startY = Math.min(zoningStart.y, hoveredCell.y);
+      const width = Math.abs(zoningStart.x - hoveredCell.x) + 1;
+      const height = Math.abs(zoningStart.y - hoveredCell.y) + 1;
+      
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.4)';
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 3;
+      ctx.fillRect(startX * GRID_SIZE, startY * GRID_SIZE, width * GRID_SIZE, height * GRID_SIZE);
+      ctx.strokeRect(startX * GRID_SIZE, startY * GRID_SIZE, width * GRID_SIZE, height * GRID_SIZE);
     }
 
     // Draw Grid
@@ -438,6 +582,64 @@ export default function App() {
         const seatY = Math.sin(time * 3) > 0 ? -height * 0.4 + Math.pow(Math.sin(time * 3), 4) * height * 0.7 : -height * 0.4;
         ctx.fillStyle = config.color;
         ctx.fillRect(-10, seatY, 20, 5);
+      } else if (ride.type === 'DUCK_POND') {
+        // Pond
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, width * 0.35, height * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Ducks
+        for (let i = 0; i < 5; i++) {
+          const angle = time * 0.5 + (i * Math.PI * 2) / 5;
+          const dx = Math.cos(angle) * width * 0.25;
+          const dy = Math.sin(angle) * height * 0.2;
+          ctx.fillStyle = '#fbbf24';
+          ctx.beginPath();
+          ctx.arc(dx, dy, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (ride.type === 'SHOOTING_GALLERY') {
+        // Targets
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(-width * 0.4, -height * 0.3, width * 0.8, height * 0.6);
+        for (let i = 0; i < 4; i++) {
+          const tx = -width * 0.3 + (i * width * 0.2);
+          const ty = Math.sin(time * 3 + i) * 10;
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(tx, ty, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'white';
+          ctx.beginPath();
+          ctx.arc(tx, ty, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (ride.type === 'COCONUT_SHY') {
+        // Stand
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(-width * 0.4, 0, width * 0.8, 10);
+        // Coconuts
+        for (let i = 0; i < 5; i++) {
+          const cx = -width * 0.3 + (i * width * 0.15);
+          const wobble = Math.sin(time * 5 + i) * 2;
+          ctx.fillStyle = '#451a03';
+          ctx.beginPath();
+          ctx.arc(cx, -10 + wobble, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (ride.type === 'STRENGTH_TEST') {
+        // Tower
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(-5, -height * 0.4, 10, height * 0.8);
+        // Bell
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.arc(0, -height * 0.4, 6, 0, Math.PI * 2);
+        ctx.fill();
+        // Puck
+        const puckY = Math.abs(Math.sin(time * 2)) * height * 0.7;
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(-8, height * 0.35 - puckY, 16, 4);
       } else if (ride.type === 'SWING_RIDE') {
         // Pole
         ctx.fillStyle = '#64748b';
@@ -667,6 +869,74 @@ export default function App() {
       }
     });
 
+    // Draw Staff
+    gameState.staff.forEach(s => {
+      const config = STAFF_CONFIGS[s.type];
+      const bob = Math.abs(Math.sin(time * 8 + parseInt(s.id, 36))) * 2;
+      
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y + 2, 5, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Body
+      ctx.fillStyle = config.color;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y - bob, 7, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Icon/Label
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 8px Inter';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(config.icon, s.x, s.y - bob);
+      
+      // Energy bar
+      const barWidth = 14;
+      ctx.fillStyle = '#e5e7eb';
+      ctx.fillRect(s.x - barWidth / 2, s.y - 14 - bob, barWidth, 3);
+      ctx.fillStyle = s.stamina > 50 ? '#8b5cf6' : s.stamina > 20 ? '#f59e0b' : '#ef4444';
+      ctx.fillRect(s.x - barWidth / 2, s.y - 14 - bob, barWidth * (s.stamina / 100), 3);
+    });
+
+    // Draw Trucks
+    gameState.trucks.forEach(t => {
+      const isMoving = t.targetX !== undefined && t.targetY !== undefined && (t.x !== t.targetX || t.y !== t.targetY);
+      const bob = isMoving ? Math.abs(Math.sin(time * 12)) * 2 : 0;
+      
+      ctx.save();
+      ctx.translate(t.x, t.y - bob);
+      
+      // Truck Body
+      ctx.fillStyle = '#475569'; // Slate-600
+      ctx.beginPath();
+      ctx.roundRect(-15, -10, 30, 20, 4);
+      ctx.fill();
+      
+      // Cab
+      ctx.fillStyle = '#1e293b'; // Slate-800
+      ctx.beginPath();
+      ctx.roundRect(5, -8, 12, 16, 2);
+      ctx.fill();
+      
+      // Wheels
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(-10, 10, 4, 0, Math.PI * 2);
+      ctx.arc(10, 10, 4, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Label
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 8px Inter';
+      ctx.textAlign = 'center';
+      ctx.fillText('TRUCK', 0, 2);
+      
+      ctx.restore();
+    });
+
     // Day/Night Overlay
     const hours = gameState.time.hours;
     let overlayAlpha = 0;
@@ -709,6 +979,27 @@ export default function App() {
     if (!rect) return;
     const mx = (e.clientX - rect.left - camera.x) / camera.zoom;
     const my = (e.clientY - rect.top - camera.y) / camera.zoom;
+
+    if (isZoningMode && hoveredCell) {
+      // Check if clicked a delete button
+      const clickedZone = gameState.zones.find(zone => {
+        const px = zone.x * GRID_SIZE;
+        const py = zone.y * GRID_SIZE;
+        const width = zone.width * GRID_SIZE;
+        const dx = mx - (px + width - 10);
+        const dy = my - (py + 10);
+        return Math.sqrt(dx*dx + dy*dy) < 8;
+      });
+
+      if (clickedZone) {
+        setGameState(engine.removeZone(clickedZone.id));
+        audioService.playSFX('click');
+        return;
+      }
+
+      setZoningStart({ x: hoveredCell.x, y: hoveredCell.y });
+      return;
+    }
 
     if (e.button === 1 || (e.button === 0 && !placingRideId)) {
       // Check if clicked a ride
@@ -778,7 +1069,22 @@ export default function App() {
     }
   };
 
-  const handleMouseUp = () => setIsDragging(false);
+  const handleMouseUp = () => {
+    if (isZoningMode && zoningStart && hoveredCell) {
+      const startX = Math.min(zoningStart.x, hoveredCell.x);
+      const startY = Math.min(zoningStart.y, hoveredCell.y);
+      const width = Math.abs(zoningStart.x - hoveredCell.x) + 1;
+      const height = Math.abs(zoningStart.y - hoveredCell.y) + 1;
+      
+      if (width > 0 && height > 0) {
+        setGameState(engine.addZone(startX, startY, width, height, zoningType));
+        audioService.playSFX('place');
+      }
+      setZoningStart(null);
+      return;
+    }
+    setIsDragging(false);
+  };
 
   const handleWheel = (e: React.WheelEvent) => {
     const zoomSpeed = 0.001;
@@ -788,6 +1094,13 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-900">
+      {/* Truck Minigame Overlay */}
+      <AnimatePresence>
+        {gameState.travelingToCityId && (
+          <TruckMinigame engine={engine} gameState={gameState} />
+        )}
+      </AnimatePresence>
+
       {/* Setup Screen */}
       <AnimatePresence>
         {isSetupOpen && (
@@ -936,6 +1249,12 @@ export default function App() {
                         className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeManagementTab === 'warehouse' ? 'text-indigo-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
                       >
                         Warehouse
+                      </button>
+                      <button 
+                        onClick={() => setActiveManagementTab('garage')}
+                        className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeManagementTab === 'garage' ? 'text-indigo-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
+                      >
+                        Garage ({gameState.trucks.length})
                       </button>
                     </div>
                   </div>
@@ -1747,6 +2066,106 @@ export default function App() {
                   </div>
                 )}
 
+                {activeManagementTab === 'garage' && (
+                  <section>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Truck size={18} className="text-indigo-600" />
+                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Truck Garage</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                          <div>
+                            <h4 className="font-black text-slate-900">Garage Level {gameState.company.garageLevel}</h4>
+                            <p className="text-xs text-slate-500">Capacity: {gameState.trucks.length} / {GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel)?.capacity || 0} Trucks</p>
+                          </div>
+                          <div className="h-12 w-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                            <Warehouse size={24} />
+                          </div>
+                        </div>
+                        
+                        {gameState.company.garageLevel < 5 ? (
+                          <button
+                            onClick={() => {
+                              if (engine.upgradeGarage()) {
+                                audioService.playSFX('buy');
+                                setGameState(engine.getState());
+                              }
+                            }}
+                            disabled={gameState.money < (GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel + 1)?.upgradeCost || 0)}
+                            className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all
+                              ${gameState.money >= (GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel + 1)?.upgradeCost || 0)
+                                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
+                            `}
+                          >
+                            Upgrade Garage (${GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel + 1)?.upgradeCost || 0})
+                          </button>
+                        ) : (
+                          <div className="text-center py-3 bg-slate-50 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            Max Level Reached
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                          <div>
+                            <h4 className="font-black text-slate-900">Buy New Truck</h4>
+                            <p className="text-xs text-slate-500">Cost: ${TRUCK_COST}</p>
+                          </div>
+                          <div className="h-12 w-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                            <Truck size={24} />
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={() => {
+                            if (engine.buyTruck()) {
+                              audioService.playSFX('buy');
+                              setGameState(engine.getState());
+                            }
+                          }}
+                          disabled={gameState.money < TRUCK_COST || gameState.trucks.length >= (GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel)?.capacity || 0)}
+                          className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all
+                            ${gameState.money >= TRUCK_COST && gameState.trucks.length < (GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel)?.capacity || 0)
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                              : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
+                          `}
+                        >
+                          {gameState.trucks.length >= (GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel)?.capacity || 0)
+                            ? 'Garage Full'
+                            : `Buy Truck ($${TRUCK_COST})`}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-8">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Your Trucks</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {gameState.trucks.map(truck => (
+                          <div key={truck.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+                            <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${truck.assignedRideId ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                              <Truck size={20} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-900">{truck.name}</p>
+                              <p className="text-[10px] font-medium text-slate-500">
+                                {truck.assignedRideId ? 'Transporting' : 'Idle'}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                        {gameState.trucks.length === 0 && (
+                          <div className="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                            <p className="text-xs font-bold text-slate-400">No trucks in your garage</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                )}
                 {activeManagementTab === 'travel' && (
                   <section>
                     <div className="flex items-center gap-2 mb-4">
@@ -1982,6 +2401,36 @@ export default function App() {
             <ShoppingBag size={20} />
             OPEN RIDE SHOP
           </button>
+
+          <button 
+            onClick={() => setIsZoningMode(!isZoningMode)}
+            className={`w-full flex items-center justify-center gap-3 rounded-2xl py-4 text-sm font-black transition-all
+              ${isZoningMode 
+                ? 'bg-amber-600 text-white shadow-lg shadow-amber-200 ring-4 ring-amber-100' 
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}
+            `}
+          >
+            <MapIcon size={20} />
+            {isZoningMode ? 'EXIT ZONING' : 'ZONING MODE'}
+          </button>
+
+          {isZoningMode && (
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {(['FUNFAIR', 'TRUCK', 'STAFF'] as const).map(type => (
+                <button
+                  key={type}
+                  onClick={() => setZoningType(type)}
+                  className={`py-2 text-[10px] font-bold rounded-lg border-2 transition-all
+                    ${zoningType === type 
+                      ? 'bg-amber-100 border-amber-600 text-amber-700' 
+                      : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'}
+                  `}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
             <button 
@@ -2508,7 +2957,7 @@ export default function App() {
 
         {/* Tutorial Overlay */}
         <AnimatePresence>
-          {gameState.showTutorial && gameState.tutorialStep < 6 && (
+          {gameState.showTutorial && gameState.tutorialStep < 7 && (
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -2520,22 +2969,23 @@ export default function App() {
                 <motion.div 
                   className="h-full bg-indigo-600"
                   initial={{ width: '0%' }}
-                  animate={{ width: `${(gameState.tutorialStep / 6) * 100}%` }}
+                  animate={{ width: `${(gameState.tutorialStep / 7) * 100}%` }}
                 />
               </div>
 
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
                   {gameState.tutorialStep === 0 && <MapIcon size={24} />}
-                  {gameState.tutorialStep === 1 && <UserPlus size={24} />}
-                  {gameState.tutorialStep === 2 && <Play size={24} />}
-                  {gameState.tutorialStep === 3 && <DollarSign size={24} />}
-                  {gameState.tutorialStep === 4 && <Coffee size={24} />}
-                  {gameState.tutorialStep === 5 && <Users size={24} />}
+                  {gameState.tutorialStep === 1 && <Truck size={24} />}
+                  {gameState.tutorialStep === 2 && <UserPlus size={24} />}
+                  {gameState.tutorialStep === 3 && <Play size={24} />}
+                  {gameState.tutorialStep === 4 && <DollarSign size={24} />}
+                  {gameState.tutorialStep === 5 && <Coffee size={24} />}
+                  {gameState.tutorialStep === 6 && <Users size={24} />}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Tutorial Step {gameState.tutorialStep + 1}/6</h3>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Tutorial Step {gameState.tutorialStep + 1}/7</h3>
                     <button 
                       onClick={() => {
                         engine.skipTutorial();
@@ -2548,26 +2998,28 @@ export default function App() {
                   </div>
                   <h4 className="text-sm font-black text-slate-900 leading-tight">
                     {gameState.tutorialStep === 0 && "Place your first ride"}
-                    {gameState.tutorialStep === 1 && "Hire a Ride Operator"}
-                    {gameState.tutorialStep === 2 && "Open the Park"}
-                    {gameState.tutorialStep === 3 && "Earn your first $500"}
-                    {gameState.tutorialStep === 4 && "Build a Food Stall"}
-                    {gameState.tutorialStep === 5 && "Reach 50 Visitors"}
+                    {gameState.tutorialStep === 1 && "Create a Truck Zone"}
+                    {gameState.tutorialStep === 2 && "Hire a Ride Operator"}
+                    {gameState.tutorialStep === 3 && "Open the Park"}
+                    {gameState.tutorialStep === 4 && "Earn your first $500"}
+                    {gameState.tutorialStep === 5 && "Build a Food Stall"}
+                    {gameState.tutorialStep === 6 && "Reach 50 Visitors"}
                   </h4>
                   <p className="text-xs text-slate-500 mt-2 leading-relaxed">
                     {gameState.tutorialStep === 0 && "Open your inventory and place the Tea Cups ride near the entrance."}
-                    {gameState.tutorialStep === 1 && "Click on your Tea Cups ride and hire an operator to start running it."}
-                    {gameState.tutorialStep === 2 && "Open the Management Panel and toggle the Park Status to Open."}
-                    {gameState.tutorialStep === 3 && "Watch the visitors arrive and earn money until your balance reaches $2,500."}
-                    {gameState.tutorialStep === 4 && "Visitors get hungry! Place a Hot Dog Stall from your inventory."}
-                    {gameState.tutorialStep === 5 && "Keep your park attractive and wait until you have 50 visitors at once."}
+                    {gameState.tutorialStep === 1 && "Select the Zone Tool, choose 'Truck Zone', and draw an area for your trucks."}
+                    {gameState.tutorialStep === 2 && "Click on your Tea Cups ride and hire an operator to start running it."}
+                    {gameState.tutorialStep === 3 && "Open the Management Panel and toggle the Park Status to Open."}
+                    {gameState.tutorialStep === 4 && "Watch the visitors arrive and earn money until your balance reaches $2,500."}
+                    {gameState.tutorialStep === 5 && "Visitors get hungry! Place a Hot Dog Stall from your inventory."}
+                    {gameState.tutorialStep === 6 && "Keep your park attractive and wait until you have 50 visitors at once."}
                   </p>
                 </div>
               </div>
 
               <div className="mt-6 flex items-center justify-between">
                 <div className="flex gap-1">
-                  {[0, 1, 2, 3, 4, 5].map(s => (
+                  {[0, 1, 2, 3, 4, 5, 6].map(s => (
                     <div 
                       key={s}
                       className={`h-1 w-3 rounded-full transition-all ${s <= gameState.tutorialStep ? 'bg-indigo-600' : 'bg-slate-100'}`}
@@ -2578,7 +3030,7 @@ export default function App() {
             </motion.div>
           )}
           
-          {gameState.showTutorial && gameState.tutorialStep === 6 && (
+          {gameState.showTutorial && gameState.tutorialStep === 7 && (
              <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2709,12 +3161,14 @@ export default function App() {
                     .map(type => {
                       const config = RIDE_CONFIGS[type];
                       const canAfford = gameState.money >= config.cost;
+                      const truckAvailable = gameState.trucks.some(t => !t.assignedRideId);
+                      const warehouseCapacity = gameState.rides.length + gameState.inventory.length < engine.getWarehouseCapacity();
 
                       return (
                         <div 
                           key={type}
                           className={`group relative flex flex-col rounded-3xl border-2 p-6 transition-all duration-300
-                            ${canAfford 
+                            ${canAfford && truckAvailable && warehouseCapacity
                               ? 'border-white bg-white shadow-sm hover:shadow-xl hover:-translate-y-1' 
                               : 'border-slate-100 bg-slate-50/50 opacity-75'}
                           `}
@@ -2749,6 +3203,9 @@ export default function App() {
                               <span>•</span>
                               <span>{config.width}x{config.height} Tiles</span>
                             </div>
+                            {!truckAvailable && (
+                              <p className="text-[10px] font-bold text-rose-500 mt-2 uppercase tracking-widest">No Trucks Available</p>
+                            )}
                           </div>
 
                           <div className="grid grid-cols-2 gap-4 mb-8">
@@ -2776,14 +3233,14 @@ export default function App() {
                                 });
                               }
                             }}
-                            disabled={!canAfford || (gameState.rides.length + gameState.inventory.length >= engine.getWarehouseCapacity())}
+                            disabled={!canAfford || !truckAvailable || !warehouseCapacity}
                             className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all
-                              ${canAfford && (gameState.rides.length + gameState.inventory.length < engine.getWarehouseCapacity())
+                              ${canAfford && truckAvailable && warehouseCapacity
                                 ? 'bg-slate-900 text-white hover:bg-indigo-600 shadow-lg shadow-slate-200' 
                                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
                             `}
                           >
-                            {!canAfford ? 'Insufficient Funds' : (gameState.rides.length + gameState.inventory.length >= engine.getWarehouseCapacity()) ? 'Warehouse Full' : 'Purchase Item'}
+                            {!canAfford ? 'Insufficient Funds' : !truckAvailable ? 'No Truck Available' : !warehouseCapacity ? 'Warehouse Full' : 'Purchase Item'}
                           </button>
                         </div>
                       );

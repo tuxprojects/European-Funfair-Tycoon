@@ -60,6 +60,17 @@ export interface CompanyInfo {
   currentCityId: string;
   homeCityId?: string;
   warehouseLevel: number;
+  garageLevel: number;
+}
+
+export interface TruckInstance {
+  id: string;
+  name: string;
+  assignedRideId?: string; // If assigned, it's carrying this ride
+  x: number;
+  y: number;
+  targetX?: number;
+  targetY?: number;
 }
 
 export interface FinanceStats {
@@ -85,10 +96,20 @@ export interface FinanceStats {
   };
 }
 
+export interface Zone {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: 'FUNFAIR' | 'TRUCK' | 'STAFF';
+}
+
 export interface GameState {
   money: number;
   rides: RideInstance[];
   inventory: RideInstance[];
+  trucks: TruckInstance[];
   staff: StaffInstance[];
   visitors: Visitor[];
   time: GameTime;
@@ -101,6 +122,11 @@ export interface GameState {
   dailyHistory: FinanceStats[]; // Last 7 days
   tutorialStep: number;
   showTutorial: boolean;
+  zones: Zone[];
+  travelingToCityId: string | null;
+  travelProgress: number;
+  truckMinigameX: number;
+  truckMinigameObstacles: { x: number, y: number, id: string }[];
 }
 
 const DEFAULT_WEATHER_PROBABILITIES: Record<Season, Partial<Record<WeatherType, number>>> = {
@@ -823,6 +849,90 @@ export const CITIES: City[] = [
     },
     x: 100,
     y: -500
+  },
+  {
+    id: 'sofia',
+    name: 'Sofia',
+    country: 'Bulgaria',
+    visitorMultiplier: 1.1,
+    travelCost: 3500,
+    description: 'Balkan fairgrounds with a mountain view.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 600,
+    y: -350
+  },
+  {
+    id: 'tallinn',
+    name: 'Tallinn',
+    country: 'Estonia',
+    visitorMultiplier: 1.3,
+    travelCost: 5500,
+    description: 'Medieval fairgrounds by the Baltic sea.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRAVEL',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 650,
+    y: 150
+  },
+  {
+    id: 'riga',
+    name: 'Riga',
+    country: 'Latvia',
+    visitorMultiplier: 1.2,
+    travelCost: 5000,
+    description: 'Art Nouveau fairgrounds in the Baltics.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 630,
+    y: 100
+  },
+  {
+    id: 'vilnius',
+    name: 'Vilnius',
+    country: 'Lithuania',
+    visitorMultiplier: 1.2,
+    travelCost: 4800,
+    description: 'Baroque fairgrounds in the heart of the Baltics.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 620,
+    y: 50
+  },
+  {
+    id: 'krakow',
+    name: 'Krakow',
+    country: 'Poland',
+    visitorMultiplier: 1.4,
+    travelCost: 4500,
+    description: 'Historic fairgrounds in southern Poland.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'GRAVEL',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 520,
+    y: -50
+  },
+  {
+    id: 'gdansk',
+    name: 'Gdansk',
+    country: 'Poland',
+    visitorMultiplier: 1.3,
+    travelCost: 5200,
+    description: 'Maritime fairgrounds on the Baltic coast.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 500,
+    y: 100
   }
 ];
 
@@ -835,7 +945,7 @@ export type RideCategory = 'RIDE' | 'FOOD' | 'FACILITY';
 
 export type RideIntensity = 'GENTLE' | 'THRILL' | 'EXTREME' | 'NONE';
 
-export type RideType = 'TEA_CUPS' | 'CAROUSEL' | 'FERRIS_WHEEL' | 'ROLLERCOASTER' | 'BUMPER_CARS' | 'FOOD_STALL' | 'RESTROOM' | 'BENCH' | 'HAUNTED_HOUSE' | 'LOG_FLUME' | 'DROP_TOWER' | 'SWING_RIDE' | 'PIRATE_SHIP' | 'COTTON_CANDY' | 'ICE_CREAM' | 'BUNGEE_JUMP' | 'SLINGSHOT' | 'TOP_SPIN' | 'ENTERPRISE' | 'WALTZER' | 'HELTER_SKELTER' | 'KIDDIE_COASTER' | 'PONY_TREK' | 'CARAVAN';
+export type RideType = 'TEA_CUPS' | 'CAROUSEL' | 'FERRIS_WHEEL' | 'ROLLERCOASTER' | 'BUMPER_CARS' | 'FOOD_STALL' | 'RESTROOM' | 'BENCH' | 'HAUNTED_HOUSE' | 'LOG_FLUME' | 'DROP_TOWER' | 'SWING_RIDE' | 'PIRATE_SHIP' | 'COTTON_CANDY' | 'ICE_CREAM' | 'BUNGEE_JUMP' | 'SLINGSHOT' | 'TOP_SPIN' | 'ENTERPRISE' | 'WALTZER' | 'HELTER_SKELTER' | 'KIDDIE_COASTER' | 'PONY_TREK' | 'CARAVAN' | 'DUCK_POND' | 'SHOOTING_GALLERY' | 'COCONUT_SHY' | 'STRENGTH_TEST';
 
 export interface RideConfig {
   type: RideType;
@@ -1184,6 +1294,66 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     buildTimeHours: 6,
     electricityCost: 15
   },
+  DUCK_POND: {
+    type: 'DUCK_POND',
+    category: 'RIDE',
+    intensity: 'GENTLE',
+    name: 'Duck Pond',
+    cost: 1200,
+    baseIncome: 3,
+    baseCapacity: 4,
+    width: 2,
+    height: 2,
+    color: '#87CEEB',
+    icon: '🦆',
+    buildTimeHours: 2,
+    electricityCost: 1
+  },
+  SHOOTING_GALLERY: {
+    type: 'SHOOTING_GALLERY',
+    category: 'RIDE',
+    intensity: 'GENTLE',
+    name: 'Shooting Gallery',
+    cost: 2500,
+    baseIncome: 6,
+    baseCapacity: 6,
+    width: 3,
+    height: 2,
+    color: '#FF4500',
+    icon: '🎯',
+    buildTimeHours: 4,
+    electricityCost: 5
+  },
+  COCONUT_SHY: {
+    type: 'COCONUT_SHY',
+    category: 'RIDE',
+    intensity: 'GENTLE',
+    name: 'Coconut Shy',
+    cost: 1500,
+    baseIncome: 4,
+    baseCapacity: 4,
+    width: 2,
+    height: 2,
+    color: '#A0522D',
+    icon: '🥥',
+    buildTimeHours: 2,
+    electricityCost: 0
+  },
+  STRENGTH_TEST: {
+    type: 'STRENGTH_TEST',
+    category: 'RIDE',
+    intensity: 'THRILL',
+    name: 'Strength Test',
+    cost: 1800,
+    baseIncome: 5,
+    baseCapacity: 1,
+    width: 1,
+    height: 2,
+    color: '#C0C0C0',
+    icon: '🔨',
+    buildTimeHours: 3,
+    electricityCost: 2
+  },
   PONY_TREK: {
     type: 'PONY_TREK',
     category: 'RIDE',
@@ -1238,6 +1408,7 @@ export interface RideInstance {
   satisfaction: number; // 0-100
   totalVisitorsServed: number;
   totalHappinessGained: number;
+  queue: string[]; // List of visitor IDs
 }
 
 export interface Visitor {
@@ -1246,8 +1417,9 @@ export interface Visitor {
   y: number;
   targetX: number;
   targetY: number;
-  state: 'WANDERING' | 'QUEUING' | 'RIDING' | 'LEAVING' | 'EATING' | 'USING_FACILITY' | 'RESTING';
+  state: 'WANDERING' | 'QUEUING' | 'RIDING' | 'LEAVING' | 'EATING' | 'USING_FACILITY' | 'RESTING' | 'STANDING';
   targetRideId?: string;
+  stateTimeRemaining?: number; // Time remaining in current state (e.g. RIDING)
   happiness: number;
   money: number;
   stamina: number; // 0-100, decreases over time
@@ -1325,4 +1497,24 @@ export interface StaffInstance {
   stamina: number; // 0-100
   state: 'WORKING' | 'RESTING' | 'IDLE';
   restingAtId?: string; // ID of the caravan they are resting in
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
 }
+
+export const TRUCK_COST = 5000;
+
+export interface GarageConfig {
+  level: number;
+  capacity: number;
+  upgradeCost: number;
+}
+
+export const GARAGE_CONFIGS: GarageConfig[] = [
+  { level: 1, capacity: 2, upgradeCost: 0 },
+  { level: 2, capacity: 4, upgradeCost: 10000 },
+  { level: 3, capacity: 6, upgradeCost: 25000 },
+  { level: 4, capacity: 10, upgradeCost: 50000 },
+  { level: 5, capacity: 20, upgradeCost: 100000 }
+];

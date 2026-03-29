@@ -1,10 +1,12 @@
-import { RideInstance, Visitor, Position, RIDE_CONFIGS, RideIntensity, GameTime, ParkSettings, GameState, CompanyInfo, CITIES, StaffInstance, StaffType, STAFF_CONFIGS, RideType, FinanceStats, Season, WeatherType, WeatherInfo } from './types';
+import { RideInstance, Visitor, Position, RIDE_CONFIGS, RideIntensity, GameTime, ParkSettings, GameState, CompanyInfo, CITIES, StaffInstance, StaffType, STAFF_CONFIGS, RideType, FinanceStats, Season, WeatherType, WeatherInfo, TruckInstance, GARAGE_CONFIGS, TRUCK_COST, Zone } from './types';
 
 export class GameEngine {
   rides: RideInstance[] = [];
   inventory: RideInstance[] = [];
+  trucks: TruckInstance[] = [];
   staff: StaffInstance[] = [];
   visitors: Visitor[] = [];
+  zones: Zone[] = [];
   money: number = 2000;
   lastUpdate: number = Date.now();
   time: GameTime = { hours: 8, minutes: 0, day: 1, dayOfWeek: 0, season: 'SPRING', month: 1, dayOfMonth: 1 };
@@ -23,7 +25,7 @@ export class GameEngine {
       bundleSize: 5
     }
   };
-  company: CompanyInfo = { name: 'My Funfair', currentCityId: 'london', warehouseLevel: 1 };
+  company: CompanyInfo = { name: 'My Funfair', currentCityId: 'london', warehouseLevel: 1, garageLevel: 1 };
   cities = CITIES;
   finances: FinanceStats = this.getEmptyFinances();
   dailyHistory: FinanceStats[] = [];
@@ -36,6 +38,11 @@ export class GameEngine {
   };
   tutorialStep: number = 0;
   showTutorial: boolean = true;
+  travelingToCityId: string | null = null;
+  travelProgress: number = 0; // 0 to 100
+  travelDistance: number = 0;
+  truckMinigameX: number = 200; // Truck position in minigame
+  truckMinigameObstacles: { x: number, y: number, id: string }[] = [];
   private timeAccumulator: number = 0;
   private lastSalaryPaymentHour: number = -1;
   private lastSpawnTime: number = 0;
@@ -48,13 +55,37 @@ export class GameEngine {
       this.time.season = this.getSeason(this.time.day);
       const city = CITIES.find(c => c.id === this.company.currentCityId) || CITIES[0];
       this.currentWeather = this.generateWeather(city, this.time.season);
+      
+      // Give 2 trucks for the starter rides
+      this.trucks = [
+        { id: 'truck-1', name: 'Truck 1', x: 50, y: city.mapHeight * 20 },
+        { id: 'truck-2', name: 'Truck 2', x: 50, y: city.mapHeight * 20 + 40 }
+      ];
     }
   }
 
   private loadFromData(data: any) {
-    this.rides = data.rides || [];
-    this.inventory = data.inventory || [];
-    this.staff = data.staff || [];
+    this.rides = (data.rides || []).map((r: any) => ({
+      ...r,
+      queue: r.queue || []
+    }));
+    this.inventory = (data.inventory || []).map((r: any) => ({
+      ...r,
+      queue: r.queue || []
+    }));
+    this.staff = (data.staff || []).map((s: any) => ({
+      ...s,
+      x: s.x ?? 0,
+      y: s.y ?? 0,
+      targetX: s.targetX ?? s.x ?? 0,
+      targetY: s.targetY ?? s.y ?? 0
+    }));
+    this.trucks = (data.trucks || []).map((t: any) => ({
+      ...t,
+      x: t.x ?? 0,
+      y: t.y ?? 0
+    }));
+    this.zones = data.zones || [];
     this.money = data.money ?? 2000;
     this.time = data.time || { hours: 8, minutes: 0, day: 1, dayOfWeek: 0, season: 'SPRING', month: 1, dayOfMonth: 1 };
     if (this.time.dayOfWeek === undefined) {
@@ -88,13 +119,14 @@ export class GameEngine {
         bundleSize: 5
       };
     }
-    this.company = data.company || { name: 'My Funfair', currentCityId: 'london', warehouseLevel: 1 };
+    this.company = data.company || { name: 'My Funfair', currentCityId: 'london', warehouseLevel: 1, garageLevel: 1 };
     if (this.company.warehouseLevel === undefined) {
       this.company.warehouseLevel = 1;
     }
-    if (!this.company.homeCityId) {
-      this.company.homeCityId = this.company.currentCityId;
+    if (this.company.garageLevel === undefined) {
+      this.company.garageLevel = 1;
     }
+    this.trucks = data.trucks || [];
     this.finances = data.finances || this.getEmptyFinances();
     
     // Ensure income categories exist
@@ -182,7 +214,8 @@ export class GameEngine {
         avgWaitTime: 0,
         satisfaction: 100,
         totalVisitorsServed: 0,
-        totalHappinessGained: 0
+        totalHappinessGained: 0,
+        queue: []
       });
     }
     
@@ -203,7 +236,8 @@ export class GameEngine {
         avgWaitTime: 0,
         satisfaction: 100,
         totalVisitorsServed: 0,
-        totalHappinessGained: 0
+        totalHappinessGained: 0,
+        queue: []
       });
     }
   }
@@ -272,7 +306,8 @@ export class GameEngine {
         avgWaitTime: 0,
         satisfaction: 100,
         totalVisitorsServed: 0,
-        totalHappinessGained: 0
+        totalHappinessGained: 0,
+        queue: []
       },
       {
         id: Math.random().toString(36).substr(2, 9),
@@ -290,7 +325,8 @@ export class GameEngine {
         avgWaitTime: 0,
         satisfaction: 100,
         totalVisitorsServed: 0,
-        totalHappinessGained: 0
+        totalHappinessGained: 0,
+        queue: []
       }
     ];
     
@@ -343,8 +379,8 @@ export class GameEngine {
       id,
       x: 50, // Entrance
       y: (city.mapHeight * 40) / 2,
-      targetX: 100 + Math.random() * 200,
-      targetY: (city.mapHeight * 40) / 2 + (Math.random() - 0.5) * 200,
+      targetX: Math.max(0, Math.min(city.mapWidth * 40, 100 + Math.random() * 200)),
+      targetY: Math.max(0, Math.min(city.mapHeight * 40, (city.mapHeight * 40) / 2 + (Math.random() - 0.5) * 200)),
       state: 'WANDERING',
       happiness: 100,
       money: (100 + Math.random() * 200) * city.visitorMultiplier,
@@ -416,6 +452,7 @@ export class GameEngine {
       money: this.money,
       rides: [...this.rides],
       inventory: [...this.inventory],
+      trucks: [...this.trucks],
       staff: [...this.staff],
       visitors: [...this.visitors],
       time: { ...this.time },
@@ -424,21 +461,31 @@ export class GameEngine {
       company: { ...this.company },
       cities: [...CITIES],
       currentMapSize: { width: city.mapWidth, height: city.mapHeight },
+      zones: [...this.zones],
       finances: { ...this.finances },
       dailyHistory: [...this.dailyHistory],
       tutorialStep: this.tutorialStep,
-      showTutorial: this.showTutorial
+      showTutorial: this.showTutorial,
+      travelingToCityId: this.travelingToCityId,
+      travelProgress: this.travelProgress,
+      truckMinigameX: this.truckMinigameX,
+      truckMinigameObstacles: [...this.truckMinigameObstacles]
     };
   }
 
   update(): GameState {
-    if (this.settings.isPaused) {
-      this.lastUpdate = Date.now();
-      return this.getState();
-    }
     const now = Date.now();
     const dt = (now - this.lastUpdate) / 1000;
     this.lastUpdate = now;
+
+    if (this.travelingToCityId) {
+      this.updateTravel(dt);
+      return this.getState();
+    }
+
+    if (this.settings.isPaused) {
+      return this.getState();
+    }
 
     const city = CITIES.find(c => c.id === this.company.currentCityId) || CITIES[0];
     const mapWidthPx = city.mapWidth * 40;
@@ -700,6 +747,11 @@ export class GameEngine {
         ride.buildProgress = Math.min(100, ride.buildProgress + progressPerSecond * dt);
         if (ride.buildProgress >= 100) {
           ride.status = 'OPERATIONAL';
+          // Unassign truck when construction is complete
+          const truck = this.trucks.find(t => t.assignedRideId === ride.id);
+          if (truck) {
+            truck.assignedRideId = undefined;
+          }
         }
       } else if (ride.status === 'DISMANTLING') {
         // Dismantling takes half the build time
@@ -724,13 +776,36 @@ export class GameEngine {
       const dy = v.targetY - v.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       
-      if (dist > 5) {
+      // Check if entering restricted zone
+      const currentZone = this.zones.find(z => 
+        v.x >= z.x * 40 && v.x <= (z.x + z.width) * 40 &&
+        v.y >= z.y * 40 && v.y <= (z.y + z.height) * 40
+      );
+      if (currentZone && (currentZone.type === 'TRUCK' || currentZone.type === 'STAFF')) {
+        v.targetX = 50;
+        v.targetY = mapHeightPx / 2;
+        v.state = 'WANDERING';
+        this.addThought(v, "I'm not allowed in there!");
+      }
+
+      if (dist > 5 && v.state !== 'STANDING') {
         const speed = 120 * dt;
         v.x += (dx / dist) * speed;
         v.y += (dy / dist) * speed;
+        
+        // Clamp to map boundaries
+        v.x = Math.max(0, Math.min(mapWidthPx, v.x));
+        v.y = Math.max(0, Math.min(mapHeightPx, v.y));
       } else {
         // Reached target
         if (v.state === 'WANDERING') {
+          // Randomly decide to stand idle
+          if (Math.random() < 0.05) {
+            v.state = 'STANDING';
+            v.stateTimeRemaining = 3 + Math.random() * 5;
+            continue;
+          }
+          
           // Increase needs
           v.hunger = Math.min(100, v.hunger + 2 * dt);
           v.bladder = Math.min(100, v.bladder + 1.5 * dt);
@@ -830,8 +905,10 @@ export class GameEngine {
                 this.addThought(v, `Heading to ${RIDE_CONFIGS[ride.type].name}!`);
                 v.state = 'QUEUING';
                 v.targetRideId = ride.id;
-                v.targetX = ride.x * 40 + (RIDE_CONFIGS[ride.type].width * 20);
-                v.targetY = ride.y * 40 + (RIDE_CONFIGS[ride.type].height * 20);
+                ride.queue.push(v.id);
+                const queuePos = ride.queue.length - 1;
+                v.targetX = Math.max(0, Math.min(mapWidthPx, ride.x * 40 - 20 - (queuePos * 15)));
+                v.targetY = Math.max(0, Math.min(mapHeightPx, ride.y * 40 + (RIDE_CONFIGS[ride.type].height * 20)));
               } else {
                 this.addThought(v, `I can't afford ${RIDE_CONFIGS[ride.type].name}. I need more money.`);
                 v.happiness -= 5;
@@ -849,109 +926,88 @@ export class GameEngine {
           v.bladder += 0.4 * dt;
 
           const ride = this.rides.find(r => r.id === v.targetRideId);
-          if (v.state === 'QUEUING') {
-            v.state = 'RIDING';
-            ride.currentVisitors++;
-            
-            let finalPrice = 0;
-            if (v.hasSeasonPass || v.hasWristband) {
-              finalPrice = 0;
-            } else if (v.remainingBundleRides > 0) {
-              v.remainingBundleRides--;
-              finalPrice = 0;
-            } else {
-              finalPrice = this.settings.pricing.ticketPrice * incomeMult;
-              v.money -= finalPrice;
-              this.money += finalPrice;
-              this.finances.income.tickets += finalPrice;
-            }
-            
-            // Stay for a bit
-            setTimeout(() => {
-              if (v.state === 'RIDING') {
-                v.state = 'WANDERING';
-                if (ride) {
-                  ride.currentVisitors--;
-                  const happinessGained = 40;
-                  
-                  // Update Ride Satisfaction
-                  ride.totalVisitorsServed++;
-                  
-                  // Happiness gained depends on price and condition
-                  // Base happiness is 40. 
-                  // If price is higher than baseIncome, satisfaction drops.
-                  // If condition is low, satisfaction drops significantly.
-                  const config = RIDE_CONFIGS[ride.type];
-                  const priceFactor = Math.max(0.2, 1 - (ride.price - config.baseIncome) / (config.baseIncome));
-                  
-                  // Poor maintenance reduces happiness a lot (squared factor)
-                  const conditionFactor = Math.pow(ride.condition / 100, 1.5);
-                  
-                  // Operator bonus/penalty
-                  const operatorBonus = ride.operatorId ? 1.1 : 0.7;
-                  
-                  const actualHappinessGained = Math.round(happinessGained * priceFactor * conditionFactor * operatorBonus);
-                  
-                  if (priceFactor < 0.5) this.addThought(v, `${config.name} was way too expensive!`);
-                  if (conditionFactor < 0.5) this.addThought(v, `${config.name} felt unsafe and poorly maintained.`);
-                  if (!ride.operatorId) this.addThought(v, `There was no one even running ${config.name}!`);
-                  if (actualHappinessGained > 30) this.addThought(v, `That ride on ${config.name} was fantastic!`);
-
-                  v.happiness = Math.min(100, v.happiness + actualHappinessGained);
-                  v.stamina -= 10; // Riding is tiring
-                  
-                  ride.totalHappinessGained += actualHappinessGained;
-                  ride.satisfaction = Math.round((ride.totalHappinessGained / (ride.totalVisitorsServed * 40)) * 100);
+          if (ride && ride.status === 'OPERATIONAL' && ride.queue[0] === v.id) {
+            const capacity = RIDE_CONFIGS[ride.type].baseCapacity * ride.level;
+            if (ride.currentVisitors < capacity) {
+              ride.queue.shift();
+              v.state = 'RIDING';
+              v.stateTimeRemaining = 3 + Math.random() * 2; // 3-5 seconds
+              ride.currentVisitors++;
+              
+              // Update positions of others in queue
+              ride.queue.forEach((vid, idx) => {
+                const visitor = this.visitors.find(vis => vis.id === vid);
+                if (visitor) {
+                  visitor.targetX = Math.max(0, Math.min(mapWidthPx, ride.x * 40 - 20 - (idx * 15)));
+                  visitor.targetY = Math.max(0, Math.min(mapHeightPx, ride.y * 40 + (RIDE_CONFIGS[ride.type].height * 20)));
                 }
-                this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
+              });
+              
+              let finalPrice = 0;
+              if (v.hasSeasonPass || v.hasWristband) {
+                finalPrice = 0;
+              } else if (v.remainingBundleRides > 0) {
+                v.remainingBundleRides--;
+                finalPrice = 0;
+              } else {
+                finalPrice = this.settings.pricing.ticketPrice * incomeMult;
+                v.money -= finalPrice;
+                this.money += finalPrice;
+                this.finances.income.tickets += finalPrice;
               }
-            }, 3000 + Math.random() * 2000);
+            }
           } else if (!ride || ride.status !== 'OPERATIONAL') {
             v.state = 'WANDERING';
             this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
           }
-        } else if (v.state === 'EATING' || v.state === 'USING_FACILITY' || v.state === 'RESTING') {
-          const ride = this.rides.find(r => r.id === v.targetRideId);
-          if (ride && ride.status === 'OPERATIONAL') {
-            const finalPrice = ride.price * incomeMult;
-            if (v.money >= finalPrice) {
-              v.money -= finalPrice;
-              this.money += finalPrice;
+        } else if (v.state === 'RIDING') {
+          v.stateTimeRemaining = (v.stateTimeRemaining || 0) - dt;
+          if (v.stateTimeRemaining <= 0) {
+            const ride = this.rides.find(r => r.id === v.targetRideId);
+            if (ride) {
+              ride.currentVisitors--;
+              const happinessGained = 40;
               
-              // Track income
-              if (RIDE_CONFIGS[ride.type].category === 'FOOD') {
-                this.finances.income.food += finalPrice;
-              } else {
-                this.finances.income.tickets += finalPrice;
-              }
+              // Update Ride Satisfaction
+              ride.totalVisitorsServed++;
               
-              // Add a duration for these activities
-              const prevState = v.state;
-              if (prevState === 'RESTING') ride.currentVisitors++;
+              const config = RIDE_CONFIGS[ride.type];
+              const priceFactor = Math.max(0.2, 1 - (ride.price - config.baseIncome) / (config.baseIncome));
+              const conditionFactor = Math.pow(ride.condition / 100, 1.5);
+              const operatorBonus = ride.operatorId ? 1.1 : 0.7;
               
-              setTimeout(() => {
-                if (v.state === prevState) {
-                  if (prevState === 'EATING') {
-                    v.hunger = 0;
-                    v.happiness = Math.min(100, v.happiness + 20);
-                    v.stamina = Math.min(100, v.stamina + 5);
-                  } else if (prevState === 'USING_FACILITY') {
-                    v.bladder = 0;
-                    v.happiness = Math.min(100, v.happiness + 10);
-                  } else if (prevState === 'RESTING') {
-                    v.stamina = Math.min(100, v.stamina + 40);
-                    v.happiness = Math.min(100, v.happiness + 5);
-                    ride.currentVisitors--;
-                  }
-                  v.state = 'WANDERING';
-                  this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
-                }
-              }, 2000 + Math.random() * 2000);
-            } else {
-              v.state = 'WANDERING';
-              this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
+              const actualHappinessGained = Math.round(happinessGained * priceFactor * conditionFactor * operatorBonus);
+              
+              if (priceFactor < 0.5) this.addThought(v, `${config.name} was way too expensive!`);
+              if (conditionFactor < 0.5) this.addThought(v, `${config.name} felt unsafe and poorly maintained.`);
+              if (!ride.operatorId) this.addThought(v, `There was no one even running ${config.name}!`);
+              if (actualHappinessGained > 30) this.addThought(v, `That ride on ${config.name} was fantastic!`);
+
+              v.happiness = Math.min(100, v.happiness + actualHappinessGained);
+              v.stamina -= 10; // Riding is tiring
+              
+              ride.totalHappinessGained += actualHappinessGained;
+              ride.satisfaction = Math.round((ride.totalHappinessGained / (ride.totalVisitorsServed * 40)) * 100);
             }
-          } else {
+            v.state = 'WANDERING';
+            this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
+          }
+        } else if (v.state === 'EATING' || v.state === 'USING_FACILITY' || v.state === 'RESTING' || v.state === 'STANDING') {
+          v.stateTimeRemaining = (v.stateTimeRemaining || 0) - dt;
+          if (v.stateTimeRemaining <= 0) {
+            const ride = this.rides.find(r => r.id === v.targetRideId);
+            if (v.state === 'EATING') {
+              v.hunger = 0;
+              v.happiness = Math.min(100, v.happiness + 20);
+              v.stamina = Math.min(100, v.stamina + 5);
+            } else if (v.state === 'USING_FACILITY') {
+              v.bladder = 0;
+              v.happiness = Math.min(100, v.happiness + 10);
+            } else if (v.state === 'RESTING') {
+              v.stamina = Math.min(100, v.stamina + 40);
+              v.happiness = Math.min(100, v.happiness + 5);
+              if (ride) ride.currentVisitors--;
+            }
             v.state = 'WANDERING';
             this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
           }
@@ -979,6 +1035,74 @@ export class GameEngine {
         }
       }
     }
+
+    // Update Staff Positions
+    this.staff.forEach(s => {
+      if (s.state === 'WORKING' && s.assignedRideId) {
+        const ride = this.rides.find(r => r.id === s.assignedRideId);
+        if (ride) {
+          s.targetX = ride.x * 40 + 10;
+          s.targetY = ride.y * 40 + 10;
+        }
+      } else if (s.state === 'RESTING' && s.restingAtId) {
+        const caravan = this.rides.find(r => r.id === s.restingAtId);
+        if (caravan) {
+          s.targetX = caravan.x * 40 + 20;
+          s.targetY = caravan.y * 40 + 20;
+        }
+      } else if (s.state === 'IDLE') {
+        const staffZones = this.zones.filter(z => z.type === 'STAFF');
+        if (staffZones.length > 0 && Math.random() < 0.02) {
+          const zone = staffZones[Math.floor(Math.random() * staffZones.length)];
+          s.targetX = (zone.x + Math.random() * zone.width) * 40;
+          s.targetY = (zone.y + Math.random() * zone.height) * 40;
+        }
+      }
+
+      if (s.targetX !== undefined && s.targetY !== undefined) {
+        const dx = s.targetX - s.x;
+        const dy = s.targetY - s.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 2) {
+          const speed = 100 * dt;
+          s.x += (dx / dist) * speed;
+          s.y += (dy / dist) * speed;
+        }
+      }
+    });
+
+    // Update Truck Positions
+    this.trucks.forEach(t => {
+      if (t.assignedRideId) {
+        const ride = this.rides.find(r => r.id === t.assignedRideId) || this.inventory.find(r => r.id === t.assignedRideId);
+        if (ride) {
+          t.targetX = ride.x * 40 - 30;
+          t.targetY = ride.y * 40 + 20;
+        }
+      } else {
+        const truckZones = this.zones.filter(z => z.type === 'TRUCK');
+        if (truckZones.length > 0) {
+          const zone = truckZones[0];
+          const truckIdx = this.trucks.indexOf(t);
+          const cols = Math.max(1, Math.floor(zone.width));
+          const r = Math.floor(truckIdx / cols);
+          const c = truckIdx % cols;
+          t.targetX = (zone.x + (c % zone.width) + 0.5) * 40;
+          t.targetY = (zone.y + (r % zone.height) + 0.5) * 40;
+        }
+      }
+
+      if (t.targetX !== undefined && t.targetY !== undefined) {
+        const dx = t.targetX - t.x;
+        const dy = t.targetY - t.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 2) {
+          const speed = 150 * dt;
+          t.x += (dx / dist) * speed;
+          t.y += (dy / dist) * speed;
+        }
+      }
+    });
 
     // Spawn more visitors if needed
     if (isParkOpen) {
@@ -1041,23 +1165,7 @@ export class GameEngine {
       this.finances.visitorStats.avgSpend = this.finances.visitorStats.totalVisitors > 0 ? totalIncome / this.finances.visitorStats.totalVisitors : 0;
     }
 
-    return {
-      money: this.money,
-      rides: [...this.rides],
-      inventory: [...this.inventory],
-      staff: [...this.staff],
-      visitors: [...this.visitors],
-      time: { ...this.time },
-      currentWeather: { ...this.currentWeather },
-      settings: { ...this.settings },
-      company: { ...this.company },
-      cities: [...CITIES],
-      currentMapSize: { width: city.mapWidth, height: city.mapHeight },
-      finances: { ...this.finances },
-      dailyHistory: [...this.dailyHistory],
-      tutorialStep: this.tutorialStep,
-      showTutorial: this.showTutorial
-    };
+    return this.getState();
   }
 
   hireStaff(type: StaffType): StaffInstance | null {
@@ -1067,6 +1175,7 @@ export class GameEngine {
 
     this.money -= hiringFee;
     const id = Math.random().toString(36).substr(2, 9);
+    const city = CITIES.find(c => c.id === this.company.currentCityId) || CITIES[0];
     const staff: StaffInstance = {
       id,
       type,
@@ -1076,7 +1185,11 @@ export class GameEngine {
       lastPaidTime: Date.now(),
       happiness: 100,
       stamina: 100,
-      state: 'IDLE'
+      state: 'IDLE',
+      x: 50,
+      y: city.mapHeight * 20,
+      targetX: 50,
+      targetY: city.mapHeight * 20,
     };
     this.staff.push(staff);
     this.saveGame();
@@ -1387,7 +1500,11 @@ export class GameEngine {
     const cost = this.getTravelCost(cityId);
     if (this.money >= cost) {
       this.money -= cost;
-      this.company.currentCityId = cityId;
+      this.travelingToCityId = cityId;
+      this.travelProgress = 0;
+      this.travelDistance = this.getTravelDistance(currentCity, targetCity);
+      this.truckMinigameX = 200;
+      this.truckMinigameObstacles = [];
       // Clear current visitors when moving
       this.visitors = [];
       this.saveGame();
@@ -1396,12 +1513,71 @@ export class GameEngine {
     return false;
   }
 
+  private getTravelDistance(c1: any, c2: any): number {
+    if (!c1 || !c2) return 0;
+    const dx = c2.x - c1.x;
+    const dy = c2.y - c1.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  private updateTravel(dt: number) {
+    // Speed depends on distance, but let's say it takes 10-20 seconds
+    const travelDuration = Math.max(10, this.travelDistance / 50);
+    this.travelProgress += (100 / travelDuration) * dt;
+
+    // Spawn obstacles for minigame
+    if (Math.random() < 0.05) {
+      this.truckMinigameObstacles.push({
+        x: 800,
+        y: 150 + Math.random() * 300,
+        id: Math.random().toString(36).substr(2, 9)
+      });
+    }
+
+    // Move obstacles
+    this.truckMinigameObstacles.forEach(o => {
+      o.x -= 400 * dt;
+    });
+
+    // Remove off-screen obstacles
+    this.truckMinigameObstacles = this.truckMinigameObstacles.filter(o => o.x > -50);
+
+    // Check collisions (simple)
+    const truckY = this.truckMinigameX; // Reusing this variable for Y position in minigame
+    const collision = this.truckMinigameObstacles.some(o => 
+      Math.abs(o.x - 100) < 40 && Math.abs(o.y - this.truckMinigameX) < 30
+    );
+
+    if (collision) {
+      this.money = Math.max(0, this.money - 10); // Penalty for hitting obstacle
+      this.truckMinigameObstacles = []; // Clear obstacles on hit
+    }
+
+    if (this.travelProgress >= 100) {
+      this.company.currentCityId = this.travelingToCityId!;
+      this.travelingToCityId = null;
+      this.travelProgress = 0;
+      this.saveGame();
+    }
+  }
+
+  moveTruckMinigame(y: number) {
+    this.truckMinigameX = Math.max(150, Math.min(450, y));
+  }
+
   buyRide(type: import('./types').RideType) {
     const config = RIDE_CONFIGS[type];
     const capacity = this.getWarehouseCapacity();
     if (this.rides.length + this.inventory.length >= capacity) {
       return false; // Warehouse full (including built rides)
     }
+
+    // Check for available truck
+    const availableTruck = this.trucks.find(t => !t.assignedRideId);
+    if (!availableTruck) {
+      return false; // No available truck
+    }
+
     if (this.money >= config.cost) {
       this.money -= config.cost;
       const ride: RideInstance = {
@@ -1420,8 +1596,13 @@ export class GameEngine {
         avgWaitTime: 0,
         satisfaction: 100,
         totalVisitorsServed: 0,
-        totalHappinessGained: 0
+        totalHappinessGained: 0,
+        queue: []
       };
+      
+      // Assign truck to ride
+      availableTruck.assignedRideId = ride.id;
+      
       this.inventory.push(ride);
       this.saveGame();
       return true;
@@ -1470,6 +1651,26 @@ export class GameEngine {
       return false;
     }
 
+    // Funfair Zone check
+    const isInFunfairArea = this.zones.some(zone => {
+      return zone.type === 'FUNFAIR' &&
+             x >= zone.x && 
+             x + config.width <= zone.x + zone.width && 
+             y >= zone.y && 
+             y + config.height <= zone.y + zone.height;
+    });
+
+    // Ensure it's not overlapping any TRUCK or STAFF zones
+    const isInRestrictedZone = this.zones.some(zone => {
+      if (zone.type === 'FUNFAIR') return false;
+      return !(x + config.width <= zone.x || 
+               x >= zone.x + zone.width || 
+               y + config.height <= zone.y || 
+               y >= zone.y + zone.height);
+    });
+
+    if (!isInFunfairArea || isInRestrictedZone) return false;
+
     // Overlap check
     const isOverlapping = this.rides.some(r => {
       const rConfig = RIDE_CONFIGS[r.type];
@@ -1495,9 +1696,17 @@ export class GameEngine {
   dismantleRide(rideId: string) {
     const ride = this.rides.find(r => r.id === rideId);
     if (ride && ride.status !== 'DISMANTLING' && ride.status !== 'CONSTRUCTING') {
+      // Need an available truck to dismantle
+      const availableTruck = this.trucks.find(t => !t.assignedRideId);
+      if (!availableTruck) return false;
+
       ride.status = 'DISMANTLING';
       ride.buildProgress = 100;
       ride.currentVisitors = 0;
+      
+      // Assign truck to ride being dismantled
+      availableTruck.assignedRideId = ride.id;
+      
       this.saveGame();
       return true;
     }
@@ -1524,6 +1733,13 @@ export class GameEngine {
       const ride = this.rides[rideIndex];
       const config = RIDE_CONFIGS[ride.type];
       this.money += Math.floor(config.cost * 0.5 * (ride.condition / 100));
+      
+      // Unassign truck
+      const truck = this.trucks.find(t => t.assignedRideId === rideId);
+      if (truck) {
+        truck.assignedRideId = undefined;
+      }
+      
       this.rides.splice(rideIndex, 1);
       this.saveGame();
       return true;
@@ -1537,11 +1753,67 @@ export class GameEngine {
       const ride = this.inventory[rideIndex];
       const config = RIDE_CONFIGS[ride.type];
       this.money += Math.floor(config.cost * 0.5);
+      
+      // Unassign truck
+      const truck = this.trucks.find(t => t.assignedRideId === rideId);
+      if (truck) {
+        truck.assignedRideId = undefined;
+      }
+      
       this.inventory.splice(rideIndex, 1);
       this.saveGame();
       return true;
     }
     return false;
+  }
+
+  buyTruck() {
+    const garageConfig = GARAGE_CONFIGS.find(c => c.level === this.company.garageLevel);
+    if (!garageConfig) return false;
+    
+    if (this.trucks.length >= garageConfig.capacity) return false;
+    
+    if (this.money >= TRUCK_COST) {
+      this.money -= TRUCK_COST;
+      const city = CITIES.find(c => c.id === this.company.currentCityId) || CITIES[0];
+      this.trucks.push({
+        id: Math.random().toString(36).substr(2, 9),
+        name: `Truck ${this.trucks.length + 1}`,
+        x: 50,
+        y: city.mapHeight * 20
+      });
+      this.saveGame();
+      return true;
+    }
+    return false;
+  }
+
+  upgradeGarage() {
+    const currentLevel = this.company.garageLevel;
+    const nextConfig = GARAGE_CONFIGS.find(c => c.level === currentLevel + 1);
+    if (!nextConfig) return false;
+    
+    if (this.money >= nextConfig.upgradeCost) {
+      this.money -= nextConfig.upgradeCost;
+      this.company.garageLevel++;
+      this.saveGame();
+      return true;
+    }
+    return false;
+  }
+
+  addZone(x: number, y: number, width: number, height: number, type: 'FUNFAIR' | 'TRUCK' | 'STAFF'): GameState {
+    const newZone: Zone = {
+      id: `zone-${Date.now()}`,
+      x, y, width, height, type
+    };
+    this.zones.push(newZone);
+    return this.getState();
+  }
+
+  removeZone(zoneId: string): GameState {
+    this.zones = this.zones.filter(z => z.id !== zoneId);
+    return this.getState();
   }
 
   private addThought(v: Visitor, thought: string) {
