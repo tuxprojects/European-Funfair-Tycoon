@@ -548,7 +548,7 @@ export class GameEngine {
     const unassignedOperators = this.staff.filter(s => s.type === 'OPERATOR' && !s.assignedRideId);
     const ridesNeedingOperators = this.rides.filter(r => 
       (r.status === 'OPERATIONAL' || r.status === 'BROKEN' || r.status === 'CONSTRUCTING') && 
-      !r.operatorId && r.type !== 'CARAVAN' && r.type !== 'RESTROOM' && r.type !== 'BENCH'
+      !r.operatorId && RIDE_CONFIGS[r.type].category === 'RIDE'
     );
 
     for (let i = 0; i < Math.min(unassignedOperators.length, ridesNeedingOperators.length); i++) {
@@ -557,6 +557,21 @@ export class GameEngine {
       ride.operatorId = operator.id;
       operator.assignedRideId = ride.id;
       if (operator.state === 'IDLE') operator.state = 'WORKING';
+    }
+
+    // Auto-assign vendors for food stalls
+    const unassignedVendors = this.staff.filter(s => s.type === 'VENDOR' && !s.assignedRideId);
+    const stallsNeedingVendors = this.rides.filter(r => 
+      (r.status === 'OPERATIONAL' || r.status === 'CONSTRUCTING') && 
+      !r.operatorId && RIDE_CONFIGS[r.type].category === 'FOOD'
+    );
+
+    for (let i = 0; i < Math.min(unassignedVendors.length, stallsNeedingVendors.length); i++) {
+      const vendor = unassignedVendors[i];
+      const stall = stallsNeedingVendors[i];
+      stall.operatorId = vendor.id;
+      vendor.assignedRideId = stall.id;
+      if (vendor.state === 'IDLE') vendor.state = 'WORKING';
     }
 
     // Auto-assign mechanics for maintenance/repairs
@@ -694,7 +709,8 @@ export class GameEngine {
       
       if (ride.status === 'OPERATIONAL') {
         // Check if it has an operator and they are working
-        const operator = this.staff.find(s => s.id === ride.operatorId && s.type === 'OPERATOR');
+        const staffType = config.category === 'FOOD' ? 'VENDOR' : 'OPERATOR';
+        const operator = this.staff.find(s => s.id === ride.operatorId && s.type === staffType);
         if (operator && operator.state === 'WORKING') {
           ride.isStaffResting = false;
           ride.status = 'OPERATIONAL';
@@ -1200,11 +1216,14 @@ export class GameEngine {
     const ride = this.rides.find(r => r.id === rideId);
     if (!ride) return false;
 
+    const config = RIDE_CONFIGS[ride.type];
+    const staffType = config.category === 'FOOD' ? 'VENDOR' : 'OPERATOR';
+
     // Check if ride already has an operator
-    const currentOp = this.staff.find(s => s.assignedRideId === rideId && s.type === 'OPERATOR');
+    const currentOp = this.staff.find(s => s.assignedRideId === rideId && s.type === staffType);
     if (currentOp) return false;
 
-    const staff = this.hireStaff('OPERATOR');
+    const staff = this.hireStaff(staffType);
     if (staff) {
       staff.assignedRideId = rideId;
       ride.operatorId = staff.id;
@@ -1255,6 +1274,9 @@ export class GameEngine {
     const ride = this.rides.find(r => r.id === rideId);
     if (!ride) return false;
 
+    const config = RIDE_CONFIGS[ride.type];
+    const staffType = config.category === 'FOOD' ? 'VENDOR' : 'OPERATOR';
+
     // Unassign current operator if any
     if (ride.operatorId) {
       const currentOp = this.staff.find(s => s.id === ride.operatorId);
@@ -1265,7 +1287,7 @@ export class GameEngine {
     }
 
     if (staffId) {
-      const newOp = this.staff.find(s => s.id === staffId && s.type === 'OPERATOR');
+      const newOp = this.staff.find(s => s.id === staffId && s.type === staffType);
       if (newOp) {
         // If they were assigned elsewhere, unassign them from there
         if (newOp.assignedRideId) {

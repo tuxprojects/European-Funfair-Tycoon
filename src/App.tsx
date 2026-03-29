@@ -1869,14 +1869,21 @@ export default function App() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {(Object.keys(STAFF_CONFIGS) as StaffType[]).map(type => {
                           const config = STAFF_CONFIGS[type];
+                          const hiringFee = config.baseSalary * 10;
+                          const canAfford = gameState.money >= hiringFee;
                           return (
                             <button
                               key={type}
+                              disabled={!canAfford}
                               onClick={() => {
                                 engine.hireStaff(type);
                                 setGameState(engine.getState());
                               }}
-                              className="group relative flex flex-col gap-3 p-5 rounded-3xl border border-slate-100 bg-white hover:border-indigo-600 hover:shadow-xl hover:-translate-y-1 transition-all text-left overflow-hidden"
+                              className={`group relative flex flex-col gap-3 p-5 rounded-3xl border transition-all text-left overflow-hidden ${
+                                canAfford 
+                                  ? "border-slate-100 bg-white hover:border-indigo-600 hover:shadow-xl hover:-translate-y-1" 
+                                  : "border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed"
+                              }`}
                             >
                               <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-10 transition-opacity">
                                 <span className="text-6xl">{config.icon}</span>
@@ -1888,6 +1895,8 @@ export default function App() {
                                 <div className="text-right">
                                   <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">${config.baseSalary}/hr</p>
                                   <p className="text-[8px] font-bold text-slate-400 uppercase">Base Salary</p>
+                                  <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-1">${hiringFee}</p>
+                                  <p className="text-[8px] font-bold text-slate-400 uppercase">Hiring Fee</p>
                                 </div>
                               </div>
                               <div className="relative z-10">
@@ -2500,10 +2509,12 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Operator Assignment */}
+                        {/* Staff Assignment */}
                         <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-2">
                           <div className="flex items-center justify-between">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase">Operator</p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase">
+                              {RIDE_CONFIGS[ride.type].category === 'FOOD' ? 'Vendor' : 'Operator'}
+                            </p>
                             {ride.operatorId ? (
                               <span className="text-[10px] font-bold text-emerald-600 uppercase">Assigned</span>
                             ) : (
@@ -2522,10 +2533,10 @@ export default function App() {
                           >
                             <option value="">Auto-Assign</option>
                             {gameState.staff
-                              .filter(s => s.type === 'OPERATOR')
+                              .filter(s => s.type === (RIDE_CONFIGS[ride.type].category === 'FOOD' ? 'VENDOR' : 'OPERATOR'))
                               .map(s => (
                                 <option key={s.id} value={s.id}>
-                                  Operator {s.id.slice(0, 4)} {s.assignedRideId && s.assignedRideId !== ride.id ? '(Busy)' : ''}
+                                  {s.type === 'VENDOR' ? 'Vendor' : 'Operator'} {s.id.slice(0, 4)} {s.assignedRideId && s.assignedRideId !== ride.id ? '(Busy)' : ''}
                                 </option>
                               ))}
                           </select>
@@ -2540,7 +2551,7 @@ export default function App() {
                               className="w-full mt-2 py-2 rounded-lg bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-2"
                             >
                               <UserPlus size={14} />
-                              Hire Operator
+                              Hire {RIDE_CONFIGS[ride.type].category === 'FOOD' ? 'Vendor' : 'Operator'}
                             </button>
                           )}
                         </div>
