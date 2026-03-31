@@ -40,6 +40,16 @@ export interface ParkSettings {
 
 export type TerrainType = 'GRASS' | 'ASPHALT' | 'GRAVEL';
 
+export interface Building {
+  id: string;
+  x: number; // grid x
+  y: number; // grid y
+  width: number; // grid width
+  height: number; // grid height
+  name: string;
+  type: 'SKYSCRAPER' | 'OFFICE' | 'APARTMENT' | 'HISTORIC';
+}
+
 export interface City {
   id: string;
   name: string;
@@ -50,9 +60,11 @@ export interface City {
   mapWidth: number;
   mapHeight: number;
   terrain: TerrainType;
+  population: number;
   weatherProbabilities: Record<Season, Partial<Record<WeatherType, number>>>;
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
+  buildings?: Building[];
 }
 
 export interface CompanyInfo {
@@ -73,6 +85,16 @@ export interface TruckInstance {
   targetY?: number;
 }
 
+export interface Loan {
+  id: string;
+  amount: number;
+  remainingPrincipal: number;
+  interestRate: number; // Annual rate (e.g., 0.1 for 10%)
+  takenAtDay: number;
+  termDays: number;
+  dailyPayment: number;
+}
+
 export interface FinanceStats {
   income: {
     tickets: number;
@@ -87,6 +109,8 @@ export interface FinanceStats {
     electricity: number;
     rent: number;
     maintenance: number;
+    loanInterest: number;
+    loanPrincipal: number;
     other: number;
   };
   visitorStats: {
@@ -120,6 +144,7 @@ export interface GameState {
   currentMapSize: { width: number, height: number };
   finances: FinanceStats;
   dailyHistory: FinanceStats[]; // Last 7 days
+  activeLoans: Loan[];
   tutorialStep: number;
   showTutorial: boolean;
   zones: Zone[];
@@ -147,9 +172,8 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 30,
     terrain: 'GRASS',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
-    x: 0,
-    y: 0
+    population: 8982000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'manchester',
@@ -161,6 +185,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'ASPHALT',
+    population: 553230,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       AUTUMN: { SUNNY: 0.2, CLOUDY: 0.4, RAINY: 0.3, STORMY: 0.1 },
@@ -179,9 +204,8 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 35,
     terrain: 'GRASS',
+    population: 1144919,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
-    x: 0,
-    y: 100
   },
   {
     id: 'liverpool',
@@ -193,9 +217,8 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 40,
     terrain: 'ASPHALT',
+    population: 496784,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
-    x: -50,
-    y: 200
   },
   {
     id: 'glasgow',
@@ -207,6 +230,7 @@ export const CITIES: City[] = [
     mapWidth: 45,
     mapHeight: 30,
     terrain: 'GRASS',
+    population: 635640,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.4, SNOWY: 0.2, FREEZING: 0.1 }
@@ -224,6 +248,7 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 45,
     terrain: 'GRAVEL',
+    population: 548000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.3, SNOWY: 0.3, FREEZING: 0.1 }
@@ -241,9 +266,8 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'GRASS',
+    population: 362756,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
-    x: -100,
-    y: 150
   },
   {
     id: 'belfast',
@@ -255,9 +279,8 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'ASPHALT',
+    population: 341877,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
-    x: -200,
-    y: 300
   },
   {
     id: 'bristol',
@@ -269,9 +292,8 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 30,
     terrain: 'GRASS',
+    population: 467099,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
-    x: -100,
-    y: 100
   },
   {
     id: 'leeds',
@@ -283,9 +305,8 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 40,
     terrain: 'ASPHALT',
+    population: 812000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
-    x: 50,
-    y: 200
   },
   {
     id: 'newcastle',
@@ -297,9 +318,8 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 40,
     terrain: 'GRAVEL',
+    population: 300196,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
-    x: 50,
-    y: 300
   },
   {
     id: 'paris',
@@ -311,9 +331,8 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 30,
     terrain: 'ASPHALT',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
-    x: 100,
-    y: -200
+    population: 2148000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'berlin',
@@ -325,27 +344,8 @@ export const CITIES: City[] = [
     mapWidth: 50,
     mapHeight: 25,
     terrain: 'GRAVEL',
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
-    x: 300,
-    y: -100
-  },
-  {
-    id: 'athens',
-    name: 'Athens',
-    country: 'Greece',
-    visitorMultiplier: 1.5,
-    travelCost: 6500,
-    description: 'Ancient dusty grounds near the Acropolis.',
-    mapWidth: 50,
-    mapHeight: 30,
-    terrain: 'GRAVEL',
-    weatherProbabilities: {
-      ...DEFAULT_WEATHER_PROBABILITIES,
-      SUMMER: { SUNNY: 0.8, CLOUDY: 0.1, RAINY: 0.05, STORMY: 0.05 },
-      WINTER: { SUNNY: 0.6, CLOUDY: 0.2, RAINY: 0.2 }
-    },
-    x: 500,
-    y: -600
+    population: 3769000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
   },
   {
     id: 'lisbon',
@@ -357,6 +357,7 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 35,
     terrain: 'GRASS',
+    population: 504718,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.5, CLOUDY: 0.3, RAINY: 0.2 }
@@ -374,6 +375,7 @@ export const CITIES: City[] = [
     mapWidth: 50,
     mapHeight: 50,
     terrain: 'GRASS',
+    population: 1472000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 250,
     y: -200
@@ -388,6 +390,7 @@ export const CITIES: City[] = [
     mapWidth: 45,
     mapHeight: 45,
     terrain: 'ASPHALT',
+    population: 1841000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 250,
     y: 0
@@ -402,6 +405,7 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 40,
     terrain: 'ASPHALT',
+    population: 1086000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 200,
     y: -100
@@ -416,6 +420,7 @@ export const CITIES: City[] = [
     mapWidth: 45,
     mapHeight: 40,
     terrain: 'GRASS',
+    population: 619000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 200,
     y: -80
@@ -430,6 +435,7 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 45,
     terrain: 'GRAVEL',
+    population: 635000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 220,
     y: -200
@@ -444,6 +450,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'ASPHALT',
+    population: 753000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 220,
     y: -150
@@ -458,6 +465,7 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 40,
     terrain: 'GRAVEL',
+    population: 569000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 200,
     y: 0
@@ -472,6 +480,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 30,
     terrain: 'GRASS',
+    population: 597000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 280,
     y: -100
@@ -486,6 +495,7 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 35,
     terrain: 'GRAVEL',
+    population: 518000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 260,
     y: -150
@@ -500,6 +510,7 @@ export const CITIES: City[] = [
     mapWidth: 45,
     mapHeight: 35,
     terrain: 'GRASS',
+    population: 535000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 240,
     y: -50
@@ -514,6 +525,7 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 40,
     terrain: 'ASPHALT',
+    population: 587000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 200,
     y: -90
@@ -528,6 +540,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'ASPHALT',
+    population: 582000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 190,
     y: -90
@@ -542,6 +555,7 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 30,
     terrain: 'GRAVEL',
+    population: 498000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 180,
     y: -90
@@ -556,6 +570,7 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 25,
     terrain: 'ASPHALT',
+    population: 364000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 195,
     y: -90
@@ -570,6 +585,7 @@ export const CITIES: City[] = [
     mapWidth: 25,
     mapHeight: 35,
     terrain: 'GRASS',
+    population: 355000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 195,
     y: -110
@@ -584,6 +600,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 40,
     terrain: 'ASPHALT',
+    population: 1210000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 150,
     y: -150
@@ -598,6 +615,7 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 40,
     terrain: 'GRAVEL',
+    population: 2873000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       SUMMER: { SUNNY: 0.8, CLOUDY: 0.1, RAINY: 0.1, STORMY: 0.0 },
@@ -616,6 +634,7 @@ export const CITIES: City[] = [
     mapWidth: 45,
     mapHeight: 35,
     terrain: 'ASPHALT',
+    population: 3223000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       SUMMER: { SUNNY: 0.9, CLOUDY: 0.05, RAINY: 0.05, STORMY: 0.0 }
@@ -633,6 +652,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 45,
     terrain: 'GRASS',
+    population: 872000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       AUTUMN: { SUNNY: 0.2, CLOUDY: 0.4, RAINY: 0.3, STORMY: 0.1 }
@@ -650,6 +670,7 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 40,
     terrain: 'GRAVEL',
+    population: 1911000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.2, CLOUDY: 0.3, RAINY: 0.2, SNOWY: 0.2, FREEZING: 0.1 }
@@ -667,6 +688,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 40,
     terrain: 'GRAVEL',
+    population: 1335000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.2, CLOUDY: 0.3, RAINY: 0.1, SNOWY: 0.3, FREEZING: 0.1 }
@@ -684,6 +706,7 @@ export const CITIES: City[] = [
     mapWidth: 45,
     mapHeight: 35,
     terrain: 'ASPHALT',
+    population: 1790000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.2, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.4, FREEZING: 0.1 }
@@ -701,6 +724,7 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 30,
     terrain: 'GRASS',
+    population: 975000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.5, FREEZING: 0.1 }
@@ -718,6 +742,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'GRASS',
+    population: 693000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.5, FREEZING: 0.1 }
@@ -735,6 +760,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'ASPHALT',
+    population: 602000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 300,
     y: 100
@@ -749,12 +775,241 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 30,
     terrain: 'GRAVEL',
+    population: 654000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.05, CLOUDY: 0.15, RAINY: 0.05, SNOWY: 0.5, FREEZING: 0.25 }
     },
     x: 500,
     y: 300
+  },
+  {
+    id: 'belgrade',
+    name: 'Belgrade',
+    country: 'Serbia',
+    visitorMultiplier: 1.2,
+    travelCost: 3200,
+    description: 'The "White City" at the confluence of the Sava and Danube.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'ASPHALT',
+    population: 1374000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 480,
+    y: -350
+  },
+  {
+    id: 'zagreb',
+    name: 'Zagreb',
+    country: 'Croatia',
+    visitorMultiplier: 1.3,
+    travelCost: 3800,
+    description: 'A city of museums, parks, and Austro-Hungarian architecture.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 806000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 380,
+    y: -320
+  },
+  {
+    id: 'sarajevo',
+    name: 'Sarajevo',
+    country: 'Bosnia and Herzegovina',
+    visitorMultiplier: 1.1,
+    travelCost: 3000,
+    description: 'The "Jerusalem of Europe", nestled in a valley.',
+    mapWidth: 30,
+    mapHeight: 45,
+    terrain: 'GRAVEL',
+    population: 275000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 420,
+    y: -380
+  },
+  {
+    id: 'tirana',
+    name: 'Tirana',
+    country: 'Albania',
+    visitorMultiplier: 1.0,
+    travelCost: 2800,
+    description: 'A colorful capital with a mix of Ottoman and Italian styles.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 557000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 450,
+    y: -450
+  },
+  {
+    id: 'skopje',
+    name: 'Skopje',
+    country: 'North Macedonia',
+    visitorMultiplier: 1.1,
+    travelCost: 3100,
+    description: 'A city of statues, bridges, and ancient bazaars.',
+    mapWidth: 40,
+    mapHeight: 30,
+    terrain: 'GRAVEL',
+    population: 546000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 500,
+    y: -420
+  },
+  {
+    id: 'pristina',
+    name: 'Pristina',
+    country: 'Kosovo',
+    visitorMultiplier: 1.0,
+    travelCost: 2900,
+    description: 'A young and vibrant capital in the heart of the Balkans.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 211000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 480,
+    y: -410
+  },
+  {
+    id: 'podgorica',
+    name: 'Podgorica',
+    country: 'Montenegro',
+    visitorMultiplier: 1.1,
+    travelCost: 3300,
+    description: 'A city surrounded by rivers and mountains.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 150000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 430,
+    y: -420
+  },
+  {
+    id: 'ljubljana',
+    name: 'Ljubljana',
+    country: 'Slovenia',
+    visitorMultiplier: 1.4,
+    travelCost: 4500,
+    description: 'A green and charming capital with a dragon bridge.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    population: 295000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 350,
+    y: -300
+  },
+  {
+    id: 'athens',
+    name: 'Athens',
+    country: 'Greece',
+    visitorMultiplier: 1.6,
+    travelCost: 5500,
+    description: 'The cradle of Western civilization, dominated by the Acropolis.',
+    mapWidth: 50,
+    mapHeight: 50,
+    terrain: 'GRAVEL',
+    population: 664000,
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      SUMMER: { SUNNY: 0.95, CLOUDY: 0.03, RAINY: 0.02, STORMY: 0.0 }
+    },
+    x: 550,
+    y: -550
+  },
+  {
+    id: 'thessaloniki',
+    name: 'Thessaloniki',
+    country: 'Greece',
+    visitorMultiplier: 1.4,
+    travelCost: 4800,
+    description: 'A vibrant port city with Byzantine monuments.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'ASPHALT',
+    population: 315000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 530,
+    y: -480
+  },
+  {
+    id: 'split',
+    name: 'Split',
+    country: 'Croatia',
+    visitorMultiplier: 1.5,
+    travelCost: 5200,
+    description: 'A coastal gem built around Diocletian\'s Palace.',
+    mapWidth: 35,
+    mapHeight: 40,
+    terrain: 'GRAVEL',
+    population: 178000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 390,
+    y: -380
+  },
+  {
+    id: 'dubrovnik',
+    name: 'Dubrovnik',
+    country: 'Croatia',
+    visitorMultiplier: 1.7,
+    travelCost: 6500,
+    description: 'The "Pearl of the Adriatic", famous for its city walls.',
+    mapWidth: 30,
+    mapHeight: 50,
+    terrain: 'GRAVEL',
+    population: 42000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 410,
+    y: -410
+  },
+  {
+    id: 'varna',
+    name: 'Varna',
+    country: 'Bulgaria',
+    visitorMultiplier: 1.2,
+    travelCost: 3800,
+    description: 'The "Sea Capital" of Bulgaria on the Black Sea coast.',
+    mapWidth: 40,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 336000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 650,
+    y: -320
+  },
+  {
+    id: 'cluj',
+    name: 'Cluj-Napoca',
+    country: 'Romania',
+    visitorMultiplier: 1.3,
+    travelCost: 4200,
+    description: 'The unofficial capital of Transylvania, a tech hub.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'GRASS',
+    population: 324000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 520,
+    y: -220
+  },
+  {
+    id: 'timisoara',
+    name: 'Timisoara',
+    country: 'Romania',
+    visitorMultiplier: 1.2,
+    travelCost: 3900,
+    description: 'A multicultural city known for its parks and squares.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 319000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 480,
+    y: -250
   },
   {
     id: 'dublin',
@@ -766,6 +1021,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'GRASS',
+    population: 544000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       SPRING: { SUNNY: 0.3, CLOUDY: 0.3, RAINY: 0.3, STORMY: 0.1 },
@@ -784,6 +1040,7 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 30,
     terrain: 'ASPHALT',
+    population: 415000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.2, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.3, FREEZING: 0.2 }
@@ -801,6 +1058,7 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 40,
     terrain: 'GRAVEL',
+    population: 1752000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 400,
     y: -250
@@ -815,6 +1073,7 @@ export const CITIES: City[] = [
     mapWidth: 45,
     mapHeight: 45,
     terrain: 'GRASS',
+    population: 1883000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 550,
     y: -300
@@ -829,6 +1088,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'ASPHALT',
+    population: 1352000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 250,
     y: -400
@@ -843,6 +1103,7 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 30,
     terrain: 'ASPHALT',
+    population: 1620000,
     weatherProbabilities: {
       ...DEFAULT_WEATHER_PROBABILITIES,
       WINTER: { SUNNY: 0.6, CLOUDY: 0.3, RAINY: 0.1 }
@@ -860,6 +1121,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'GRASS',
+    population: 1242000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 600,
     y: -350
@@ -874,6 +1136,7 @@ export const CITIES: City[] = [
     mapWidth: 30,
     mapHeight: 30,
     terrain: 'GRAVEL',
+    population: 426000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 650,
     y: 150
@@ -888,6 +1151,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'GRASS',
+    population: 632000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 630,
     y: 100
@@ -902,6 +1166,7 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'GRASS',
+    population: 588000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 620,
     y: 50
@@ -916,6 +1181,7 @@ export const CITIES: City[] = [
     mapWidth: 40,
     mapHeight: 40,
     terrain: 'GRAVEL',
+    population: 779000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 520,
     y: -50
@@ -930,9 +1196,1538 @@ export const CITIES: City[] = [
     mapWidth: 35,
     mapHeight: 35,
     terrain: 'GRAVEL',
+    population: 470000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
     x: 500,
     y: 100
+  },
+  {
+    id: 'seville',
+    name: 'Seville',
+    country: 'Spain',
+    visitorMultiplier: 1.5,
+    travelCost: 5500,
+    description: 'A city of flamenco, oranges, and historic charm.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'ASPHALT',
+    population: 688000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES, SUMMER: { SUNNY: 0.9, CLOUDY: 0.05, RAINY: 0.05 } },
+    x: -50,
+    y: -650
+  },
+  {
+    id: 'valencia',
+    name: 'Valencia',
+    country: 'Spain',
+    visitorMultiplier: 1.4,
+    travelCost: 4800,
+    description: 'The city of arts, sciences, and delicious paella.',
+    mapWidth: 45,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 791000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 50,
+    y: -550
+  },
+  {
+    id: 'bilbao',
+    name: 'Bilbao',
+    country: 'Spain',
+    visitorMultiplier: 1.3,
+    travelCost: 4200,
+    description: 'A modern hub of art and design in the Basque Country.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 345000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES, SPRING: { RAINY: 0.4 }, AUTUMN: { RAINY: 0.4 } },
+    x: -20,
+    y: -420
+  },
+  {
+    id: 'malaga',
+    name: 'Malaga',
+    country: 'Spain',
+    visitorMultiplier: 1.4,
+    travelCost: 5000,
+    description: 'The gateway to the Costa del Sol, sunny and vibrant.',
+    mapWidth: 40,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 578000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES, SUMMER: { SUNNY: 0.95 } },
+    x: -20,
+    y: -680
+  },
+  {
+    id: 'zaragoza',
+    name: 'Zaragoza',
+    country: 'Spain',
+    visitorMultiplier: 1.2,
+    travelCost: 3800,
+    description: 'A historic city on the Ebro river with grand basilicas.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 674000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 30,
+    y: -480
+  },
+  {
+    id: 'granada',
+    name: 'Granada',
+    country: 'Spain',
+    visitorMultiplier: 1.6,
+    travelCost: 6000,
+    description: 'Home to the magnificent Alhambra and Sierra Nevada views.',
+    mapWidth: 35,
+    mapHeight: 40,
+    terrain: 'GRAVEL',
+    population: 232000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 0,
+    y: -650
+  },
+  {
+    id: 'san-sebastian',
+    name: 'San Sebastian',
+    country: 'Spain',
+    visitorMultiplier: 1.5,
+    travelCost: 5800,
+    description: 'A culinary paradise with beautiful urban beaches.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    population: 186000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 0,
+    y: -400
+  },
+  {
+    id: 'alicante',
+    name: 'Alicante',
+    country: 'Spain',
+    visitorMultiplier: 1.3,
+    travelCost: 4500,
+    description: 'A Mediterranean port city with a historic castle.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 337000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 60,
+    y: -600
+  },
+  {
+    id: 'cordoba',
+    name: 'Cordoba',
+    country: 'Spain',
+    visitorMultiplier: 1.4,
+    travelCost: 4600,
+    description: 'Famous for its Mezquita and flower-filled courtyards.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRAVEL',
+    population: 326000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -30,
+    y: -620
+  },
+  {
+    id: 'palma',
+    name: 'Palma de Mallorca',
+    country: 'Spain',
+    visitorMultiplier: 1.7,
+    travelCost: 7000,
+    description: 'The stylish capital of the Balearic Islands.',
+    mapWidth: 40,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 416000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 120,
+    y: -580
+  },
+  {
+    id: 'santiago',
+    name: 'Santiago de Compostela',
+    country: 'Spain',
+    visitorMultiplier: 1.5,
+    travelCost: 5200,
+    description: 'The final stop of the Camino de Santiago pilgrimage.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 97000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES, SPRING: { RAINY: 0.5 }, WINTER: { RAINY: 0.5 } },
+    x: -150,
+    y: -400
+  },
+  {
+    id: 'toledo',
+    name: 'Toledo',
+    country: 'Spain',
+    visitorMultiplier: 1.4,
+    travelCost: 4000,
+    description: 'The "City of Three Cultures" perched on a hill.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRAVEL',
+    population: 85000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 0,
+    y: -530
+  },
+  {
+    id: 'salamanca',
+    name: 'Salamanca',
+    country: 'Spain',
+    visitorMultiplier: 1.3,
+    travelCost: 3900,
+    description: 'A golden city known for its ancient university.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 144000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -50,
+    y: -500
+  },
+  {
+    id: 'wroclaw',
+    name: 'Wrocław',
+    country: 'Poland',
+    visitorMultiplier: 1.3,
+    travelCost: 3800,
+    description: 'A city of bridges, islands, and hidden gnomes.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'GRASS',
+    population: 641000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 400,
+    y: -150
+  },
+  {
+    id: 'poznan',
+    name: 'Poznań',
+    country: 'Poland',
+    visitorMultiplier: 1.2,
+    travelCost: 3500,
+    description: 'A historic trade hub with a colorful Old Market Square.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 534000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 400,
+    y: -50
+  },
+  {
+    id: 'lodz',
+    name: 'Łódź',
+    country: 'Poland',
+    visitorMultiplier: 1.1,
+    travelCost: 3000,
+    description: 'A former industrial giant now a center of film and art.',
+    mapWidth: 40,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 672000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 480,
+    y: -80
+  },
+  {
+    id: 'szczecin',
+    name: 'Szczecin',
+    country: 'Poland',
+    visitorMultiplier: 1.1,
+    travelCost: 3200,
+    description: 'A port city with a unique Parisian-style layout.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 401000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 350,
+    y: 0
+  },
+  {
+    id: 'bydgoszcz',
+    name: 'Bydgoszcz',
+    country: 'Poland',
+    visitorMultiplier: 1.1,
+    travelCost: 2900,
+    description: 'A city of rivers and canals, often called "Little Berlin".',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    population: 348000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 420,
+    y: 50
+  },
+  {
+    id: 'lublin',
+    name: 'Lublin',
+    country: 'Poland',
+    visitorMultiplier: 1.2,
+    travelCost: 3100,
+    description: 'A historic city in eastern Poland with a beautiful Old Town.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 339000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 550,
+    y: -120
+  },
+  {
+    id: 'bialystok',
+    name: 'Białystok',
+    country: 'Poland',
+    visitorMultiplier: 1.1,
+    travelCost: 2800,
+    description: 'A gateway to the wild forests of eastern Poland.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    population: 297000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 580,
+    y: 0
+  },
+  {
+    id: 'katowice',
+    name: 'Katowice',
+    country: 'Poland',
+    visitorMultiplier: 1.2,
+    travelCost: 3300,
+    description: 'The heart of Poland\'s industrial Silesian region.',
+    mapWidth: 40,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 290000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 480,
+    y: -150
+  },
+  {
+    id: 'gdynia',
+    name: 'Gdynia',
+    country: 'Poland',
+    visitorMultiplier: 1.2,
+    travelCost: 3400,
+    description: 'A modern port city and part of the Tricity area.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 244000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 490,
+    y: 120
+  },
+  {
+    id: 'torun',
+    name: 'Toruń',
+    country: 'Poland',
+    visitorMultiplier: 1.3,
+    travelCost: 3600,
+    description: 'The birthplace of Copernicus, famous for its gingerbread.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRAVEL',
+    population: 201000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 450,
+    y: 50
+  },
+  {
+    id: 'zakopane',
+    name: 'Zakopane',
+    country: 'Poland',
+    visitorMultiplier: 1.5,
+    travelCost: 4500,
+    description: 'The winter capital of Poland in the Tatra Mountains.',
+    mapWidth: 30,
+    mapHeight: 40,
+    terrain: 'GRASS',
+    population: 27000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES, WINTER: { SNOWY: 0.6 } },
+    x: 500,
+    y: -200
+  },
+  {
+    id: 'rzeszow',
+    name: 'Rzeszów',
+    country: 'Poland',
+    visitorMultiplier: 1.1,
+    travelCost: 3000,
+    description: 'A growing hub in southeastern Poland.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 196000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 580,
+    y: -150
+  },
+  {
+    id: 'olsztyn',
+    name: 'Olsztyn',
+    country: 'Poland',
+    visitorMultiplier: 1.1,
+    travelCost: 2900,
+    description: 'A city of lakes and forests in northern Poland.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 171000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 520,
+    y: 80
+  },
+  {
+    id: 'venice',
+    name: 'Venice',
+    country: 'Italy',
+    visitorMultiplier: 1.8,
+    travelCost: 8000,
+    description: 'The floating city of canals and gondolas.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 261000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 320,
+    y: -400
+  },
+  {
+    id: 'florence',
+    name: 'Florence',
+    country: 'Italy',
+    visitorMultiplier: 1.7,
+    travelCost: 7500,
+    description: 'The cradle of the Renaissance, rich in art and history.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 382000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 300,
+    y: -450
+  },
+  {
+    id: 'naples',
+    name: 'Naples',
+    country: 'Italy',
+    visitorMultiplier: 1.4,
+    travelCost: 5000,
+    description: 'A vibrant city in the shadow of Mount Vesuvius.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'ASPHALT',
+    population: 962000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 350,
+    y: -550
+  },
+  {
+    id: 'turin',
+    name: 'Turin',
+    country: 'Italy',
+    visitorMultiplier: 1.3,
+    travelCost: 4800,
+    description: 'An elegant city known for its chocolate and industry.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 870000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 220,
+    y: -400
+  },
+  {
+    id: 'palermo',
+    name: 'Palermo',
+    country: 'Italy',
+    visitorMultiplier: 1.4,
+    travelCost: 5500,
+    description: 'The colorful and historic capital of Sicily.',
+    mapWidth: 40,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 673000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 350,
+    y: -750
+  },
+  {
+    id: 'genoa',
+    name: 'Genoa',
+    country: 'Italy',
+    visitorMultiplier: 1.2,
+    travelCost: 4200,
+    description: 'A historic port city with a maze of narrow streets.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 583000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 240,
+    y: -420
+  },
+  {
+    id: 'bologna',
+    name: 'Bologna',
+    country: 'Italy',
+    visitorMultiplier: 1.4,
+    travelCost: 4600,
+    description: 'The culinary capital of Italy, famous for its porticos.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 390000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 280,
+    y: -430
+  },
+  {
+    id: 'verona',
+    name: 'Verona',
+    country: 'Italy',
+    visitorMultiplier: 1.5,
+    travelCost: 5200,
+    description: 'The city of Romeo and Juliet, with a grand Roman arena.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRAVEL',
+    population: 257000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 280,
+    y: -400
+  },
+  {
+    id: 'bari',
+    name: 'Bari',
+    country: 'Italy',
+    visitorMultiplier: 1.2,
+    travelCost: 4000,
+    description: 'A bustling port city in the sun-drenched south.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 324000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 450,
+    y: -580
+  },
+  {
+    id: 'catania',
+    name: 'Catania',
+    country: 'Italy',
+    visitorMultiplier: 1.3,
+    travelCost: 5300,
+    description: 'A historic city at the foot of Mount Etna.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 311000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 400,
+    y: -780
+  },
+  {
+    id: 'cagliari',
+    name: 'Cagliari',
+    country: 'Italy',
+    visitorMultiplier: 1.2,
+    travelCost: 4500,
+    description: 'The hilltop capital of the island of Sardinia.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    population: 154000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 200,
+    y: -650
+  },
+  {
+    id: 'pisa',
+    name: 'Pisa',
+    country: 'Italy',
+    visitorMultiplier: 1.6,
+    travelCost: 6000,
+    description: 'Famous for its iconic leaning tower.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    population: 91000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 260,
+    y: -460
+  },
+  {
+    id: 'lyon',
+    name: 'Lyon',
+    country: 'France',
+    visitorMultiplier: 1.4,
+    travelCost: 4800,
+    description: 'The gastronomic capital of France.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'ASPHALT',
+    population: 513000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 150,
+    y: -300
+  },
+  {
+    id: 'marseille',
+    name: 'Marseille',
+    country: 'France',
+    visitorMultiplier: 1.3,
+    travelCost: 4500,
+    description: 'A vibrant and sunny port city on the Mediterranean.',
+    mapWidth: 40,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 861000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 180,
+    y: -400
+  },
+  {
+    id: 'nice',
+    name: 'Nice',
+    country: 'France',
+    visitorMultiplier: 1.5,
+    travelCost: 5500,
+    description: 'The glamorous heart of the French Riviera.',
+    mapWidth: 35,
+    mapHeight: 30,
+    terrain: 'GRAVEL',
+    population: 342000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 220,
+    y: -420
+  },
+  {
+    id: 'bordeaux',
+    name: 'Bordeaux',
+    country: 'France',
+    visitorMultiplier: 1.4,
+    travelCost: 5000,
+    description: 'The world capital of wine, elegant and historic.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'GRASS',
+    population: 249000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 50,
+    y: -350
+  },
+  {
+    id: 'toulouse',
+    name: 'Toulouse',
+    country: 'France',
+    visitorMultiplier: 1.3,
+    travelCost: 4600,
+    description: 'The "Pink City", a hub of aerospace and history.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 471000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 80,
+    y: -400
+  },
+  {
+    id: 'strasbourg',
+    name: 'Strasbourg',
+    country: 'France',
+    visitorMultiplier: 1.4,
+    travelCost: 5200,
+    description: 'A unique blend of French and German culture.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 277000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 200,
+    y: -200
+  },
+  {
+    id: 'nantes',
+    name: 'Nantes',
+    country: 'France',
+    visitorMultiplier: 1.2,
+    travelCost: 4000,
+    description: 'A creative city on the Loire river.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 303000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 20,
+    y: -250
+  },
+  {
+    id: 'lille',
+    name: 'Lille',
+    country: 'France',
+    visitorMultiplier: 1.3,
+    travelCost: 3800,
+    description: 'A friendly city in northern France with Flemish roots.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 232000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 100,
+    y: -100
+  },
+  {
+    id: 'montpellier',
+    name: 'Montpellier',
+    country: 'France',
+    visitorMultiplier: 1.3,
+    travelCost: 4400,
+    description: 'A stylish and sunny city in southern France.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 277000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 130,
+    y: -400
+  },
+  {
+    id: 'rennes',
+    name: 'Rennes',
+    country: 'France',
+    visitorMultiplier: 1.2,
+    travelCost: 3900,
+    description: 'The vibrant capital of Brittany.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 215000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 10,
+    y: -200
+  },
+  {
+    id: 'reims',
+    name: 'Reims',
+    country: 'France',
+    visitorMultiplier: 1.3,
+    travelCost: 4200,
+    description: 'The heart of the Champagne region.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRAVEL',
+    population: 182000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 140,
+    y: -180
+  },
+  {
+    id: 'saint-etienne',
+    name: 'Saint-Etienne',
+    country: 'France',
+    visitorMultiplier: 1.1,
+    travelCost: 3500,
+    description: 'A city of design and industrial heritage.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 172000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 150,
+    y: -350
+  },
+  {
+    id: 'gothenburg',
+    name: 'Gothenburg',
+    country: 'Sweden',
+    visitorMultiplier: 1.2,
+    travelCost: 4500,
+    description: 'The gateway to the West Coast, known for its canals and seafood.',
+    mapWidth: 40,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 580000,
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.1, CLOUDY: 0.3, RAINY: 0.3, SNOWY: 0.2, FREEZING: 0.1 }
+    },
+    x: 350,
+    y: 150
+  },
+  {
+    id: 'malmo',
+    name: 'Malmö',
+    country: 'Sweden',
+    visitorMultiplier: 1.1,
+    travelCost: 4000,
+    description: 'A diverse and modern city connected to Denmark by the Öresund Bridge.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 340000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 320,
+    y: 100
+  },
+  {
+    id: 'uppsala',
+    name: 'Uppsala',
+    country: 'Sweden',
+    visitorMultiplier: 1.1,
+    travelCost: 3500,
+    description: 'A historic university city with a grand cathedral.',
+    mapWidth: 30,
+    mapHeight: 40,
+    terrain: 'GRASS',
+    population: 230000,
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.1, SNOWY: 0.5, FREEZING: 0.1 }
+    },
+    x: 410,
+    y: 220
+  },
+  {
+    id: 'vasteras',
+    name: 'Västerås',
+    country: 'Sweden',
+    visitorMultiplier: 1.0,
+    travelCost: 3000,
+    description: 'An industrial city on the shores of Lake Mälaren.',
+    mapWidth: 35,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 155000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 380,
+    y: 210
+  },
+  {
+    id: 'orebro',
+    name: 'Örebro',
+    country: 'Sweden',
+    visitorMultiplier: 1.0,
+    travelCost: 2800,
+    description: 'A central hub with a beautiful medieval castle.',
+    mapWidth: 30,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 156000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 360,
+    y: 200
+  },
+  {
+    id: 'linkoping',
+    name: 'Linköping',
+    country: 'Sweden',
+    visitorMultiplier: 1.0,
+    travelCost: 2700,
+    description: 'A city of aviation and high-tech industry.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 165000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 370,
+    y: 170
+  },
+  {
+    id: 'helsingborg',
+    name: 'Helsingborg',
+    country: 'Sweden',
+    visitorMultiplier: 1.1,
+    travelCost: 3200,
+    description: 'A coastal city with a short ferry ride to Denmark.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 150000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 320,
+    y: 120
+  },
+  {
+    id: 'jonkoping',
+    name: 'Jönköping',
+    country: 'Sweden',
+    visitorMultiplier: 1.0,
+    travelCost: 2600,
+    description: 'Located at the southern tip of Lake Vättern.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 142000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 350,
+    y: 140
+  },
+  {
+    id: 'norrkoping',
+    name: 'Norrköping',
+    country: 'Sweden',
+    visitorMultiplier: 1.0,
+    travelCost: 2500,
+    description: 'The "Manchester of Sweden", known for its textile history.',
+    mapWidth: 40,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 144000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 380,
+    y: 170
+  },
+  {
+    id: 'lund',
+    name: 'Lund',
+    country: 'Sweden',
+    visitorMultiplier: 1.2,
+    travelCost: 3800,
+    description: 'A prestigious university town with a thousand-year history.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    population: 125000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 325,
+    y: 105
+  },
+  {
+    id: 'umea',
+    name: 'Umeå',
+    country: 'Sweden',
+    visitorMultiplier: 1.1,
+    travelCost: 6000,
+    description: 'The "City of Birches" in northern Sweden.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 130000,
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.05, CLOUDY: 0.15, RAINY: 0.05, SNOWY: 0.6, FREEZING: 0.15 }
+    },
+    x: 450,
+    y: 500
+  },
+  {
+    id: 'gavle',
+    name: 'Gävle',
+    country: 'Sweden',
+    visitorMultiplier: 1.0,
+    travelCost: 3200,
+    description: 'Famous for its giant straw goat at Christmas.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 102000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 410,
+    y: 300
+  },
+  {
+    id: 'boras',
+    name: 'Borås',
+    country: 'Sweden',
+    visitorMultiplier: 1.0,
+    travelCost: 2900,
+    description: 'A city known for its textile industry and sculptures.',
+    mapWidth: 30,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 113000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 340,
+    y: 150
+  },
+  {
+    id: 'sodertalje',
+    name: 'Södertälje',
+    country: 'Sweden',
+    visitorMultiplier: 1.0,
+    travelCost: 2600,
+    description: 'An industrial hub south of Stockholm.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 100000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 395,
+    y: 190
+  },
+  {
+    id: 'eskilstuna',
+    name: 'Eskilstuna',
+    country: 'Sweden',
+    visitorMultiplier: 1.0,
+    travelCost: 2500,
+    description: 'A city with a strong industrial and environmental profile.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 107000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 385,
+    y: 205
+  },
+  {
+    id: 'bergen',
+    name: 'Bergen',
+    country: 'Norway',
+    visitorMultiplier: 1.3,
+    travelCost: 5000,
+    description: 'The city between seven mountains, famous for Bryggen and heavy rain.',
+    mapWidth: 35,
+    mapHeight: 40,
+    terrain: 'GRASS',
+    population: 285000,
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      AUTUMN: { SUNNY: 0.1, CLOUDY: 0.3, RAINY: 0.5, STORMY: 0.1 },
+      WINTER: { SUNNY: 0.1, CLOUDY: 0.2, RAINY: 0.4, SNOWY: 0.2, FREEZING: 0.1 }
+    },
+    x: 200,
+    y: 350
+  },
+  {
+    id: 'trondheim',
+    name: 'Trondheim',
+    country: 'Norway',
+    visitorMultiplier: 1.2,
+    travelCost: 5500,
+    description: 'A historic city with a grand cathedral and a vibrant student life.',
+    mapWidth: 40,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 205000,
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.05, CLOUDY: 0.15, RAINY: 0.1, SNOWY: 0.5, FREEZING: 0.2 }
+    },
+    x: 250,
+    y: 500
+  },
+  {
+    id: 'stavanger',
+    name: 'Stavanger',
+    country: 'Norway',
+    visitorMultiplier: 1.2,
+    travelCost: 4800,
+    description: 'The oil capital of Norway, with charming old wooden houses.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 145000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 180,
+    y: 300
+  },
+  {
+    id: 'baerum',
+    name: 'Bærum',
+    country: 'Norway',
+    visitorMultiplier: 1.1,
+    travelCost: 3500,
+    description: 'A wealthy municipality bordering Oslo.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    population: 128000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 290,
+    y: 310
+  },
+  {
+    id: 'kristiansand',
+    name: 'Kristiansand',
+    country: 'Norway',
+    visitorMultiplier: 1.1,
+    travelCost: 4200,
+    description: 'A popular summer destination in southern Norway.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 112000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 250,
+    y: 250
+  },
+  {
+    id: 'drammen',
+    name: 'Drammen',
+    country: 'Norway',
+    visitorMultiplier: 1.0,
+    travelCost: 3200,
+    description: 'A city that has undergone a major riverfront transformation.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 101000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 280,
+    y: 290
+  },
+  {
+    id: 'asker',
+    name: 'Asker',
+    country: 'Norway',
+    visitorMultiplier: 1.0,
+    travelCost: 3000,
+    description: 'A scenic municipality near Oslo with a mix of coast and forest.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    population: 95000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 285,
+    y: 305
+  },
+  {
+    id: 'lillestrom',
+    name: 'Lillestrøm',
+    country: 'Norway',
+    visitorMultiplier: 1.0,
+    travelCost: 2800,
+    description: 'A growing city and transport hub east of Oslo.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 85000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 310,
+    y: 310
+  },
+  {
+    id: 'fredrikstad',
+    name: 'Fredrikstad',
+    country: 'Norway',
+    visitorMultiplier: 1.0,
+    travelCost: 3400,
+    description: 'Known for its well-preserved Old Town and fortress.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 83000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 320,
+    y: 280
+  },
+  {
+    id: 'sandnes',
+    name: 'Sandnes',
+    country: 'Norway',
+    visitorMultiplier: 1.0,
+    travelCost: 3100,
+    description: 'One of Norway\'s fastest-growing cities, near Stavanger.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 80000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 185,
+    y: 295
+  },
+  {
+    id: 'aarhus',
+    name: 'Aarhus',
+    country: 'Denmark',
+    visitorMultiplier: 1.2,
+    travelCost: 4500,
+    description: 'A vibrant student city with a world-class art museum.',
+    mapWidth: 40,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 350000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 250,
+    y: 150
+  },
+  {
+    id: 'odense',
+    name: 'Odense',
+    country: 'Denmark',
+    visitorMultiplier: 1.1,
+    travelCost: 3800,
+    description: 'The birthplace of Hans Christian Andersen, full of fairy-tale charm.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 205000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 280,
+    y: 80
+  },
+  {
+    id: 'aalborg',
+    name: 'Aalborg',
+    country: 'Denmark',
+    visitorMultiplier: 1.1,
+    travelCost: 4200,
+    description: 'A historic city with a modern waterfront and a lively nightlife.',
+    mapWidth: 35,
+    mapHeight: 40,
+    terrain: 'ASPHALT',
+    population: 215000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 240,
+    y: 200
+  },
+  {
+    id: 'esbjerg',
+    name: 'Esbjerg',
+    country: 'Denmark',
+    visitorMultiplier: 1.0,
+    travelCost: 3500,
+    description: 'A major port city on the west coast of Jutland.',
+    mapWidth: 30,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 72000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 200,
+    y: 100
+  },
+  {
+    id: 'randers',
+    name: 'Randers',
+    country: 'Denmark',
+    visitorMultiplier: 1.0,
+    travelCost: 3000,
+    description: 'Home to a famous tropical zoo and historic streets.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    population: 63000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 255,
+    y: 160
+  },
+  {
+    id: 'kolding',
+    name: 'Kolding',
+    country: 'Denmark',
+    visitorMultiplier: 1.0,
+    travelCost: 2800,
+    description: 'A historic city with a royal castle and a beautiful fjord.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 61000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 245,
+    y: 90
+  },
+  {
+    id: 'horsens',
+    name: 'Horsens',
+    country: 'Denmark',
+    visitorMultiplier: 1.0,
+    travelCost: 2700,
+    description: 'A cultural hub known for its large-scale concerts and festivals.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRASS',
+    population: 60000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 250,
+    y: 120
+  },
+  {
+    id: 'vejle',
+    name: 'Vejle',
+    country: 'Denmark',
+    visitorMultiplier: 1.0,
+    travelCost: 2600,
+    description: 'A scenic city located at the head of the Vejle Fjord.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 58000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 240,
+    y: 110
+  },
+  {
+    id: 'roskilde',
+    name: 'Roskilde',
+    country: 'Denmark',
+    visitorMultiplier: 1.2,
+    travelCost: 3200,
+    description: 'Famous for its Viking ship museum and massive music festival.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 51000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 310,
+    y: 90
+  },
+  {
+    id: 'herning',
+    name: 'Herning',
+    country: 'Denmark',
+    visitorMultiplier: 1.0,
+    travelCost: 2500,
+    description: 'A hub for trade fairs and large-scale events in central Jutland.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 50000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 220,
+    y: 140
+  },
+  {
+    id: 'espoo',
+    name: 'Espoo',
+    country: 'Finland',
+    visitorMultiplier: 1.2,
+    travelCost: 4800,
+    description: 'A modern city and high-tech hub bordering Helsinki.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 290000,
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.05, CLOUDY: 0.15, RAINY: 0.05, SNOWY: 0.5, FREEZING: 0.25 }
+    },
+    x: 490,
+    y: 290
+  },
+  {
+    id: 'tampere',
+    name: 'Tampere',
+    country: 'Finland',
+    visitorMultiplier: 1.1,
+    travelCost: 4200,
+    description: 'The "Manchester of Finland", located between two beautiful lakes.',
+    mapWidth: 40,
+    mapHeight: 35,
+    terrain: 'ASPHALT',
+    population: 240000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 450,
+    y: 350
+  },
+  {
+    id: 'vantaa',
+    name: 'Vantaa',
+    country: 'Finland',
+    visitorMultiplier: 1.1,
+    travelCost: 4000,
+    description: 'Home to the Helsinki-Vantaa airport and a diverse population.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 235000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 510,
+    y: 310
+  },
+  {
+    id: 'oulu',
+    name: 'Oulu',
+    country: 'Finland',
+    visitorMultiplier: 1.1,
+    travelCost: 6500,
+    description: 'A major tech hub in northern Finland, near the Arctic Circle.',
+    mapWidth: 40,
+    mapHeight: 40,
+    terrain: 'GRAVEL',
+    population: 205000,
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.05, CLOUDY: 0.1, RAINY: 0.05, SNOWY: 0.6, FREEZING: 0.2 }
+    },
+    x: 500,
+    y: 600
+  },
+  {
+    id: 'turku',
+    name: 'Turku',
+    country: 'Finland',
+    visitorMultiplier: 1.1,
+    travelCost: 4500,
+    description: 'The oldest city in Finland, with a grand castle and cathedral.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 195000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 420,
+    y: 280
+  },
+  {
+    id: 'jyvaskyla',
+    name: 'Jyväskylä',
+    country: 'Finland',
+    visitorMultiplier: 1.0,
+    travelCost: 3800,
+    description: 'A city of education and architecture in the heart of the Lake District.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 145000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 480,
+    y: 400
+  },
+  {
+    id: 'lahti',
+    name: 'Lahti',
+    country: 'Finland',
+    visitorMultiplier: 1.0,
+    travelCost: 3500,
+    description: 'Known for its winter sports and environmental initiatives.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 120000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 500,
+    y: 350
+  },
+  {
+    id: 'kuopio',
+    name: 'Kuopio',
+    country: 'Finland',
+    visitorMultiplier: 1.0,
+    travelCost: 4000,
+    description: 'A scenic city in eastern Finland, famous for its market square.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 120000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 550,
+    y: 450
+  },
+  {
+    id: 'pori',
+    name: 'Pori',
+    country: 'Finland',
+    visitorMultiplier: 1.0,
+    travelCost: 3200,
+    description: 'A coastal city known for its jazz festival and sandy beaches.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRAVEL',
+    population: 85000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 400,
+    y: 350
+  },
+  {
+    id: 'kovola',
+    name: 'Kouvola',
+    country: 'Finland',
+    visitorMultiplier: 1.0,
+    travelCost: 3000,
+    description: 'A transport hub with a strong industrial history.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 80000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 530,
+    y: 340
+  },
+  {
+    id: 'reykjavik',
+    name: 'Reykjavík',
+    country: 'Iceland',
+    visitorMultiplier: 1.4,
+    travelCost: 8000,
+    description: 'The northernmost capital of the world, powered by geothermal energy.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRAVEL',
+    population: 130000,
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.05, CLOUDY: 0.1, RAINY: 0.2, SNOWY: 0.4, FREEZING: 0.25 }
+    },
+    x: -300,
+    y: 600
+  },
+  {
+    id: 'kopavogur',
+    name: 'Kópavogur',
+    country: 'Iceland',
+    visitorMultiplier: 1.1,
+    travelCost: 7500,
+    description: 'The second-largest municipality in Iceland, near Reykjavík.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 38000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -310,
+    y: 590
+  },
+  {
+    id: 'hafnarfjordur',
+    name: 'Hafnarfjörður',
+    country: 'Iceland',
+    visitorMultiplier: 1.1,
+    travelCost: 7400,
+    description: 'A port town known for its lava formations and hidden folk.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'GRAVEL',
+    population: 30000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -320,
+    y: 580
+  },
+  {
+    id: 'akureyri',
+    name: 'Akureyri',
+    country: 'Iceland',
+    visitorMultiplier: 1.2,
+    travelCost: 8500,
+    description: 'The "Capital of the North", nestled in a deep fjord.',
+    mapWidth: 35,
+    mapHeight: 35,
+    terrain: 'GRASS',
+    population: 19000,
+    weatherProbabilities: {
+      ...DEFAULT_WEATHER_PROBABILITIES,
+      WINTER: { SUNNY: 0.05, CLOUDY: 0.05, RAINY: 0.1, SNOWY: 0.6, FREEZING: 0.2 }
+    },
+    x: -150,
+    y: 750
+  },
+  {
+    id: 'reykjanesbaer',
+    name: 'Reykjanesbær',
+    country: 'Iceland',
+    visitorMultiplier: 1.1,
+    travelCost: 7000,
+    description: 'A municipality on the Reykjanes Peninsula, home to the airport.',
+    mapWidth: 30,
+    mapHeight: 30,
+    terrain: 'ASPHALT',
+    population: 19000,
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -350,
+    y: 570
   }
 ];
 
@@ -941,11 +2736,11 @@ export interface Position {
   y: number;
 }
 
-export type RideCategory = 'RIDE' | 'FOOD' | 'FACILITY';
+export type RideCategory = 'RIDE' | 'FOOD' | 'FACILITY' | 'INFRASTRUCTURE';
 
 export type RideIntensity = 'GENTLE' | 'THRILL' | 'EXTREME' | 'NONE';
 
-export type RideType = 'TEA_CUPS' | 'CAROUSEL' | 'FERRIS_WHEEL' | 'ROLLERCOASTER' | 'BUMPER_CARS' | 'FOOD_STALL' | 'RESTROOM' | 'BENCH' | 'HAUNTED_HOUSE' | 'LOG_FLUME' | 'DROP_TOWER' | 'SWING_RIDE' | 'PIRATE_SHIP' | 'COTTON_CANDY' | 'ICE_CREAM' | 'BUNGEE_JUMP' | 'SLINGSHOT' | 'TOP_SPIN' | 'ENTERPRISE' | 'WALTZER' | 'HELTER_SKELTER' | 'KIDDIE_COASTER' | 'PONY_TREK' | 'CARAVAN' | 'DUCK_POND' | 'SHOOTING_GALLERY' | 'COCONUT_SHY' | 'STRENGTH_TEST';
+export type RideType = 'TEA_CUPS' | 'CAROUSEL' | 'FERRIS_WHEEL' | 'ROLLERCOASTER' | 'BUMPER_CARS' | 'FOOD_STALL' | 'RESTROOM' | 'BENCH' | 'HAUNTED_HOUSE' | 'LOG_FLUME' | 'DROP_TOWER' | 'SWING_RIDE' | 'PIRATE_SHIP' | 'COTTON_CANDY' | 'ICE_CREAM' | 'BUNGEE_JUMP' | 'SLINGSHOT' | 'TOP_SPIN' | 'ENTERPRISE' | 'WALTZER' | 'HELTER_SKELTER' | 'KIDDIE_COASTER' | 'PONY_TREK' | 'CARAVAN' | 'DUCK_POND' | 'SHOOTING_GALLERY' | 'COCONUT_SHY' | 'STRENGTH_TEST' | 'QUEUE_PATH';
 
 export interface RideConfig {
   type: RideType;
@@ -1383,6 +3178,21 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🚐',
     buildTimeHours: 3,
     electricityCost: 5
+  },
+  QUEUE_PATH: {
+    type: 'QUEUE_PATH',
+    category: 'INFRASTRUCTURE',
+    intensity: 'NONE',
+    name: 'Queue Path (x20)',
+    cost: 100,
+    baseIncome: 0,
+    baseCapacity: 1,
+    width: 1,
+    height: 1,
+    color: '#808080',
+    icon: '👣',
+    buildTimeHours: 0,
+    electricityCost: 0
   }
 };
 
@@ -1404,6 +3214,7 @@ export interface RideInstance {
   buildProgress: number; // 0-100
   operatorId?: string;
   mechanicId?: string;
+  targetRideId?: string; // For QUEUE_PATH, which ride it belongs to
   avgWaitTime: number; // in game minutes
   satisfaction: number; // 0-100
   totalVisitorsServed: number;

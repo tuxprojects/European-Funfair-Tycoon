@@ -32,6 +32,7 @@ import {
   Coffee,
   Tent,
   Ticket,
+  Layout,
   CreditCard,
   UserPlus,
   PieChart,
@@ -41,11 +42,18 @@ import {
   Home,
   CheckCircle,
   ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  List,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
   Sun,
   Cloud,
   CloudRain,
   Snowflake,
-  Thermometer
+  Thermometer,
+  Search
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
@@ -167,6 +175,8 @@ export default function App() {
   const [isSetupOpen, setIsSetupOpen] = useState(!GameEngine.hasSave());
   const [setupName, setSetupName] = useState('');
   const [setupCity, setSetupCity] = useState('london');
+  const [setupSearch, setSetupSearch] = useState('');
+  const [travelSearch, setTravelSearch] = useState('');
   const [selectedRideType, setSelectedRideType] = useState<RideType | null>(null);
   const [selectedRideId, setSelectedRideId] = useState<string | null>(null);
   const [selectedVisitorId, setSelectedVisitorId] = useState<string | null>(null);
@@ -177,7 +187,13 @@ export default function App() {
   const [shopCategory, setShopCategory] = useState<RideCategory | 'ALL'>('ALL');
   const [shopIntensity, setShopIntensity] = useState<RideIntensity | 'ALL'>('ALL');
   const [inventoryIntensity, setInventoryIntensity] = useState<RideIntensity | 'ALL'>('ALL');
-  const [activeManagementTab, setActiveManagementTab] = useState<'settings' | 'travel' | 'staff' | 'budget' | 'warehouse' | 'pricing' | 'garage'>('settings');
+  const [activeManagementTab, setActiveManagementTab] = useState<'settings' | 'travel' | 'staff' | 'budget' | 'warehouse' | 'pricing' | 'garage' | 'finance'>('settings');
+  const [selectedCityInfoId, setSelectedCityInfoId] = useState<string | null>(null);
+  const [travelSortBy, setTravelSortBy] = useState<'name' | 'population' | 'cost' | 'multiplier'>('name');
+  const [travelSortOrder, setTravelSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [travelView, setTravelView] = useState<'list' | 'map'>('list');
+  const [travelMapScale, setTravelMapScale] = useState(1);
+  const [travelMapOffset, setTravelMapOffset] = useState({ x: 0, y: 0 });
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isZoningMode, setIsZoningMode] = useState(false);
   const [zoningStart, setZoningStart] = useState<{ x: number, y: number } | null>(null);
@@ -262,6 +278,15 @@ export default function App() {
       engine.advanceTutorial();
       advanced = true;
     } else if (gameState.tutorialStep === 6 && gameState.visitors.length >= 50) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 7 && gameState.staff.some(s => s.type === 'JANITOR')) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 8 && gameState.activeLoans.length > 0) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 9 && gameState.visitors.length >= 100) {
       engine.advanceTutorial();
       advanced = true;
     }
@@ -415,6 +440,61 @@ export default function App() {
     ctx.fillStyle = '#10b981';
     ctx.fillRect(0, mapHeight / 2 - 100, 20, 200);
     
+    // Draw Buildings (City Center Challenge)
+    if (city.buildings) {
+      city.buildings.forEach(building => {
+        const bx = building.x * GRID_SIZE;
+        const by = building.y * GRID_SIZE;
+        const bw = building.width * GRID_SIZE;
+        const bh = building.height * GRID_SIZE;
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(bx + 8, by + 8, bw, bh);
+
+        // Building Base
+        let buildingColor = '#475569'; // Default Slate-600
+        let accentColor = '#1e293b'; // Default Slate-800
+        
+        if (building.type === 'SKYSCRAPER') {
+          buildingColor = '#334155';
+          accentColor = '#0f172a';
+        } else if (building.type === 'OFFICE') {
+          buildingColor = '#64748b';
+          accentColor = '#334155';
+        } else if (building.type === 'APARTMENT') {
+          buildingColor = '#94a3b8';
+          accentColor = '#475569';
+        } else if (building.type === 'HISTORIC') {
+          buildingColor = '#8b4513'; // Saddle Brown
+          accentColor = '#5d2e0c';
+        }
+
+        ctx.fillStyle = buildingColor;
+        ctx.fillRect(bx, by, bw, bh);
+        
+        // Windows
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        const winSize = 3;
+        const gap = 6;
+        for (let wx = bx + gap; wx < bx + bw - gap; wx += gap + winSize) {
+          for (let wy = by + gap; wy < by + bh - gap; wy += gap + winSize) {
+            ctx.fillRect(wx, wy, winSize, winSize);
+          }
+        }
+
+        // Roof/Details
+        ctx.fillStyle = accentColor;
+        ctx.fillRect(bx, by, bw, 6); // Top detail
+        
+        // Name Label
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.font = 'bold 9px Inter';
+        ctx.textAlign = 'center';
+        ctx.fillText(building.name.toUpperCase(), bx + bw / 2, by + bh + 12);
+      });
+    }
+
     // Draw Rides
     gameState.rides.forEach(ride => {
       const config = RIDE_CONFIGS[ride.type];
@@ -424,6 +504,24 @@ export default function App() {
       const height = config.height * GRID_SIZE;
       const centerX = px + width / 2;
       const centerY = py + height / 2;
+
+      if (ride.type === 'QUEUE_PATH') {
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.roundRect(px + 2, py + 2, width - 4, height - 4, 4);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px + 4, py + 4, width - 8, height - 8);
+
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('👣', centerX, centerY);
+        return;
+      }
 
       // Shadow
       ctx.fillStyle = 'rgba(0,0,0,0.15)';
@@ -801,9 +899,26 @@ export default function App() {
         const width = config.width * GRID_SIZE;
         const height = config.height * GRID_SIZE;
         
-        ctx.globalAlpha = 0.4;
-        ctx.fillStyle = config.color;
+        const canPlace = engine.canPlaceRide(ride.type, hoveredCell.x, hoveredCell.y);
+        
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = canPlace ? config.color : '#ef4444'; // Red if cannot place
         ctx.fillRect(px, py, width, height);
+        
+        if (!canPlace) {
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(px, py, width, height);
+          
+          // Draw X
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.lineTo(px + width, py + height);
+          ctx.moveTo(px + width, py);
+          ctx.lineTo(px, py + height);
+          ctx.stroke();
+        }
+        
         ctx.globalAlpha = 1.0;
       }
     }
@@ -811,25 +926,28 @@ export default function App() {
     // Draw Visitors
     gameState.visitors.forEach(v => {
       const bob = Math.abs(Math.sin(time * 10 + parseInt(v.id, 36))) * 3;
+      // Add a small visual offset based on ID to prevent perfect piling
+      const visualX = v.x + (parseInt(v.id.slice(-1), 36) % 7 - 3);
+      const visualY = v.y + (parseInt(v.id.slice(-2, -1), 36) % 7 - 3);
       
       // Shadow
       ctx.fillStyle = 'rgba(0,0,0,0.1)';
       ctx.beginPath();
-      ctx.ellipse(v.x, v.y + 2, 4, 2, 0, 0, Math.PI * 2);
+      ctx.ellipse(visualX, visualY + 2, 4, 2, 0, 0, Math.PI * 2);
       ctx.fill();
 
       // Body
       ctx.fillStyle = v.color;
       ctx.beginPath();
-      ctx.arc(v.x, v.y - bob, 6, 0, Math.PI * 2);
+      ctx.arc(visualX, visualY - bob, 6, 0, Math.PI * 2);
       ctx.fill();
       
       // Happiness bar
       const barWidth = 12;
       ctx.fillStyle = '#e5e7eb';
-      ctx.fillRect(v.x - barWidth / 2, v.y - 12 - bob, barWidth, 3);
+      ctx.fillRect(visualX - barWidth / 2, visualY - 12 - bob, barWidth, 3);
       ctx.fillStyle = v.happiness > 50 ? '#10b981' : v.happiness > 20 ? '#f59e0b' : '#ef4444';
-      ctx.fillRect(v.x - barWidth / 2, v.y - 12 - bob, barWidth * (v.happiness / 100), 3);
+      ctx.fillRect(visualX - barWidth / 2, visualY - 12 - bob, barWidth * (v.happiness / 100), 3);
 
       // Need indicators
       if (v.hunger > 70 || v.bladder > 70 || v.stamina < 30) {
@@ -841,17 +959,17 @@ export default function App() {
         else if (v.stamina < 30) needIcon = '😴';
         
         if (needIcon) {
-          ctx.fillText(needIcon, v.x, v.y - 20 - bob);
+          ctx.fillText(needIcon, visualX, visualY - 20 - bob);
         }
       }
 
       // State indicators
       if (v.state === 'EATING') {
         ctx.font = '10px Arial';
-        ctx.fillText('😋', v.x + 8, v.y - bob);
+        ctx.fillText('😋', visualX + 8, visualY - bob);
       } else if (v.state === 'RESTING') {
         ctx.font = '10px Arial';
-        ctx.fillText('💤', v.x + 8, v.y - bob);
+        ctx.fillText('💤', visualX + 8, visualY - bob);
       }
 
       // Little head highlight
@@ -1034,6 +1152,7 @@ export default function App() {
         }
       }
     } else if (e.button === 0 && placingRideId && hoveredCell) {
+      const rideToPlace = gameState.inventory.find(r => r.id === placingRideId);
       const success = engine.placeRide(placingRideId, hoveredCell.x, hoveredCell.y);
       if (success) {
         audioService.playSFX('place');
@@ -1042,7 +1161,18 @@ export default function App() {
           spread: 70,
           origin: { y: 0.6 }
         });
-        setPlacingRideId(null);
+        
+        // Continuous placement for infrastructure
+        if (rideToPlace && RIDE_CONFIGS[rideToPlace.type].category === 'INFRASTRUCTURE') {
+          const nextItem = engine.getState().inventory.find(r => r.type === rideToPlace.type);
+          if (nextItem) {
+            setPlacingRideId(nextItem.id);
+          } else {
+            setPlacingRideId(null);
+          }
+        } else {
+          setPlacingRideId(null);
+        }
       } else {
         audioService.playSFX('error');
       }
@@ -1135,8 +1265,23 @@ export default function App() {
                 
                 <div>
                   <label className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2 block">Starting City</label>
+                  <div className="relative mb-3">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input 
+                      type="text" 
+                      value={setupSearch}
+                      onChange={(e) => setSetupSearch(e.target.value)}
+                      className="w-full rounded-xl border-2 border-slate-100 bg-slate-50 pl-11 pr-4 py-2 text-sm font-bold focus:border-indigo-500 focus:ring-0 transition-all"
+                      placeholder="Search cities..."
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                    {gameState.cities.map(city => (
+                    {gameState.cities
+                      .filter(city => 
+                        city.name.toLowerCase().includes(setupSearch.toLowerCase()) || 
+                        city.country.toLowerCase().includes(setupSearch.toLowerCase())
+                      )
+                      .map(city => (
                       <button
                         key={city.id}
                         onClick={() => setSetupCity(city.id)}
@@ -1149,7 +1294,7 @@ export default function App() {
                         <Globe size={16} />
                         <div className="text-center">
                           <p className="text-sm font-bold leading-tight">{city.name}</p>
-                          <p className="text-[10px] font-black uppercase opacity-60 tracking-tighter">{city.country}</p>
+                          <p className="text-[10px] font-black uppercase opacity-60 tracking-tighter">{city.country} • {city.population.toLocaleString()}</p>
                         </div>
                       </button>
                     ))}
@@ -1204,70 +1349,189 @@ export default function App() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="flex items-center justify-between bg-slate-50 p-6 border-b border-slate-200">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg">
-                    <Settings size={20} />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-black text-slate-900">Park Management</h2>
-                    <div className="flex gap-4 mt-1">
-                      <button 
-                        onClick={() => setActiveManagementTab('settings')}
-                        className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeManagementTab === 'settings' ? 'text-indigo-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
-                      >
-                        Settings
-                      </button>
-                      <button 
-                        onClick={() => setActiveManagementTab('staff')}
-                        className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeManagementTab === 'staff' ? 'text-indigo-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
-                      >
-                        Staff ({gameState.staff.length})
-                      </button>
-                      <button 
-                        onClick={() => setActiveManagementTab('budget')}
-                        className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeManagementTab === 'budget' ? 'text-indigo-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
-                      >
-                        Budget
-                      </button>
-                      <button 
-                        onClick={() => setActiveManagementTab('pricing')}
-                        className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeManagementTab === 'pricing' ? 'text-indigo-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
-                      >
-                        Pricing
-                      </button>
-                      <button 
-                        onClick={() => setActiveManagementTab('travel')}
-                        className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeManagementTab === 'travel' ? 'text-indigo-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
-                      >
-                        Travel
-                      </button>
-                      <button 
-                        onClick={() => setActiveManagementTab('warehouse')}
-                        className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeManagementTab === 'warehouse' ? 'text-indigo-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
-                      >
-                        Warehouse
-                      </button>
-                      <button 
-                        onClick={() => setActiveManagementTab('garage')}
-                        className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeManagementTab === 'garage' ? 'text-indigo-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
-                      >
-                        Garage ({gameState.trucks.length})
-                      </button>
+              <div className="flex h-full overflow-hidden">
+                {/* Sidebar */}
+                <div className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col">
+                  <div className="p-6 border-b border-slate-200">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg">
+                        <Settings size={20} />
+                      </div>
+                      <h2 className="text-xl font-black text-slate-900">Park Management</h2>
                     </div>
                   </div>
-                </div>
-                <button 
-                  onClick={() => setIsManagementOpen(false)}
-                  className="rounded-full p-2 hover:bg-slate-200 text-slate-400 transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
+                  
+                  <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+                    {[
+                      { id: 'settings', label: 'Park Status', icon: Settings },
+                      { id: 'staff', label: 'Staff', icon: Users, count: gameState.staff.length },
+                      { id: 'budget', label: 'Budget', icon: TrendingUp },
+                      { id: 'finance', label: 'Loans', icon: Coins },
+                      { id: 'pricing', label: 'Pricing', icon: DollarSign },
+                      { id: 'travel', label: 'Travel', icon: MapIcon },
+                      { id: 'warehouse', label: 'Warehouse', icon: Package },
+                      { id: 'garage', label: 'Garage', icon: Truck, count: gameState.trucks.length },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveManagementTab(tab.id as any)}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                          activeManagementTab === tab.id 
+                            ? 'bg-indigo-600 text-white shadow-md' 
+                            : 'text-slate-500 hover:bg-slate-200 hover:text-slate-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <tab.icon size={16} />
+                          <span>{tab.label}</span>
+                        </div>
+                        {tab.count !== undefined && (
+                          <span className={`px-2 py-0.5 rounded-full text-[8px] ${
+                            activeManagementTab === tab.id ? 'bg-indigo-500 text-white' : 'bg-slate-200 text-slate-600'
+                          }`}>
+                            {tab.count}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
 
-              <div className="flex-1 overflow-y-auto p-8 space-y-10">
+                  <div className="p-4 border-t border-slate-200 space-y-2">
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => {
+                          engine.saveGame();
+                          audioService.playSFX('buy');
+                        }}
+                        className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[8px] uppercase tracking-widest rounded-lg border-2 border-slate-900 transition-all active:translate-y-1 active:shadow-none flex items-center justify-center gap-1"
+                      >
+                        <Save size={10} />
+                        Save
+                      </button>
+                      <button 
+                        onClick={() => setIsResetConfirmOpen(true)}
+                        className="flex-1 py-2 bg-rose-100 hover:bg-rose-200 text-rose-600 font-black text-[8px] uppercase tracking-widest rounded-lg border-2 border-slate-900 transition-all active:translate-y-1 active:shadow-none flex items-center justify-center gap-1"
+                      >
+                        <Trash2 size={10} />
+                        Reset
+                      </button>
+                    </div>
+                    <button 
+                      onClick={() => setIsManagementOpen(false)}
+                      className="w-full py-3 bg-white hover:bg-slate-100 text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-1 active:shadow-none"
+                    >
+                      Close Panel
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content Area */}
+                <div className="flex-1 flex flex-col bg-white">
+                  <div className="h-16 border-b border-slate-100 flex items-center justify-between px-8">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                      {activeManagementTab === 'settings' ? 'Park Status' : 
+                       activeManagementTab === 'finance' ? 'Loans' : 
+                       activeManagementTab.replace('_', ' ')}
+                    </h3>
+                    <button 
+                      onClick={() => setIsManagementOpen(false)}
+                      className="rounded-full p-2 hover:bg-slate-100 text-slate-400 transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-8">
+                    {activeManagementTab === 'finance' && (
+                  <div className="space-y-8">
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Active Loans</h3>
+                      <div className="space-y-4">
+                        {gameState.activeLoans.length === 0 ? (
+                          <div className="p-8 border-2 border-dashed border-slate-200 rounded-xl text-center">
+                            <p className="text-slate-400 font-medium">No active loans.</p>
+                          </div>
+                        ) : (
+                          gameState.activeLoans.map(loan => (
+                            <div key={loan.id} className="p-6 bg-white border-2 border-slate-900 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                              <div className="flex justify-between items-start mb-4">
+                                <div>
+                                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">Remaining Principal</p>
+                                  <p className="text-2xl font-black text-slate-900">${Math.round(loan.remainingPrincipal).toLocaleString()}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">Interest Rate</p>
+                                  <p className="text-lg font-black text-indigo-600">{(loan.interestRate * 100).toFixed(1)}%</p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Daily Payment</p>
+                                  <p className="font-bold text-slate-700">${Math.round(loan.dailyPayment).toLocaleString()}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Original Amount</p>
+                                  <p className="font-bold text-slate-700">${loan.amount.toLocaleString()}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={() => engine.repayLoan(loan.id, 1000)}
+                                  disabled={gameState.money < 1000}
+                                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 transition-all active:translate-y-1 active:shadow-none"
+                                >
+                                  Repay $1,000
+                                </button>
+                                <button 
+                                  onClick={() => engine.repayLoan(loan.id, 5000)}
+                                  disabled={gameState.money < 5000}
+                                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 transition-all active:translate-y-1 active:shadow-none"
+                                >
+                                  Repay $5,000
+                                </button>
+                                <button 
+                                  onClick={() => engine.repayLoan(loan.id, loan.remainingPrincipal * (1 + loan.interestRate))}
+                                  disabled={gameState.money < loan.remainingPrincipal * (1 + loan.interestRate)}
+                                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-1 active:shadow-none"
+                                >
+                                  Pay Off
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Available Loan Offers</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {[
+                          { amount: 5000, term: 7, label: 'Small Business Loan' },
+                          { amount: 20000, term: 14, label: 'Expansion Credit' },
+                          { amount: 50000, term: 30, label: 'Venture Capital' }
+                        ].map((offer, i) => (
+                          <div key={i} className="p-4 bg-slate-50 border-2 border-slate-900 rounded-xl flex flex-col justify-between">
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1">{offer.label}</p>
+                              <p className="text-xl font-black text-slate-900">${offer.amount.toLocaleString()}</p>
+                              <p className="text-[10px] font-medium text-slate-500 mb-4">{offer.term} Day Term</p>
+                            </div>
+                            <button 
+                              onClick={() => engine.takeLoan(offer.amount, offer.term)}
+                              className="w-full py-2 bg-white hover:bg-indigo-50 text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-1 active:shadow-none"
+                            >
+                              Apply Now
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {activeManagementTab === 'budget' && (
                   <div className="space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1338,6 +1602,20 @@ export default function App() {
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
+                              <CreditCard size={12} className="text-slate-400" />
+                              <span className="text-xs font-bold text-slate-500">Loan Interest</span>
+                            </div>
+                            <span className="text-sm font-black text-rose-600">-${Math.round(gameState.finances.expenses.loanInterest)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              <CreditCard size={12} className="text-slate-400" />
+                              <span className="text-xs font-bold text-slate-500">Loan Principal</span>
+                            </div>
+                            <span className="text-sm font-black text-rose-600">-${Math.round(gameState.finances.expenses.loanPrincipal)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
                               <Home size={12} className="text-slate-400" />
                               <span className="text-xs font-bold text-slate-500">Area Rent</span>
                             </div>
@@ -1353,7 +1631,7 @@ export default function App() {
                           <div className="pt-4 border-top border-slate-50 flex justify-between items-center">
                             <span className="text-sm font-black text-slate-900">Total Expenses</span>
                             <span className="text-lg font-black text-rose-600">
-                              -${gameState.finances.expenses.wages + gameState.finances.expenses.electricity + gameState.finances.expenses.rent + gameState.finances.expenses.maintenance + gameState.finances.expenses.other}
+                              -${gameState.finances.expenses.wages + gameState.finances.expenses.electricity + gameState.finances.expenses.rent + gameState.finances.expenses.maintenance + gameState.finances.expenses.loanInterest + gameState.finances.expenses.loanPrincipal + gameState.finances.expenses.other}
                             </span>
                           </div>
                         </div>
@@ -1800,20 +2078,30 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {gameState.inventory.map(ride => {
-                            const config = RIDE_CONFIGS[ride.type];
+                          {(Array.from(new Set(gameState.inventory.map(r => r.type))) as RideType[]).map(type => {
+                            const config = RIDE_CONFIGS[type];
+                            const itemsOfType = gameState.inventory.filter(r => r.type === type);
+                            const firstItem = itemsOfType[0];
+                            
                             return (
-                              <div key={ride.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-2xl">
+                              <div key={type} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+                                <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-2xl relative">
                                   {config.icon}
+                                  {itemsOfType.length > 1 && (
+                                    <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                                      x{itemsOfType.length}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex-1">
                                   <p className="text-sm font-black text-slate-900">{config.name}</p>
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase">Condition: {ride.condition}%</p>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                    {itemsOfType.length > 1 ? `${itemsOfType.length} items available` : `Condition: ${firstItem.condition}%`}
+                                  </p>
                                 </div>
                                 <button
                                   onClick={() => {
-                                    setPlacingRideId(ride.id);
+                                    setPlacingRideId(firstItem.id);
                                     setIsManagementOpen(false);
                                   }}
                                   className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all"
@@ -2176,131 +2464,478 @@ export default function App() {
                   </section>
                 )}
                 {activeManagementTab === 'travel' && (
-                  <section>
-                    <div className="flex items-center gap-2 mb-4">
-                      <Plane size={18} className="text-indigo-600" />
-                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Travel to New Cities</h3>
-                    </div>
-                    <div className="grid gap-4">
-                      {gameState.cities.map(city => {
-                        const isCurrent = city.id === gameState.company.currentCityId;
-                        const canAfford = gameState.money >= city.travelCost;
+                  <section className="h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-4 shrink-0">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Plane size={18} className="text-indigo-600" />
+                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Travel to New Cities</h3>
+                        </div>
                         
-                        return (
-                          <div 
-                            key={city.id}
-                            className={`flex items-center justify-between p-4 rounded-2xl border transition-all
-                              ${isCurrent ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 hover:border-indigo-200'}
-                            `}
+                        {/* View Toggle */}
+                        <div className="flex bg-slate-100 p-1 rounded-xl">
+                          <button 
+                            onClick={() => setTravelView('list')}
+                            className={`p-1.5 rounded-lg transition-all ${travelView === 'list' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
                           >
-                            <div className="flex items-center gap-4">
-                              <div className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl
-                                ${isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}
-                              `}>
-                                <Globe size={24} />
+                            <List size={16} />
+                          </button>
+                          <button 
+                            onClick={() => setTravelView('map')}
+                            className={`p-1.5 rounded-lg transition-all ${travelView === 'map' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                          >
+                            <MapIcon size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {/* Search */}
+                        <div className="relative w-48">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                          <input 
+                            type="text" 
+                            value={travelSearch}
+                            onChange={(e) => setTravelSearch(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-1.5 text-xs font-bold focus:border-indigo-500 focus:ring-0 transition-all"
+                            placeholder="Search..."
+                          />
+                        </div>
+
+                        {/* Sort Controls */}
+                        {travelView === 'list' && (
+                          <div className="flex items-center gap-2">
+                            <select 
+                              value={travelSortBy}
+                              onChange={(e) => setTravelSortBy(e.target.value as any)}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold focus:border-indigo-500 focus:ring-0 transition-all"
+                            >
+                              <option value="name">Name</option>
+                              <option value="population">Population</option>
+                              <option value="cost">Travel Cost</option>
+                              <option value="multiplier">Multiplier</option>
+                            </select>
+                            <button 
+                              onClick={() => setTravelSortOrder(travelSortOrder === 'asc' ? 'desc' : 'asc')}
+                              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-all"
+                            >
+                              {travelSortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-hidden">
+                      {travelView === 'list' ? (
+                        <div className="h-full overflow-y-auto pr-2 space-y-4">
+                          {gameState.cities
+                            .filter(city => 
+                              city.name.toLowerCase().includes(travelSearch.toLowerCase()) || 
+                              city.country.toLowerCase().includes(travelSearch.toLowerCase())
+                            )
+                            .sort((a, b) => {
+                              let valA: any, valB: any;
+                              switch (travelSortBy) {
+                                case 'name': valA = a.name; valB = b.name; break;
+                                case 'population': valA = a.population; valB = b.population; break;
+                                case 'cost': valA = engine.getTravelCost(a.id); valB = engine.getTravelCost(b.id); break;
+                                case 'multiplier': valA = a.visitorMultiplier; valB = b.visitorMultiplier; break;
+                              }
+                              const modifier = travelSortOrder === 'asc' ? 1 : -1;
+                              if (valA < valB) return -1 * modifier;
+                              if (valA > valB) return 1 * modifier;
+                              return 0;
+                            })
+                            .map(city => {
+                              const isCurrent = city.id === gameState.company.currentCityId;
+                              
+                              return (
+                                <div 
+                                  key={city.id}
+                                  onClick={() => setSelectedCityInfoId(city.id)}
+                                  className={`flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer
+                                    ${isCurrent ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}
+                                  `}
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl
+                                      ${isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}
+                                    `}>
+                                      <Globe size={24} />
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-bold text-slate-900">{city.name}</h4>
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 uppercase">
+                                          {city.country}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-slate-500 mt-0.5">{city.description}</p>
+                                      <div className="flex flex-wrap items-center gap-3 mt-2">
+                                        <span className="text-[10px] font-bold text-indigo-600 uppercase">
+                                          x{city.visitorMultiplier} Visitors
+                                        </span>
+                                        <span className="text-[10px] font-bold text-emerald-600 uppercase">
+                                          Travel: ${engine.getTravelCost(city.id)}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                          Size: {city.mapWidth}x{city.mapHeight}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                          Terrain: {city.terrain}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {!isCurrent && (
+                                    <button
+                                      disabled={gameState.money < engine.getTravelCost(city.id) || gameState.rides.length > 0 || (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (engine.travelToCity(city.id)) {
+                                          audioService.playSFX('buy');
+                                          setGameState(engine.getState());
+                                          setIsManagementOpen(false);
+                                          confetti({
+                                            particleCount: 150,
+                                            spread: 100,
+                                            origin: { y: 0.6 }
+                                          });
+                                        }
+                                      }}
+                                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all
+                                        ${gameState.money >= engine.getTravelCost(city.id) && gameState.rides.length === 0 && !(gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
+                                          ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200' 
+                                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
+                                      `}
+                                    >
+                                      {gameState.rides.length > 0 
+                                        ? 'Dismantle First' 
+                                        : (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
+                                          ? 'Island Locked'
+                                          : 'Travel'}
+                                    </button>
+                                  )}
+                                  {isCurrent && (
+                                    <div className="flex flex-col items-end gap-1">
+                                      <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Current Location</span>
+                                      {city.id === gameState.company.homeCityId && (
+                                        <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1">
+                                          <Home size={10} /> Home City
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {!isCurrent && city.id === gameState.company.homeCityId && (
+                                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1">
+                                      <Home size={10} /> Home City
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })
+                          }
+                        </div>
+                      ) : (
+                        <div className="h-full bg-slate-950 rounded-3xl border-2 border-slate-900 relative overflow-hidden flex items-center justify-center group/map">
+                          {/* Map Controls */}
+                          <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+                            <button 
+                              onClick={() => setTravelMapScale(prev => Math.min(prev + 0.2, 3))}
+                              className="p-2 bg-slate-900/80 backdrop-blur-md border border-slate-700 text-slate-300 rounded-xl hover:text-white hover:bg-slate-800 transition-all"
+                            >
+                              <ZoomIn size={18} />
+                            </button>
+                            <button 
+                              onClick={() => setTravelMapScale(prev => Math.max(prev - 0.2, 0.5))}
+                              className="p-2 bg-slate-900/80 backdrop-blur-md border border-slate-700 text-slate-300 rounded-xl hover:text-white hover:bg-slate-800 transition-all"
+                            >
+                              <ZoomOut size={18} />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setTravelMapScale(1);
+                                setTravelMapOffset({ x: 0, y: 0 });
+                              }}
+                              className="p-2 bg-slate-900/80 backdrop-blur-md border border-slate-700 text-slate-300 rounded-xl hover:text-white hover:bg-slate-800 transition-all"
+                            >
+                              <Maximize size={18} />
+                            </button>
+                          </div>
+
+                          {/* Interactive Map Surface */}
+                          <motion.div 
+                            drag
+                            dragConstraints={{ left: -1000, right: 1000, top: -1000, bottom: 1000 }}
+                            dragElastic={0.1}
+                            dragMomentum={false}
+                            onWheel={(e) => {
+                              const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                              setTravelMapScale(prev => Math.max(0.5, Math.min(3, prev + delta)));
+                            }}
+                            animate={{ scale: travelMapScale, x: travelMapOffset.x, y: travelMapOffset.y }}
+                            className="relative w-[2000px] h-[1500px] cursor-grab active:cursor-grabbing"
+                          >
+                            {/* Radar Scan Line */}
+                            <motion.div 
+                              animate={{ top: ['0%', '100%'] }}
+                              transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                              className="absolute left-0 right-0 h-[2px] bg-indigo-500/30 blur-sm pointer-events-none z-[5]"
+                            />
+
+                            {/* Grid Lines */}
+                            <div className="absolute inset-0 grid grid-cols-[repeat(40,1fr)] grid-rows-[repeat(30,1fr)] opacity-10 pointer-events-none">
+                              {[...Array(1200)].map((_, i) => <div key={i} className="border-[0.5px] border-indigo-400" />)}
+                            </div>
+
+                            {/* Abstract Landmasses (Decorative) */}
+                            <div className="absolute inset-0 opacity-5 pointer-events-none">
+                              <div className="absolute top-[20%] left-[30%] w-[400px] h-[300px] bg-indigo-500 rounded-full blur-[100px]" />
+                              <div className="absolute top-[40%] left-[50%] w-[500px] h-[400px] bg-indigo-600 rounded-full blur-[120px]" />
+                              <div className="absolute top-[10%] left-[60%] w-[300px] h-[200px] bg-indigo-400 rounded-full blur-[80px]" />
+                            </div>
+
+                            {/* City Connections (Lines from current city) */}
+                            {(() => {
+                              const currentCity = gameState.cities.find(c => c.id === gameState.company.currentCityId);
+                              if (!currentCity) return null;
+                              const currentX = ((currentCity.x || 0) + 600) / 1200 * 2000;
+                              const currentY = (600 - (currentCity.y || 0)) / 1400 * 1500;
+
+                              return gameState.cities
+                                .filter(city => city.id !== currentCity.id && (
+                                  city.name.toLowerCase().includes(travelSearch.toLowerCase()) || 
+                                  city.country.toLowerCase().includes(travelSearch.toLowerCase())
+                                ))
+                                .map(city => {
+                                  const targetX = ((city.x || 0) + 600) / 1200 * 2000;
+                                  const targetY = (600 - (city.y || 0)) / 1400 * 1500;
+                                  
+                                  return (
+                                    <svg key={`line-${city.id}`} className="absolute inset-0 w-full h-full pointer-events-none opacity-10">
+                                      <line 
+                                        x1={currentX} y1={currentY} 
+                                        x2={targetX} y2={targetY} 
+                                        stroke="white" strokeWidth="1" strokeDasharray="4 4"
+                                      />
+                                    </svg>
+                                  );
+                                });
+                            })()}
+
+                            {/* City Markers */}
+                            {gameState.cities
+                              .filter(city => 
+                                city.name.toLowerCase().includes(travelSearch.toLowerCase()) || 
+                                city.country.toLowerCase().includes(travelSearch.toLowerCase())
+                              )
+                              .map(city => {
+                                const isCurrent = city.id === gameState.company.currentCityId;
+                                const isHome = city.id === gameState.company.homeCityId;
+                                const mapX = ((city.x || 0) + 600) / 1200 * 2000;
+                                const mapY = (600 - (city.y || 0)) / 1400 * 1500;
+
+                                return (
+                                  <motion.button
+                                    key={city.id}
+                                    whileHover={{ scale: 1.5, zIndex: 20 }}
+                                    onClick={() => setSelectedCityInfoId(city.id)}
+                                    className="absolute -translate-x-1/2 -translate-y-1/2 group"
+                                    style={{ left: mapX, top: mapY }}
+                                  >
+                                    <div className="relative flex items-center justify-center">
+                                      {/* Pulse Effect for Current City */}
+                                      {isCurrent && (
+                                        <div className="absolute inset-0 h-8 w-8 -translate-x-1/4 -translate-y-1/4 rounded-full bg-indigo-500/20 animate-ping" />
+                                      )}
+                                      
+                                      {/* Marker Dot */}
+                                      <div className={`h-4 w-4 rounded-full border-2 border-slate-900 shadow-2xl transition-all
+                                        ${isCurrent ? 'bg-indigo-500 scale-125' : isHome ? 'bg-amber-500' : 'bg-slate-400 group-hover:bg-white'}
+                                      `} />
+                                      
+                                      {/* Label */}
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none">
+                                        <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg shadow-2xl border border-slate-700 flex items-center gap-2">
+                                          {isHome && <Home size={10} className="text-amber-400" />}
+                                          {city.name}
+                                          <span className="opacity-50 text-[8px]">{city.country}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </motion.button>
+                                );
+                              })
+                            }
+                          </motion.div>
+                          
+                          {/* Map Overlay HUD */}
+                          <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between pointer-events-none">
+                            <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-700 text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-3">
+                              <div className="flex items-center gap-1.5">
+                                <div className="h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                                <span>Current</span>
                               </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-bold text-slate-900">{city.name}</h4>
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 uppercase">
-                                    {city.country}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-slate-500 mt-0.5">{city.description}</p>
-                                <div className="flex flex-wrap items-center gap-3 mt-2">
-                                  <span className="text-[10px] font-bold text-indigo-600 uppercase">
-                                    x{city.visitorMultiplier} Visitors
-                                  </span>
-                                  <span className="text-[10px] font-bold text-emerald-600 uppercase">
-                                    Travel: ${engine.getTravelCost(city.id)}
-                                  </span>
-                                  <span className="text-[10px] font-bold text-slate-500 uppercase">
-                                    Size: {city.mapWidth}x{city.mapHeight}
-                                  </span>
-                                  <span className="text-[10px] font-bold text-slate-500 uppercase">
-                                    Terrain: {city.terrain}
-                                  </span>
-                                </div>
+                              <div className="flex items-center gap-1.5">
+                                <div className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                                <span>Home</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <div className="h-2 w-2 rounded-full bg-slate-400" />
+                                <span>Available</span>
                               </div>
                             </div>
-                            
-                            {!isCurrent && (
-                              <button
-                                disabled={gameState.money < engine.getTravelCost(city.id) || gameState.rides.length > 0 || (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')}
-                                onClick={() => {
-                                  if (engine.travelToCity(city.id)) {
-                                    audioService.playSFX('buy');
-                                    setGameState(engine.getState());
-                                    setIsManagementOpen(false);
-                                    confetti({
-                                      particleCount: 150,
-                                      spread: 100,
-                                      origin: { y: 0.6 }
-                                    });
-                                  }
-                                }}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all
-                                  ${gameState.money >= engine.getTravelCost(city.id) && gameState.rides.length === 0 && !(gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
-                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200' 
-                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
-                                `}
-                              >
-                                {gameState.rides.length > 0 
-                                  ? 'Dismantle First' 
-                                  : (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
-                                    ? 'Island Locked'
-                                    : 'Travel'}
-                              </button>
-                            )}
-                            {isCurrent && (
-                              <div className="flex flex-col items-end gap-1">
-                                <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Current Location</span>
-                                {city.id === gameState.company.homeCityId && (
-                                  <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1">
-                                    <Home size={10} /> Home City
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            {!isCurrent && city.id === gameState.company.homeCityId && (
-                              <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1">
-                                <Home size={10} /> Home City
-                              </span>
-                            )}
+                            <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-700 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                              Drag to Pan • Scroll to Zoom
+                            </div>
                           </div>
-                        );
-                      })}
+                        </div>
+                      )}
                     </div>
                   </section>
                 )}
               </div>
+            </div>
+          </div>
 
-              <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => {
-                      engine.saveGame();
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
+              {/* City Info Overlay */}
+              <AnimatePresence>
+                {selectedCityInfoId && (
+                  <motion.div 
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="absolute inset-0 z-[60] bg-white flex flex-col"
                   >
-                    <Save size={16} />
-                    Save Game
-                  </button>
-                  <button 
-                    onClick={() => setIsResetConfirmOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-100 text-rose-600 text-xs font-bold hover:bg-rose-200 transition-all"
-                  >
-                    <Trash2 size={16} />
-                    Reset Game
-                  </button>
-                </div>
-                <button 
-                  onClick={() => setIsManagementOpen(false)}
-                  className="px-6 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-all"
-                >
-                  Close Management
-                </button>
-              </div>
+                    {(() => {
+                      const city = gameState.cities.find(c => c.id === selectedCityInfoId);
+                      if (!city) return null;
+                      return (
+                        <>
+                          <div className="flex items-center justify-between p-6 bg-slate-50 border-b border-slate-200">
+                            <div className="flex items-center gap-3">
+                              <button 
+                                onClick={() => setSelectedCityInfoId(null)}
+                                className="p-2 rounded-xl hover:bg-slate-200 text-slate-500 transition-colors"
+                              >
+                                <ArrowRight className="rotate-180" size={20} />
+                              </button>
+                              <div>
+                                <h3 className="text-xl font-black text-slate-900">{city.name}</h3>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{city.country}</p>
+                              </div>
+                            </div>
+                            <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest
+                              ${city.id === gameState.company.currentCityId ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}
+                            `}>
+                              {city.id === gameState.company.currentCityId ? 'Current Location' : 'Potential Destination'}
+                            </div>
+                          </div>
+                          
+                          <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                            <section>
+                              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">About</h4>
+                              <p className="text-sm text-slate-600 leading-relaxed">{city.description}</p>
+                            </section>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Terrain</p>
+                                <div className="flex items-center gap-2">
+                                  <MapIcon size={14} className="text-indigo-600" />
+                                  <span className="text-sm font-bold text-slate-900">{city.terrain}</span>
+                                </div>
+                              </div>
+                              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Map Size</p>
+                                <div className="flex items-center gap-2">
+                                  <Layout size={14} className="text-indigo-600" />
+                                  <span className="text-sm font-bold text-slate-900">{city.mapWidth}x{city.mapHeight}</span>
+                                </div>
+                              </div>
+                              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Visitor Multiplier</p>
+                                <div className="flex items-center gap-2">
+                                  <Users size={14} className="text-indigo-600" />
+                                  <span className="text-sm font-bold text-slate-900">x{city.visitorMultiplier}</span>
+                                </div>
+                              </div>
+                              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Population</p>
+                                <div className="flex items-center gap-2">
+                                  <Users size={14} className="text-indigo-600" />
+                                  <span className="text-sm font-bold text-slate-900">{city.population.toLocaleString()}</span>
+                                </div>
+                              </div>
+                              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Travel Cost</p>
+                                <div className="flex items-center gap-2">
+                                  <DollarSign size={14} className="text-emerald-600" />
+                                  <span className="text-sm font-bold text-slate-900">${engine.getTravelCost(city.id)}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <section>
+                              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Weather Patterns</h4>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div className="flex flex-col items-center p-3 rounded-xl bg-amber-50 border border-amber-100">
+                                  <Sun size={16} className="text-amber-500 mb-1" />
+                                  <span className="text-[10px] font-black text-amber-900">{Math.round(city.weatherProbabilities.SUMMER.SUNNY * 100)}%</span>
+                                  <span className="text-[8px] font-bold text-amber-700 uppercase">Sunny</span>
+                                </div>
+                                <div className="flex flex-col items-center p-3 rounded-xl bg-blue-50 border border-blue-100">
+                                  <CloudRain size={16} className="text-blue-500 mb-1" />
+                                  <span className="text-[10px] font-black text-blue-900">{Math.round(city.weatherProbabilities.SUMMER.RAINY * 100)}%</span>
+                                  <span className="text-[8px] font-bold text-blue-700 uppercase">Rainy</span>
+                                </div>
+                                <div className="flex flex-col items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                  <Cloud size={16} className="text-slate-500 mb-1" />
+                                  <span className="text-[10px] font-black text-slate-900">{Math.round(city.weatherProbabilities.SUMMER.CLOUDY * 100)}%</span>
+                                  <span className="text-[8px] font-bold text-slate-700 uppercase">Cloudy</span>
+                                </div>
+                                <div className="flex flex-col items-center p-3 rounded-xl bg-indigo-50 border border-indigo-100">
+                                  <Zap size={16} className="text-indigo-500 mb-1" />
+                                  <span className="text-[10px] font-black text-indigo-900">{Math.round(city.weatherProbabilities.SUMMER.STORMY * 100)}%</span>
+                                  <span className="text-[8px] font-bold text-indigo-700 uppercase">Stormy</span>
+                                </div>
+                              </div>
+                            </section>
+
+                            {city.buildings && city.buildings.length > 0 && (
+                              <section>
+                                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">City Center Obstacles</h4>
+                                <div className="space-y-2">
+                                  {city.buildings.map(b => (
+                                    <div key={b.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                      <div className="flex items-center gap-3">
+                                        <Building2 size={14} className="text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-700">{b.name}</span>
+                                      </div>
+                                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{b.type}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </section>
+                            )}
+                          </div>
+
+                          <div className="p-6 bg-slate-50 border-t border-slate-200">
+                            <button 
+                              onClick={() => setSelectedCityInfoId(null)}
+                              className="w-full py-3 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
+                            >
+                              Back to Travel List
+                            </button>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </motion.div>
         )}
@@ -2968,7 +3603,7 @@ export default function App() {
 
         {/* Tutorial Overlay */}
         <AnimatePresence>
-          {gameState.showTutorial && gameState.tutorialStep < 7 && (
+          {gameState.showTutorial && gameState.tutorialStep < 10 && (
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -2980,7 +3615,7 @@ export default function App() {
                 <motion.div 
                   className="h-full bg-indigo-600"
                   initial={{ width: '0%' }}
-                  animate={{ width: `${(gameState.tutorialStep / 7) * 100}%` }}
+                  animate={{ width: `${(gameState.tutorialStep / 10) * 100}%` }}
                 />
               </div>
 
@@ -2993,10 +3628,13 @@ export default function App() {
                   {gameState.tutorialStep === 4 && <DollarSign size={24} />}
                   {gameState.tutorialStep === 5 && <Coffee size={24} />}
                   {gameState.tutorialStep === 6 && <Users size={24} />}
+                  {gameState.tutorialStep === 7 && <Briefcase size={24} />}
+                  {gameState.tutorialStep === 8 && <Coins size={24} />}
+                  {gameState.tutorialStep === 9 && <TrendingUp size={24} />}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Tutorial Step {gameState.tutorialStep + 1}/7</h3>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Tutorial Step {gameState.tutorialStep + 1}/10</h3>
                     <button 
                       onClick={() => {
                         engine.skipTutorial();
@@ -3015,6 +3653,9 @@ export default function App() {
                     {gameState.tutorialStep === 4 && "Earn your first $500"}
                     {gameState.tutorialStep === 5 && "Build a Food Stall"}
                     {gameState.tutorialStep === 6 && "Reach 50 Visitors"}
+                    {gameState.tutorialStep === 7 && "Hire a Janitor"}
+                    {gameState.tutorialStep === 8 && "Take a Loan"}
+                    {gameState.tutorialStep === 9 && "Reach 100 Visitors"}
                   </h4>
                   <p className="text-xs text-slate-500 mt-2 leading-relaxed">
                     {gameState.tutorialStep === 0 && "Open your inventory and place the Tea Cups ride near the entrance."}
@@ -3024,13 +3665,16 @@ export default function App() {
                     {gameState.tutorialStep === 4 && "Watch the visitors arrive and earn money until your balance reaches $2,500."}
                     {gameState.tutorialStep === 5 && "Visitors get hungry! Place a Hot Dog Stall from your inventory."}
                     {gameState.tutorialStep === 6 && "Keep your park attractive and wait until you have 50 visitors at once."}
+                    {gameState.tutorialStep === 7 && "A clean park is a happy park! Go to Management > Staff and hire a Janitor."}
+                    {gameState.tutorialStep === 8 && "Need more cash? Go to Management > Loans and take out a Small Business Loan."}
+                    {gameState.tutorialStep === 9 && "Grow your park with more rides and stalls to attract 100 visitors simultaneously."}
                   </p>
                 </div>
               </div>
 
               <div className="mt-6 flex items-center justify-between">
                 <div className="flex gap-1">
-                  {[0, 1, 2, 3, 4, 5, 6].map(s => (
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(s => (
                     <div 
                       key={s}
                       className={`h-1 w-3 rounded-full transition-all ${s <= gameState.tutorialStep ? 'bg-indigo-600' : 'bg-slate-100'}`}
@@ -3041,7 +3685,7 @@ export default function App() {
             </motion.div>
           )}
           
-          {gameState.showTutorial && gameState.tutorialStep === 7 && (
+          {gameState.showTutorial && gameState.tutorialStep === 10 && (
              <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -3116,7 +3760,8 @@ export default function App() {
                       { id: 'ALL', label: 'All Items', icon: <ShoppingBag size={14} /> },
                       { id: 'RIDE', label: 'Rides', icon: <Ticket size={14} /> },
                       { id: 'FOOD', label: 'Food & Drink', icon: <Coffee size={14} /> },
-                      { id: 'FACILITY', label: 'Facilities', icon: <Tent size={14} /> }
+                      { id: 'FACILITY', label: 'Facilities', icon: <Tent size={14} /> },
+                      { id: 'INFRASTRUCTURE', label: 'Infrastructure', icon: <Layout size={14} /> }
                     ].map(cat => (
                       <button
                         key={cat.id}
@@ -3173,7 +3818,7 @@ export default function App() {
                       const config = RIDE_CONFIGS[type];
                       const canAfford = gameState.money >= config.cost;
                       const truckAvailable = gameState.trucks.some(t => !t.assignedRideId);
-                      const warehouseCapacity = gameState.rides.length + gameState.inventory.length < engine.getWarehouseCapacity();
+                      const warehouseCapacity = config.category === 'INFRASTRUCTURE' || (gameState.rides.length + gameState.inventory.length < engine.getWarehouseCapacity());
 
                       return (
                         <div 
@@ -3186,10 +3831,15 @@ export default function App() {
                         >
                           <div className="flex items-start justify-between mb-6">
                             <div 
-                              className="flex h-16 w-16 items-center justify-center rounded-2xl text-4xl shadow-inner"
+                              className="flex h-16 w-16 items-center justify-center rounded-2xl text-4xl shadow-inner relative"
                               style={{ backgroundColor: config.color + '15' }}
                             >
                               {config.icon}
+                              {type === 'QUEUE_PATH' && (
+                                <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg">
+                                  x20
+                                </span>
+                              )}
                             </div>
                             <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest
                               ${canAfford ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}

@@ -1,4 +1,4 @@
-import { RideInstance, Visitor, Position, RIDE_CONFIGS, RideIntensity, GameTime, ParkSettings, GameState, CompanyInfo, CITIES, StaffInstance, StaffType, STAFF_CONFIGS, RideType, FinanceStats, Season, WeatherType, WeatherInfo, TruckInstance, GARAGE_CONFIGS, TRUCK_COST, Zone } from './types';
+import { RideInstance, Visitor, Position, RIDE_CONFIGS, RideIntensity, GameTime, ParkSettings, GameState, CompanyInfo, CITIES, StaffInstance, StaffType, STAFF_CONFIGS, RideType, FinanceStats, Season, WeatherType, WeatherInfo, TruckInstance, GARAGE_CONFIGS, TRUCK_COST, Zone, Loan } from './types';
 
 export class GameEngine {
   rides: RideInstance[] = [];
@@ -7,6 +7,7 @@ export class GameEngine {
   staff: StaffInstance[] = [];
   visitors: Visitor[] = [];
   zones: Zone[] = [];
+  activeLoans: Loan[] = [];
   money: number = 2000;
   lastUpdate: number = Date.now();
   time: GameTime = { hours: 8, minutes: 0, day: 1, dayOfWeek: 0, season: 'SPRING', month: 1, dayOfMonth: 1 };
@@ -127,6 +128,10 @@ export class GameEngine {
       this.company.garageLevel = 1;
     }
     this.trucks = data.trucks || [];
+    this.activeLoans = (data.activeLoans || []).map((l: any) => ({
+      ...l,
+      id: l.id || Math.random().toString(36).substr(2, 9)
+    }));
     this.finances = data.finances || this.getEmptyFinances();
     
     // Ensure income categories exist
@@ -146,6 +151,8 @@ export class GameEngine {
       electricity: 0,
       rent: 0,
       maintenance: 0,
+      loanInterest: 0,
+      loanPrincipal: 0,
       other: 0,
       ...(this.finances.expenses || {})
     };
@@ -253,6 +260,7 @@ export class GameEngine {
       company: this.company,
       finances: this.finances,
       dailyHistory: this.dailyHistory,
+      activeLoans: this.activeLoans,
       lastSalaryPaymentHour: this.lastSalaryPaymentHour,
       tutorialStep: this.tutorialStep,
       showTutorial: this.showTutorial
@@ -338,6 +346,75 @@ export class GameEngine {
     this.saveGame();
   }
 
+  takeLoan(amount: number, termDays: number) {
+    const interestRate = 0.05 + (Math.random() * 0.1); // 5% to 15%
+    const totalToRepay = amount * (1 + interestRate);
+    const dailyPayment = totalToRepay / termDays;
+
+    const newLoan: Loan = {
+      id: Math.random().toString(36).substr(2, 9),
+      amount,
+      remainingPrincipal: amount,
+      interestRate,
+      takenAtDay: this.time.day,
+      termDays,
+      dailyPayment
+    };
+
+    this.activeLoans.push(newLoan);
+    this.money += amount;
+    this.saveGame();
+  }
+
+  repayLoan(loanId: string, amount: number) {
+    const loanIndex = this.activeLoans.findIndex(l => l.id === loanId);
+    if (loanIndex === -1) return;
+
+    const loan = this.activeLoans[loanIndex];
+    const actualRepayment = Math.min(amount, this.money, loan.remainingPrincipal * (1 + loan.interestRate));
+    
+    // In this simplified model, we just reduce the remaining principal
+    // and if it's 0, we remove the loan.
+    // For simplicity, let's just say any manual repayment goes to principal first.
+    const principalRepaid = Math.min(actualRepayment, loan.remainingPrincipal);
+    loan.remainingPrincipal -= principalRepaid;
+    this.money -= actualRepayment;
+
+    if (loan.remainingPrincipal <= 0) {
+      this.activeLoans.splice(loanIndex, 1);
+    }
+    this.saveGame();
+  }
+
+  private processLoans() {
+    const loansToRemove: string[] = [];
+
+    this.activeLoans.forEach(loan => {
+      const dailyInterest = (loan.remainingPrincipal * loan.interestRate) / 365; // Very simple daily interest
+      const principalPayment = Math.min(loan.dailyPayment - dailyInterest, loan.remainingPrincipal);
+      
+      const totalPayment = dailyInterest + principalPayment;
+      
+      if (this.money >= totalPayment) {
+        this.money -= totalPayment;
+        loan.remainingPrincipal -= principalPayment;
+        
+        this.finances.expenses.loanInterest += dailyInterest;
+        this.finances.expenses.loanPrincipal += principalPayment;
+      } else {
+        // Defaulted on payment? For now just add interest to principal
+        loan.remainingPrincipal += dailyInterest;
+        this.finances.expenses.loanInterest += dailyInterest;
+      }
+
+      if (loan.remainingPrincipal <= 0.01) {
+        loansToRemove.push(loan.id);
+      }
+    });
+
+    this.activeLoans = this.activeLoans.filter(l => !loansToRemove.includes(l.id));
+  }
+
   advanceTutorial() {
     this.tutorialStep++;
     this.saveGame();
@@ -353,7 +430,7 @@ export class GameEngine {
         food: 0, 
         other: 0 
       },
-      expenses: { wages: 0, electricity: 0, rent: 0, maintenance: 0, other: 0 },
+      expenses: { wages: 0, electricity: 0, rent: 0, maintenance: 0, loanInterest: 0, loanPrincipal: 0, other: 0 },
       visitorStats: {
         totalVisitors: 0,
         avgHappiness: 0,
@@ -377,8 +454,8 @@ export class GameEngine {
 
     const visitor: Visitor = {
       id,
-      x: 50, // Entrance
-      y: (city.mapHeight * 40) / 2,
+      x: 50 + (Math.random() - 0.5) * 20, // Entrance with jitter
+      y: (city.mapHeight * 40) / 2 + (Math.random() - 0.5) * 40,
       targetX: Math.max(0, Math.min(city.mapWidth * 40, 100 + Math.random() * 200)),
       targetY: Math.max(0, Math.min(city.mapHeight * 40, (city.mapHeight * 40) / 2 + (Math.random() - 0.5) * 200)),
       state: 'WANDERING',
@@ -464,6 +541,7 @@ export class GameEngine {
       zones: [...this.zones],
       finances: { ...this.finances },
       dailyHistory: [...this.dailyHistory],
+      activeLoans: [...this.activeLoans],
       tutorialStep: this.tutorialStep,
       showTutorial: this.showTutorial,
       travelingToCityId: this.travelingToCityId,
@@ -509,6 +587,9 @@ export class GameEngine {
 
           // Generate Weather for the new day
           this.currentWeather = this.generateWeather(city, this.time.season || 'SPRING');
+
+          // Day transition: Process Loans
+          this.processLoans();
 
           // Day transition: Save finances to history and reset
           this.dailyHistory.unshift({ ...this.finances });
@@ -616,8 +697,8 @@ export class GameEngine {
       this.money -= totalElectricity;
       this.finances.expenses.electricity += totalElectricity;
 
-      // Rent (based on city size)
-      const rent = Math.floor((city.mapWidth * city.mapHeight) / 5);
+      // Rent (based on city size and multiplier)
+      const rent = Math.floor((city.mapWidth * city.mapHeight) / 5 * city.visitorMultiplier);
       this.money -= rent;
       this.finances.expenses.rent += rent;
 
@@ -805,9 +886,31 @@ export class GameEngine {
       }
 
       if (dist > 5 && v.state !== 'STANDING') {
-        const speed = 120 * dt;
-        v.x += (dx / dist) * speed;
-        v.y += (dy / dist) * speed;
+        // Add slight speed variation based on visitor ID to prevent perfect piling
+        const baseSpeed = 120;
+        const speedVar = (parseInt(v.id.slice(-1), 36) % 10 - 5) * 4; // -20 to +20
+        const speed = (baseSpeed + speedVar) * dt;
+        const nextX = v.x + (dx / dist) * speed;
+        const nextY = v.y + (dy / dist) * speed;
+
+        // Building collision check for visitors
+        const isColliding = (city.buildings || []).some(b => {
+          const bx = b.x * 40;
+          const by = b.y * 40;
+          const bw = b.width * 40;
+          const bh = b.height * 40;
+          // Add a small buffer for visitor radius
+          return nextX >= bx - 5 && nextX <= bx + bw + 5 && nextY >= by - 5 && nextY <= by + bh + 5;
+        });
+
+        if (!isColliding) {
+          v.x = nextX;
+          v.y = nextY;
+        } else {
+          // If colliding, try to move around or just pick a new target
+          v.targetX = Math.max(0, Math.min(mapWidthPx, v.targetX + (Math.random() - 0.5) * 100));
+          v.targetY = Math.max(0, Math.min(mapHeightPx, v.targetY + (Math.random() - 0.5) * 100));
+        }
         
         // Clamp to map boundaries
         v.x = Math.max(0, Math.min(mapWidthPx, v.x));
@@ -899,7 +1002,7 @@ export class GameEngine {
             const availableRides = this.rides.filter(r => 
               r.status === 'OPERATIONAL' && 
               RIDE_CONFIGS[r.type].category === 'RIDE' &&
-              r.currentVisitors < RIDE_CONFIGS[r.type].baseCapacity * r.level
+              r.queue.length < RIDE_CONFIGS[r.type].baseCapacity * 10 // Limit queue to 10x capacity
             );
             
             if (availableRides.length > 0) {
@@ -917,15 +1020,16 @@ export class GameEngine {
                 v.happiness -= 5;
               }
 
-              if (v.money >= ride.price) {
-                this.addThought(v, `Heading to ${RIDE_CONFIGS[ride.type].name}!`);
-                v.state = 'QUEUING';
-                v.targetRideId = ride.id;
-                ride.queue.push(v.id);
-                const queuePos = ride.queue.length - 1;
-                v.targetX = Math.max(0, Math.min(mapWidthPx, ride.x * 40 - 20 - (queuePos * 15)));
-                v.targetY = Math.max(0, Math.min(mapHeightPx, ride.y * 40 + (RIDE_CONFIGS[ride.type].height * 20)));
-              } else {
+    if (v.money >= ride.price) {
+      this.addThought(v, `Heading to ${RIDE_CONFIGS[ride.type].name}!`);
+      v.state = 'QUEUING';
+      v.targetRideId = ride.id;
+      ride.queue.push(v.id);
+      const queuePos = ride.queue.length - 1;
+      const pos = this.getQueuePosition(ride.id, queuePos);
+      v.targetX = pos.x;
+      v.targetY = pos.y;
+    } else {
                 this.addThought(v, `I can't afford ${RIDE_CONFIGS[ride.type].name}. I need more money.`);
                 v.happiness -= 5;
                 this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
@@ -954,8 +1058,9 @@ export class GameEngine {
               ride.queue.forEach((vid, idx) => {
                 const visitor = this.visitors.find(vis => vis.id === vid);
                 if (visitor) {
-                  visitor.targetX = Math.max(0, Math.min(mapWidthPx, ride.x * 40 - 20 - (idx * 15)));
-                  visitor.targetY = Math.max(0, Math.min(mapHeightPx, ride.y * 40 + (RIDE_CONFIGS[ride.type].height * 20)));
+                  const pos = this.getQueuePosition(ride.id, idx);
+                  visitor.targetX = pos.x;
+                  visitor.targetY = pos.y;
                 }
               });
               
@@ -1590,7 +1695,9 @@ export class GameEngine {
   buyRide(type: import('./types').RideType) {
     const config = RIDE_CONFIGS[type];
     const capacity = this.getWarehouseCapacity();
-    if (this.rides.length + this.inventory.length >= capacity) {
+    
+    // Infrastructure doesn't count towards warehouse capacity
+    if (config.category !== 'INFRASTRUCTURE' && this.rides.length + this.inventory.length >= capacity) {
       return false; // Warehouse full (including built rides)
     }
 
@@ -1602,30 +1709,38 @@ export class GameEngine {
 
     if (this.money >= config.cost) {
       this.money -= config.cost;
-      const ride: RideInstance = {
-        id: Math.random().toString(36).substr(2, 9),
-        type,
-        x: 0,
-        y: 0,
-        level: 1,
-        price: config.baseIncome,
-        currentVisitors: 0,
-        lastIncomeTime: Date.now(),
-        status: 'OPERATIONAL',
-        condition: 100,
-        isPlaced: false,
-        buildProgress: 0,
-        avgWaitTime: 0,
-        satisfaction: 100,
-        totalVisitorsServed: 0,
-        totalHappinessGained: 0,
-        queue: []
-      };
       
-      // Assign truck to ride
-      availableTruck.assignedRideId = ride.id;
+      const batchSize = type === 'QUEUE_PATH' ? 20 : 1;
+      let firstRideId = '';
+
+      for (let i = 0; i < batchSize; i++) {
+        const ride: RideInstance = {
+          id: Math.random().toString(36).substr(2, 9),
+          type,
+          x: 0,
+          y: 0,
+          level: 1,
+          price: config.baseIncome,
+          currentVisitors: 0,
+          lastIncomeTime: Date.now(),
+          status: 'OPERATIONAL',
+          condition: 100,
+          isPlaced: false,
+          buildProgress: 0,
+          avgWaitTime: 0,
+          satisfaction: 100,
+          totalVisitorsServed: 0,
+          totalHappinessGained: 0,
+          queue: []
+        };
+        
+        if (i === 0) firstRideId = ride.id;
+        this.inventory.push(ride);
+      }
       
-      this.inventory.push(ride);
+      // Assign truck to the first ride in the batch
+      availableTruck.assignedRideId = firstRideId;
+      
       this.saveGame();
       return true;
     }
@@ -1660,13 +1775,9 @@ export class GameEngine {
     return false;
   }
 
-  placeRide(rideId: string, x: number, y: number) {
-    const rideIndex = this.inventory.findIndex(r => r.id === rideId);
-    if (rideIndex === -1) return false;
-
-    const ride = this.inventory[rideIndex];
+  canPlaceRide(rideType: RideType, x: number, y: number): boolean {
     const city = CITIES.find(c => c.id === this.company.currentCityId) || CITIES[0];
-    const config = RIDE_CONFIGS[ride.type];
+    const config = RIDE_CONFIGS[rideType];
 
     // Boundary check
     if (x < 0 || x + config.width > city.mapWidth || y < 0 || y + config.height > city.mapHeight) {
@@ -1693,8 +1804,8 @@ export class GameEngine {
 
     if (!isInFunfairArea || isInRestrictedZone) return false;
 
-    // Overlap check
-    const isOverlapping = this.rides.some(r => {
+    // Overlap check with other rides
+    const isOverlappingRide = this.rides.some(r => {
       const rConfig = RIDE_CONFIGS[r.type];
       return !(x + config.width <= r.x || 
                x >= r.x + rConfig.width || 
@@ -1702,7 +1813,52 @@ export class GameEngine {
                y >= r.y + rConfig.height);
     });
 
-    if (isOverlapping) return false;
+    if (isOverlappingRide) return false;
+
+    // Overlap check with buildings
+    const isOverlappingBuilding = (city.buildings || []).some(b => {
+      return !(x + config.width <= b.x || 
+               x >= b.x + b.width || 
+               y + config.height <= b.y || 
+               y >= b.y + b.height);
+    });
+
+    if (isOverlappingBuilding) return false;
+
+    return true;
+  }
+
+  placeRide(rideId: string, x: number, y: number) {
+    const rideIndex = this.inventory.findIndex(r => r.id === rideId);
+    if (rideIndex === -1) return false;
+
+    const ride = this.inventory[rideIndex];
+    if (!this.canPlaceRide(ride.type, x, y)) return false;
+
+    if (ride.type === 'QUEUE_PATH') {
+      // First, try to find an adjacent queue path to inherit its targetRideId
+      const adjacentPath = this.rides.find(r => 
+        r.type === 'QUEUE_PATH' && 
+        r.targetRideId &&
+        Math.abs(r.x - x) + Math.abs(r.y - y) === 1
+      );
+
+      if (adjacentPath) {
+        ride.targetRideId = adjacentPath.targetRideId;
+      } else {
+        // Fallback to nearest ride if no adjacent path
+        const nearestRide = this.rides
+          .filter(r => RIDE_CONFIGS[r.type].category === 'RIDE' || RIDE_CONFIGS[r.type].category === 'FOOD')
+          .sort((a, b) => {
+            const distA = Math.sqrt(Math.pow(a.x - x, 2) + Math.pow(a.y - y, 2));
+            const distB = Math.sqrt(Math.pow(b.x - x, 2) + Math.pow(b.y - y, 2));
+            return distA - distB;
+          })[0];
+        if (nearestRide) {
+          ride.targetRideId = nearestRide.id;
+        }
+      }
+    }
 
     ride.x = x;
     ride.y = y;
@@ -1713,6 +1869,73 @@ export class GameEngine {
     this.inventory.splice(rideIndex, 1);
     this.saveGame();
     return true;
+  }
+
+  getQueuePosition(rideId: string, index: number): { x: number, y: number } {
+    const ride = this.rides.find(r => r.id === rideId);
+    if (!ride) return { x: 0, y: 0 };
+    const config = RIDE_CONFIGS[ride.type];
+    
+    const city = CITIES.find(c => c.id === this.company.currentCityId) || CITIES[0];
+    const mapWidthPx = city.mapWidth * 40;
+    const mapHeightPx = city.mapHeight * 40;
+
+    const paths = this.rides.filter(r => r.type === 'QUEUE_PATH' && r.targetRideId === rideId);
+    
+    if (paths.length > 0) {
+      const entranceX = ride.x;
+      const entranceY = ride.y + config.height;
+      
+      // Simple greedy chain
+      const sortedPaths: RideInstance[] = [];
+      const remaining = [...paths];
+      let currentX = entranceX;
+      let currentY = entranceY;
+      
+      while (remaining.length > 0) {
+        let bestIdx = 0;
+        let minDist = Infinity;
+        for (let i = 0; i < remaining.length; i++) {
+          const d = Math.sqrt(Math.pow(remaining[i].x - currentX, 2) + Math.pow(remaining[i].y - currentY, 2));
+          if (d < minDist) {
+            minDist = d;
+            bestIdx = i;
+          }
+        }
+        const next = remaining.splice(bestIdx, 1)[0];
+        sortedPaths.push(next);
+        currentX = next.x;
+        currentY = next.y;
+      }
+      
+      if (index < sortedPaths.length) {
+        const path = sortedPaths[index];
+        // Add a small random jitter based on visitor index to prevent perfect piling
+        const jitterX = (index % 3 - 1) * 5;
+        const jitterY = (index % 2 - 0.5) * 8;
+        return { 
+          x: Math.max(20, Math.min(mapWidthPx - 20, path.x * 40 + 20 + jitterX)), 
+          y: Math.max(20, Math.min(mapHeightPx - 20, path.y * 40 + 20 + jitterY)) 
+        };
+      } else {
+        const lastPath = sortedPaths[sortedPaths.length - 1];
+        const overflow = index - sortedPaths.length + 1;
+        // Overflow logic: try to stack behind the last path tile
+        // Add jitter here too
+        const jitterY = (index % 3 - 1) * 10;
+        return { 
+          x: Math.max(20, Math.min(mapWidthPx - 20, lastPath.x * 40 + 20 - (overflow * 15))), 
+          y: Math.max(20, Math.min(mapHeightPx - 20, lastPath.y * 40 + 20 + jitterY)) 
+        };
+      }
+    }
+    
+    // Add jitter to default queue too
+    const jitterY = (index % 3 - 1) * 10;
+    return {
+      x: Math.max(0, Math.min(mapWidthPx, ride.x * 40 - 20 - (index * 15))),
+      y: Math.max(0, Math.min(mapHeightPx, ride.y * 40 + (config.height * 20) + jitterY))
+    };
   }
 
   dismantleRide(rideId: string) {
