@@ -1,4 +1,4 @@
-import { RideInstance, Visitor, Position, RIDE_CONFIGS, RideIntensity, GameTime, ParkSettings, GameState, CompanyInfo, CITIES, StaffInstance, StaffType, STAFF_CONFIGS, RideType, FinanceStats, Season, WeatherType, WeatherInfo, TruckInstance, GARAGE_CONFIGS, TRUCK_COST, Zone, Loan } from './types';
+import { RideInstance, Visitor, Position, RIDE_CONFIGS, RideIntensity, GameTime, ParkSettings, GameState, CompanyInfo, CITIES, StaffInstance, StaffType, STAFF_CONFIGS, RideType, FinanceStats, Season, WeatherType, WeatherInfo, TruckInstance, GARAGE_CONFIGS, TRUCK_COST, Zone, Loan, Language } from './types';
 
 export class GameEngine {
   rides: RideInstance[] = [];
@@ -24,7 +24,8 @@ export class GameEngine {
       seasonPassPrice: 100,
       bundlePrice: 20,
       bundleSize: 5
-    }
+    },
+    language: 'EN'
   };
   company: CompanyInfo = { name: 'My Funfair', currentCityId: 'london', warehouseLevel: 1, garageLevel: 1 };
   cities = CITIES;
@@ -106,8 +107,10 @@ export class GameEngine {
         seasonPassPrice: 100,
         bundlePrice: 20,
         bundleSize: 5
-      }
+      },
+      language: 'EN'
     };
+    if (this.settings.language === undefined) this.settings.language = 'EN';
     if (this.settings.isPaused === undefined) this.settings.isPaused = false;
     if (this.settings.musicVolume === undefined) this.settings.musicVolume = 0.5;
     if (this.settings.sfxVolume === undefined) this.settings.sfxVolume = 0.7;
@@ -343,6 +346,11 @@ export class GameEngine {
 
   skipTutorial() {
     this.showTutorial = false;
+    this.saveGame();
+  }
+
+  setLanguage(lang: Language) {
+    this.settings.language = lang;
     this.saveGame();
   }
 
@@ -882,7 +890,7 @@ export class GameEngine {
         v.targetX = 50;
         v.targetY = mapHeightPx / 2;
         v.state = 'WANDERING';
-        this.addThought(v, "I'm not allowed in there!");
+        this.addThought(v, { key: 'thought_not_allowed' });
       }
 
       if (dist > 5 && v.state !== 'STANDING') {
@@ -957,13 +965,13 @@ export class GameEngine {
             const foodStalls = this.rides.filter(r => r.status === 'OPERATIONAL' && RIDE_CONFIGS[r.type].category === 'FOOD');
             if (foodStalls.length > 0) {
               const stall = foodStalls[Math.floor(Math.random() * foodStalls.length)];
-              this.addThought(v, `I'm hungry, heading to ${RIDE_CONFIGS[stall.type].name}.`);
+              this.addThought(v, { key: 'thought_hungry', replacements: { rideName: RIDE_CONFIGS[stall.type].name } });
               v.state = 'EATING';
               v.targetRideId = stall.id;
               v.targetX = stall.x * 40 + (RIDE_CONFIGS[stall.type].width * 20);
               v.targetY = stall.y * 40 + (RIDE_CONFIGS[stall.type].height * 20);
             } else {
-              this.addThought(v, "I'm starving! Why is there no food in this park?");
+              this.addThought(v, { key: 'thought_starving' });
               v.happiness -= 2 * dt; // Unhappy because no food
               this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
             }
@@ -972,13 +980,13 @@ export class GameEngine {
             const facilities = this.rides.filter(r => r.status === 'OPERATIONAL' && RIDE_CONFIGS[r.type].category === 'FACILITY' && r.type === 'RESTROOM');
             if (facilities.length > 0) {
               const facility = facilities[Math.floor(Math.random() * facilities.length)];
-              this.addThought(v, "I really need a restroom...");
+              this.addThought(v, { key: 'thought_restroom_need' });
               v.state = 'USING_FACILITY';
               v.targetRideId = facility.id;
               v.targetX = facility.x * 40 + (RIDE_CONFIGS[facility.type].width * 20);
               v.targetY = facility.y * 40 + (RIDE_CONFIGS[facility.type].height * 20);
             } else {
-              this.addThought(v, "I can't find a restroom anywhere!");
+              this.addThought(v, { key: 'thought_restroom_none' });
               v.happiness -= 2 * dt; // Unhappy because no restroom
               this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
             }
@@ -987,13 +995,13 @@ export class GameEngine {
             const benches = this.rides.filter(r => r.status === 'OPERATIONAL' && r.type === 'BENCH' && r.currentVisitors < RIDE_CONFIGS[r.type].baseCapacity);
             if (benches.length > 0) {
               const bench = benches[Math.floor(Math.random() * benches.length)];
-              this.addThought(v, "I'm so tired, I need to rest.");
+              this.addThought(v, { key: 'thought_tired' });
               v.state = 'RESTING';
               v.targetRideId = bench.id;
               v.targetX = bench.x * 40 + (RIDE_CONFIGS[bench.type].width * 20);
               v.targetY = bench.y * 40 + (RIDE_CONFIGS[bench.type].height * 20);
             } else {
-              this.addThought(v, "My feet are killing me, and there's nowhere to sit!");
+              this.addThought(v, { key: 'thought_nowhere_sit' });
               v.happiness -= 1 * dt; // Unhappy because no bench
               this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
             }
@@ -1016,12 +1024,12 @@ export class GameEngine {
               
               const basePrice = RIDE_CONFIGS[ride.type].baseIncome;
               if (ride.price > basePrice * 1.5) {
-                this.addThought(v, `The price for ${RIDE_CONFIGS[ride.type].name} is a bit high...`);
+                this.addThought(v, { key: 'thought_price_high', replacements: { rideName: RIDE_CONFIGS[ride.type].name } });
                 v.happiness -= 5;
               }
 
     if (v.money >= ride.price) {
-      this.addThought(v, `Heading to ${RIDE_CONFIGS[ride.type].name}!`);
+      this.addThought(v, { key: 'thought_heading_to', replacements: { rideName: RIDE_CONFIGS[ride.type].name } });
       v.state = 'QUEUING';
       v.targetRideId = ride.id;
       ride.queue.push(v.id);
@@ -1030,7 +1038,7 @@ export class GameEngine {
       v.targetX = pos.x;
       v.targetY = pos.y;
     } else {
-                this.addThought(v, `I can't afford ${RIDE_CONFIGS[ride.type].name}. I need more money.`);
+                this.addThought(v, { key: 'thought_cant_afford', replacements: { rideName: RIDE_CONFIGS[ride.type].name } });
                 v.happiness -= 5;
                 this.setWanderTargetNearRide(v, mapWidthPx, mapHeightPx);
               }
@@ -1099,10 +1107,10 @@ export class GameEngine {
               
               const actualHappinessGained = Math.round(happinessGained * priceFactor * conditionFactor * operatorBonus);
               
-              if (priceFactor < 0.5) this.addThought(v, `${config.name} was way too expensive!`);
-              if (conditionFactor < 0.5) this.addThought(v, `${config.name} felt unsafe and poorly maintained.`);
-              if (!ride.operatorId) this.addThought(v, `There was no one even running ${config.name}!`);
-              if (actualHappinessGained > 30) this.addThought(v, `That ride on ${config.name} was fantastic!`);
+              if (priceFactor < 0.5) this.addThought(v, { key: 'thought_too_expensive', replacements: { rideName: config.name } });
+              if (conditionFactor < 0.5) this.addThought(v, { key: 'thought_unsafe', replacements: { rideName: config.name } });
+              if (!ride.operatorId) this.addThought(v, { key: 'thought_no_operator', replacements: { rideName: config.name } });
+              if (actualHappinessGained > 30) this.addThought(v, { key: 'thought_fantastic', replacements: { rideName: config.name } });
 
               v.happiness = Math.min(100, v.happiness + actualHappinessGained);
               v.stamina -= 10; // Riding is tiring
@@ -1145,10 +1153,10 @@ export class GameEngine {
 
       if (v.happiness < 20 || v.money <= 0 || v.stamina < 10 || v.hunger > 95 || v.bladder > 95 || isBored) {
         if (v.state !== 'LEAVING' && v.state !== 'RIDING') {
-          if (v.money <= 0) this.addThought(v, "I'm out of money. Time to go home.");
-          else if (v.happiness < 20) this.addThought(v, "I'm not having any fun here. I'm leaving.");
-          else if (isBored) this.addThought(v, "I've seen enough. Heading out.");
-          else this.addThought(v, "I'm too tired or hungry to stay any longer.");
+          if (v.money <= 0) this.addThought(v, { key: 'thought_out_of_money' });
+          else if (v.happiness < 20) this.addThought(v, { key: 'thought_no_fun' });
+          else if (isBored) this.addThought(v, { key: 'thought_seen_enough' });
+          else this.addThought(v, { key: 'thought_too_tired_hungry' });
 
           v.state = 'LEAVING';
           v.targetX = 0;
@@ -1529,16 +1537,16 @@ export class GameEngine {
     return this.canParkOpen().canOpen;
   }
 
-  canParkOpen(): { canOpen: boolean; reason?: string } {
+  canParkOpen(): { canOpen: boolean; reason?: { key: string; replacements?: Record<string, string | number> } } {
     if (!this.currentWeather.canOpen) {
-      return { canOpen: false, reason: `Park is closed due to ${this.currentWeather.type.toLowerCase()} weather.` };
+      return { canOpen: false, reason: { key: 'reason_weather', replacements: { weatherType: this.currentWeather.type.toLowerCase() } } };
     }
 
     const hasOperationalRides = this.rides.some(r => 
       r.status === 'OPERATIONAL' && r.isPlaced && r.operatorId
     );
     if (!hasOperationalRides) {
-      return { canOpen: false, reason: 'No operational rides with operators' };
+      return { canOpen: false, reason: { key: 'reason_no_rides' } };
     }
 
     const { hours } = this.time;
@@ -1551,7 +1559,7 @@ export class GameEngine {
     }
 
     if (!withinSchedule) {
-      return { canOpen: false, reason: 'Outside of scheduled hours' };
+      return { canOpen: false, reason: { key: 'reason_outside_hours' } };
     }
 
     return { canOpen: true };
@@ -2061,8 +2069,13 @@ export class GameEngine {
     return this.getState();
   }
 
-  private addThought(v: Visitor, thought: string) {
-    if (v.thoughts[v.thoughts.length - 1] === thought) return;
+  private addThought(v: Visitor, thought: string | { key: string; replacements?: Record<string, string | number> }) {
+    const lastThought = v.thoughts[v.thoughts.length - 1];
+    const thoughtStr = typeof thought === 'string' ? thought : thought.key;
+    const lastThoughtStr = typeof lastThought === 'string' ? lastThought : lastThought?.key;
+    
+    if (lastThoughtStr === thoughtStr) return;
+    
     v.thoughts.push(thought);
     if (v.thoughts.length > 5) {
       v.thoughts.shift();

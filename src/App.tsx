@@ -19,6 +19,7 @@ import {
   Plane,
   Save,
   Trash2,
+  Wrench,
   Play,
   Square,
   AlertCircle,
@@ -59,6 +60,7 @@ import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { audioService } from './audioService';
+import { TRANSLATIONS, LANGUAGES } from './localization';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTH_NAMES = [
@@ -94,6 +96,16 @@ const getWeatherColor = (type: string) => {
 
 const TruckMinigame = ({ engine, gameState }: { engine: GameEngine, gameState: GameState }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const t = (key: string, replacements?: Record<string, string>) => {
+    const lang = gameState.settings.language;
+    let text = TRANSLATIONS[lang]?.[key] || TRANSLATIONS.EN[key] || key;
+    if (replacements) {
+      Object.entries(replacements).forEach(([k, v]) => {
+        text = text.replace(`{${k}}`, v);
+      });
+    }
+    return text;
+  };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (containerRef.current) {
@@ -113,7 +125,7 @@ const TruckMinigame = ({ engine, gameState }: { engine: GameEngine, gameState: G
     >
       <div className="absolute top-10 left-10 right-10 flex flex-col items-center">
         <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-2">
-          Travelling to {targetCity?.name}
+          {t('travelling_to', { city: targetCity?.name || '' })}
         </h2>
         <div className="w-full max-w-2xl h-4 bg-slate-800 rounded-full overflow-hidden border-2 border-slate-700">
           <motion.div 
@@ -123,7 +135,7 @@ const TruckMinigame = ({ engine, gameState }: { engine: GameEngine, gameState: G
           />
         </div>
         <p className="text-slate-400 mt-2 font-mono uppercase text-sm tracking-widest">
-          Avoid the obstacles! Hits cost money!
+          {t('avoid_obstacles')}
         </p>
       </div>
 
@@ -203,6 +215,33 @@ export default function App() {
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
   const [hoveredCell, setHoveredCell] = useState<{ x: number, y: number } | null>(null);
   const renderRef = useRef<() => void>(() => {});
+
+  const t = (keyOrObj: string | { key: string; replacements?: Record<string, string | number> }, replacements?: Record<string, string | number>) => {
+    let key: string;
+    let reps: Record<string, string | number> | undefined = replacements;
+
+    if (typeof keyOrObj === 'object' && keyOrObj !== null) {
+      key = keyOrObj.key;
+      reps = keyOrObj.replacements || replacements;
+    } else {
+      key = keyOrObj as string;
+    }
+
+    const lang = gameState.settings.language || 'EN';
+    const langTranslations = TRANSLATIONS[lang] || TRANSLATIONS['EN'];
+    let text = langTranslations[key] || TRANSLATIONS['EN'][key] || key;
+
+    if (typeof text !== 'string') {
+      text = String(text);
+    }
+
+    if (reps) {
+      Object.entries(reps).forEach(([k, v]) => {
+        text = text.replace(`{${k}}`, String(v));
+      });
+    }
+    return text;
+  };
 
   // Handle Resize
   useEffect(() => {
@@ -1293,7 +1332,7 @@ export default function App() {
                       >
                         <Globe size={16} />
                         <div className="text-center">
-                          <p className="text-sm font-bold leading-tight">{city.name}</p>
+                          <p className="text-sm font-bold leading-tight">{t(city.name)}</p>
                           <p className="text-[10px] font-black uppercase opacity-60 tracking-tighter">{city.country} • {city.population.toLocaleString()}</p>
                         </div>
                       </button>
@@ -1320,7 +1359,7 @@ export default function App() {
                     : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
                 `}
               >
-                Launch Company
+                {t('launch_company')}
               </button>
 
               {GameEngine.hasSave() && (
@@ -1328,7 +1367,7 @@ export default function App() {
                   onClick={() => setIsSetupOpen(false)}
                   className="mt-4 w-full text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors"
                 >
-                  Continue Existing Game
+                  {t('continue_game')}
                 </button>
               )}
             </motion.div>
@@ -1359,20 +1398,20 @@ export default function App() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg">
                         <Settings size={20} />
                       </div>
-                      <h2 className="text-xl font-black text-slate-900">Park Management</h2>
+                      <h2 className="text-xl font-black text-slate-900">{t('park_management')}</h2>
                     </div>
                   </div>
                   
                   <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
                     {[
-                      { id: 'settings', label: 'Park Status', icon: Settings },
-                      { id: 'staff', label: 'Staff', icon: Users, count: gameState.staff.length },
-                      { id: 'budget', label: 'Budget', icon: TrendingUp },
-                      { id: 'finance', label: 'Loans', icon: Coins },
-                      { id: 'pricing', label: 'Pricing', icon: DollarSign },
-                      { id: 'travel', label: 'Travel', icon: MapIcon },
-                      { id: 'warehouse', label: 'Warehouse', icon: Package },
-                      { id: 'garage', label: 'Garage', icon: Truck, count: gameState.trucks.length },
+                      { id: 'settings', label: t('settings'), icon: Settings },
+                      { id: 'staff', label: t('staff'), icon: Users, count: gameState.staff.length },
+                      { id: 'budget', label: t('budget'), icon: TrendingUp },
+                      { id: 'finance', label: t('loans'), icon: Coins },
+                      { id: 'pricing', label: t('pricing'), icon: DollarSign },
+                      { id: 'travel', label: t('travel'), icon: MapIcon },
+                      { id: 'warehouse', label: t('warehouse'), icon: Package },
+                      { id: 'garage', label: t('garage'), icon: Truck, count: gameState.trucks.length },
                     ].map((tab) => (
                       <button
                         key={tab.id}
@@ -1408,21 +1447,21 @@ export default function App() {
                         className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[8px] uppercase tracking-widest rounded-lg border-2 border-slate-900 transition-all active:translate-y-1 active:shadow-none flex items-center justify-center gap-1"
                       >
                         <Save size={10} />
-                        Save
+                        {t('save')}
                       </button>
                       <button 
                         onClick={() => setIsResetConfirmOpen(true)}
                         className="flex-1 py-2 bg-rose-100 hover:bg-rose-200 text-rose-600 font-black text-[8px] uppercase tracking-widest rounded-lg border-2 border-slate-900 transition-all active:translate-y-1 active:shadow-none flex items-center justify-center gap-1"
                       >
                         <Trash2 size={10} />
-                        Reset
+                        {t('reset')}
                       </button>
                     </div>
                     <button 
                       onClick={() => setIsManagementOpen(false)}
                       className="w-full py-3 bg-white hover:bg-slate-100 text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-1 active:shadow-none"
                     >
-                      Close Panel
+                      {t('close_panel')}
                     </button>
                   </div>
                 </div>
@@ -1431,9 +1470,9 @@ export default function App() {
                 <div className="flex-1 flex flex-col bg-white">
                   <div className="h-16 border-b border-slate-100 flex items-center justify-between px-8">
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                      {activeManagementTab === 'settings' ? 'Park Status' : 
-                       activeManagementTab === 'finance' ? 'Loans' : 
-                       activeManagementTab.replace('_', ' ')}
+                      {activeManagementTab === 'settings' ? t('settings') : 
+                       activeManagementTab === 'finance' ? t('loans') : 
+                       t(activeManagementTab)}
                     </h3>
                     <button 
                       onClick={() => setIsManagementOpen(false)}
@@ -1447,32 +1486,32 @@ export default function App() {
                     {activeManagementTab === 'finance' && (
                   <div className="space-y-8">
                     <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Active Loans</h3>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">{t('active_loans')}</h3>
                       <div className="space-y-4">
                         {gameState.activeLoans.length === 0 ? (
                           <div className="p-8 border-2 border-dashed border-slate-200 rounded-xl text-center">
-                            <p className="text-slate-400 font-medium">No active loans.</p>
+                            <p className="text-slate-400 font-medium">{t('no_active_loans')}</p>
                           </div>
                         ) : (
                           gameState.activeLoans.map(loan => (
                             <div key={loan.id} className="p-6 bg-white border-2 border-slate-900 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                               <div className="flex justify-between items-start mb-4">
                                 <div>
-                                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">Remaining Principal</p>
+                                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">{t('remaining_principal')}</p>
                                   <p className="text-2xl font-black text-slate-900">${Math.round(loan.remainingPrincipal).toLocaleString()}</p>
                                 </div>
                                 <div className="text-right">
-                                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">Interest Rate</p>
+                                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">{t('interest_rate')}</p>
                                   <p className="text-lg font-black text-indigo-600">{(loan.interestRate * 100).toFixed(1)}%</p>
                                 </div>
                               </div>
                               <div className="grid grid-cols-2 gap-4 mb-6">
                                 <div>
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Daily Payment</p>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('daily_payment')}</p>
                                   <p className="font-bold text-slate-700">${Math.round(loan.dailyPayment).toLocaleString()}</p>
                                 </div>
                                 <div>
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Original Amount</p>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('original_amount')}</p>
                                   <p className="font-bold text-slate-700">${loan.amount.toLocaleString()}</p>
                                 </div>
                               </div>
@@ -1482,21 +1521,21 @@ export default function App() {
                                   disabled={gameState.money < 1000}
                                   className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 transition-all active:translate-y-1 active:shadow-none"
                                 >
-                                  Repay $1,000
+                                  {t('repay_amount', { amount: '1,000' })}
                                 </button>
                                 <button 
                                   onClick={() => engine.repayLoan(loan.id, 5000)}
                                   disabled={gameState.money < 5000}
                                   className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 transition-all active:translate-y-1 active:shadow-none"
                                 >
-                                  Repay $5,000
+                                  {t('repay_amount', { amount: '5,000' })}
                                 </button>
                                 <button 
                                   onClick={() => engine.repayLoan(loan.id, loan.remainingPrincipal * (1 + loan.interestRate))}
                                   disabled={gameState.money < loan.remainingPrincipal * (1 + loan.interestRate)}
                                   className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-1 active:shadow-none"
                                 >
-                                  Pay Off
+                                  {t('pay_off')}
                                 </button>
                               </div>
                             </div>
@@ -1506,24 +1545,24 @@ export default function App() {
                     </div>
 
                     <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Available Loan Offers</h3>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">{t('available_loan_offers')}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {[
-                          { amount: 5000, term: 7, label: 'Small Business Loan' },
-                          { amount: 20000, term: 14, label: 'Expansion Credit' },
-                          { amount: 50000, term: 30, label: 'Venture Capital' }
+                          { amount: 5000, term: 7, label: t('small_business_loan') },
+                          { amount: 20000, term: 14, label: t('expansion_credit') },
+                          { amount: 50000, term: 30, label: t('venture_capital') }
                         ].map((offer, i) => (
                           <div key={i} className="p-4 bg-slate-50 border-2 border-slate-900 rounded-xl flex flex-col justify-between">
                             <div>
                               <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1">{offer.label}</p>
                               <p className="text-xl font-black text-slate-900">${offer.amount.toLocaleString()}</p>
-                              <p className="text-[10px] font-medium text-slate-500 mb-4">{offer.term} Day Term</p>
+                              <p className="text-[10px] font-medium text-slate-500 mb-4">{offer.term} {t('day_term')}</p>
                             </div>
                             <button 
                               onClick={() => engine.takeLoan(offer.amount, offer.term)}
                               className="w-full py-2 bg-white hover:bg-indigo-50 text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-1 active:shadow-none"
                             >
-                              Apply Now
+                              {t('apply_now')}
                             </button>
                           </div>
                         ))}
@@ -1541,35 +1580,35 @@ export default function App() {
                           <div className="p-2 rounded-lg bg-emerald-100 text-emerald-600">
                             <ArrowUpRight size={18} />
                           </div>
-                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Income (Today)</h3>
+                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('income_today')}</h3>
                         </div>
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">Ride Tickets</span>
+                            <span className="text-xs font-bold text-slate-500">{t('ride_tickets')}</span>
                             <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.tickets}</span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">Wristbands</span>
+                            <span className="text-xs font-bold text-slate-500">{t('wristbands_label')}</span>
                             <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.wristbands}</span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">Season Passes</span>
+                            <span className="text-xs font-bold text-slate-500">{t('season_passes_label')}</span>
                             <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.seasonPasses}</span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">Ticket Bundles</span>
+                            <span className="text-xs font-bold text-slate-500">{t('ticket_bundles')}</span>
                             <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.bundles}</span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">Food & Drinks</span>
+                            <span className="text-xs font-bold text-slate-500">{t('food_drinks')}</span>
                             <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.food}</span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">Other</span>
+                            <span className="text-xs font-bold text-slate-500">{t('other_label')}</span>
                             <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.other}</span>
                           </div>
                           <div className="pt-4 border-top border-slate-50 flex justify-between items-center">
-                            <span className="text-sm font-black text-slate-900">Total Income</span>
+                            <span className="text-sm font-black text-slate-900">{t('total_income')}</span>
                             <span className="text-lg font-black text-emerald-600">
                               +${gameState.finances.income.tickets + gameState.finances.income.wristbands + gameState.finances.income.seasonPasses + gameState.finances.income.bundles + gameState.finances.income.food + gameState.finances.income.other}
                             </span>
@@ -1583,53 +1622,53 @@ export default function App() {
                           <div className="p-2 rounded-lg bg-rose-100 text-rose-600">
                             <ArrowDownRight size={18} />
                           </div>
-                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Expenses (Today)</h3>
+                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('expenses_today')}</h3>
                         </div>
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                               <Briefcase size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">Staff Wages</span>
+                              <span className="text-xs font-bold text-slate-500">{t('staff_wages')}</span>
                             </div>
                             <span className="text-sm font-black text-rose-600">-${gameState.finances.expenses.wages}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                               <Zap size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">Electricity</span>
+                              <span className="text-xs font-bold text-slate-500">{t('electricity')}</span>
                             </div>
                             <span className="text-sm font-black text-rose-600">-${gameState.finances.expenses.electricity}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                               <CreditCard size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">Loan Interest</span>
+                              <span className="text-xs font-bold text-slate-500">{t('loan_interest')}</span>
                             </div>
                             <span className="text-sm font-black text-rose-600">-${Math.round(gameState.finances.expenses.loanInterest)}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                               <CreditCard size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">Loan Principal</span>
+                              <span className="text-xs font-bold text-slate-500">{t('loan_principal')}</span>
                             </div>
                             <span className="text-sm font-black text-rose-600">-${Math.round(gameState.finances.expenses.loanPrincipal)}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                               <Home size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">Area Rent</span>
+                              <span className="text-xs font-bold text-slate-500">{t('area_rent')}</span>
                             </div>
                             <span className="text-sm font-black text-rose-600">-${gameState.finances.expenses.rent}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                               <Settings size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">Maintenance</span>
+                              <span className="text-xs font-bold text-slate-500">{t('maintenance_label')}</span>
                             </div>
                             <span className="text-sm font-black text-rose-600">-${gameState.finances.expenses.maintenance}</span>
                           </div>
                           <div className="pt-4 border-top border-slate-50 flex justify-between items-center">
-                            <span className="text-sm font-black text-slate-900">Total Expenses</span>
+                            <span className="text-sm font-black text-slate-900">{t('total_expenses')}</span>
                             <span className="text-lg font-black text-rose-600">
                               -${gameState.finances.expenses.wages + gameState.finances.expenses.electricity + gameState.finances.expenses.rent + gameState.finances.expenses.maintenance + gameState.finances.expenses.loanInterest + gameState.finances.expenses.loanPrincipal + gameState.finances.expenses.other}
                             </span>
@@ -1641,13 +1680,13 @@ export default function App() {
                     {/* Net Profit Summary */}
                     <div className="bg-indigo-600 p-8 rounded-[2rem] text-white shadow-xl shadow-indigo-200 flex flex-col md:flex-row items-center justify-between gap-6">
                       <div>
-                        <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-70 mb-1">Daily Net Profit</h3>
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-70 mb-1">{t('daily_net_profit')}</h3>
                         <div className="flex items-baseline gap-2">
                           <span className="text-4xl font-black">
                             {(gameState.finances.income.tickets + gameState.finances.income.wristbands + gameState.finances.income.seasonPasses + gameState.finances.income.bundles + gameState.finances.income.food + gameState.finances.income.other) - (gameState.finances.expenses.wages + gameState.finances.expenses.electricity + gameState.finances.expenses.rent + gameState.finances.expenses.maintenance + gameState.finances.expenses.other) >= 0 ? '+' : ''}
                             ${(gameState.finances.income.tickets + gameState.finances.income.wristbands + gameState.finances.income.seasonPasses + gameState.finances.income.bundles + gameState.finances.income.food + gameState.finances.income.other) - (gameState.finances.expenses.wages + gameState.finances.expenses.electricity + gameState.finances.expenses.rent + gameState.finances.expenses.maintenance + gameState.finances.expenses.other)}
                           </span>
-                          <span className="text-sm font-bold opacity-70">today</span>
+                          <span className="text-sm font-bold opacity-70">{t('today')}</span>
                         </div>
                       </div>
                       <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
@@ -1659,19 +1698,19 @@ export default function App() {
                     <section>
                       <div className="flex items-center gap-2 mb-4">
                         <Users size={18} className="text-indigo-600" />
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Visitor Insights</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('visitor_insights')}</h3>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Visitors</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('total_visitors')}</p>
                           <p className="text-2xl font-black text-slate-900">{gameState.finances.visitorStats.totalVisitors}</p>
                         </div>
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Avg. Happiness</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('avg_happiness')}</p>
                           <p className="text-2xl font-black text-emerald-600">{Math.floor(gameState.finances.visitorStats.avgHappiness)}%</p>
                         </div>
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Avg. Spend</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('avg_spend')}</p>
                           <p className="text-2xl font-black text-indigo-600">${Math.floor(gameState.finances.visitorStats.avgSpend)}</p>
                         </div>
                       </div>
@@ -1682,7 +1721,7 @@ export default function App() {
                       <section>
                         <div className="flex items-center gap-2 mb-4">
                           <TrendingUp size={18} className="text-indigo-600" />
-                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Recent Performance</h3>
+                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('recent_performance')}</h3>
                         </div>
                         <div className="space-y-3">
                           {gameState.dailyHistory.map((day, idx) => {
@@ -1696,14 +1735,14 @@ export default function App() {
                                     {net >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                                   </div>
                                   <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-slate-700">Day {gameState.time.day - (idx + 1)}</span>
+                                    <span className="text-xs font-bold text-slate-700">{t('day')} {gameState.time.day - (idx + 1)}</span>
                                     <span className="text-[9px] font-bold text-slate-400 uppercase">
                                       {(() => {
                                         const hDay = gameState.time.day - (idx + 1);
-                                        if (hDay <= 0) return 'PRE-OPENING';
+                                        if (hDay <= 0) return t('pre_opening');
                                         const hMonth = Math.floor(((hDay - 1) % 120) / 10) + 1;
                                         const hDayOfMonth = ((hDay - 1) % 10) + 1;
-                                        return `${MONTH_NAMES[hMonth - 1]} ${hDayOfMonth}`;
+                                        return `${t(`month_${hMonth - 1}`)} ${hDayOfMonth}`;
                                       })()}
                                     </span>
                                   </div>
@@ -1712,7 +1751,7 @@ export default function App() {
                                   <p className={`text-sm font-black ${net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                     {net >= 0 ? '+' : ''}${net}
                                   </p>
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase">Net Profit</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase">{t('net_profit')}</p>
                                 </div>
                               </div>
                             );
@@ -1728,19 +1767,19 @@ export default function App() {
                     <section>
                       <div className="flex items-center gap-2 mb-4">
                         <Play size={18} className="text-indigo-600" />
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Park Operations</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('park_operations')}</h3>
                       </div>
                       <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
                         {!engine.canParkOpen().canOpen && (
                           <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-[10px] font-bold uppercase tracking-wider">
                             <AlertCircle size={14} />
-                            <span>{engine.canParkOpen().reason}</span>
+                            <span>{engine.canParkOpen().reason && t(engine.canParkOpen().reason!)}</span>
                           </div>
                         )}
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-xs font-bold text-slate-900">Manual Override</p>
-                            <p className="text-[10px] text-slate-500">Force the park to open or close regardless of schedule.</p>
+                            <p className="text-xs font-bold text-slate-900">{t('manual_override')}</p>
+                            <p className="text-[10px] text-slate-500">{t('force_park_desc')}</p>
                           </div>
                           {(() => {
                             const canOpen = engine.canParkOpen();
@@ -1750,7 +1789,7 @@ export default function App() {
                                 ${isActuallyOpen ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}
                               `}>
                                 <div className={`h-2 w-2 rounded-full ${isActuallyOpen ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                                {isActuallyOpen ? 'Park is Open' : 'Park is Closed'}
+                                {isActuallyOpen ? t('park_is_open') : t('park_is_closed')}
                               </div>
                             );
                           })()}
@@ -1771,7 +1810,7 @@ export default function App() {
                             `}
                           >
                             <Play size={16} fill="currentColor" />
-                            Open Park
+                            {t('open_park')}
                           </button>
                           <button
                             onClick={() => {
@@ -1786,7 +1825,7 @@ export default function App() {
                             `}
                           >
                             <Square size={16} fill="currentColor" />
-                            Close Park
+                            {t('close_park')}
                           </button>
                         </div>
 
@@ -1797,7 +1836,7 @@ export default function App() {
                               <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
                                 <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
                                 <p className="text-xs font-medium text-amber-700 leading-tight">
-                                  {canOpen.reason}
+                                  {canOpen.reason && t(canOpen.reason.key, canOpen.reason.replacements)}
                                 </p>
                               </div>
                             );
@@ -1811,11 +1850,11 @@ export default function App() {
                     <section>
                       <div className="flex items-center gap-2 mb-4">
                         <Building2 size={18} className="text-indigo-600" />
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Company Identity</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('company_name')}</h3>
                       </div>
                       <div className="space-y-4">
                         <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase">Company Name</label>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase">{t('company_name')}</label>
                           <input 
                             type="text" 
                             value={gameState.company.name}
@@ -1824,7 +1863,7 @@ export default function App() {
                               setGameState(engine.getState());
                             }}
                             className="w-full mt-1 rounded-xl border-slate-200 bg-slate-50 p-3 text-sm font-bold focus:ring-2 focus:ring-indigo-500 transition-all"
-                            placeholder="Enter company name..."
+                            placeholder={t('company_name')}
                           />
                         </div>
                       </div>
@@ -1834,12 +1873,12 @@ export default function App() {
                     <section>
                       <div className="flex items-center gap-2 mb-4">
                         <Zap size={18} className="text-indigo-600" />
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Audio Settings</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('audio_settings')}</h3>
                       </div>
                       <div className="space-y-6 bg-slate-50 p-6 rounded-2xl border border-slate-100">
                         <div>
                           <div className="flex justify-between items-center mb-2">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase">Music Volume</label>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">{t('music_volume')}</label>
                             <span className="text-xs font-bold text-slate-600">{Math.round(gameState.settings.musicVolume * 100)}%</span>
                           </div>
                           <input 
@@ -1855,7 +1894,7 @@ export default function App() {
                         </div>
                         <div>
                           <div className="flex justify-between items-center mb-2">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase">Sound Effects</label>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">{t('sound_effects')}</label>
                             <span className="text-xs font-bold text-slate-600">{Math.round(gameState.settings.sfxVolume * 100)}%</span>
                           </div>
                           <input 
@@ -1876,11 +1915,11 @@ export default function App() {
                     <section>
                       <div className="flex items-center gap-2 mb-4">
                         <MousePointer2 size={18} className="text-indigo-600" />
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Operating Hours</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('operating_hours')}</h3>
                       </div>
                       <div className="grid grid-cols-2 gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-100">
                         <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase">Open Time</label>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase">{t('open_time')}</label>
                           <select 
                             value={gameState.settings.openTime}
                             onChange={(e) => {
@@ -1895,7 +1934,7 @@ export default function App() {
                           </select>
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase">Close Time</label>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase">{t('close_time')}</label>
                           <select 
                             value={gameState.settings.closeTime}
                             onChange={(e) => {
@@ -1918,13 +1957,13 @@ export default function App() {
                   <div className="space-y-10">
                     <div className="bg-indigo-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-indigo-200 flex flex-col md:flex-row items-center justify-between gap-6">
                       <div>
-                        <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-70 mb-1">Visitor Demand</h3>
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-70 mb-1">{t('visitor_demand')}</h3>
                         <div className="flex items-baseline gap-2">
                           <span className="text-4xl font-black">{Math.floor(engine.getVisitorDemandMultiplier() * 100)}%</span>
-                          <span className="text-sm font-bold opacity-70">of potential</span>
+                          <span className="text-sm font-bold opacity-70">{t('of_potential')}</span>
                         </div>
                         <p className="text-[10px] font-bold opacity-60 mt-2 uppercase tracking-widest">
-                          Higher prices reduce visitor spawn rate
+                          {t('price_demand_warning')}
                         </p>
                       </div>
                       <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
@@ -1936,12 +1975,12 @@ export default function App() {
                       <section className="space-y-4">
                         <div className="flex items-center gap-2 mb-2">
                           <Ticket size={18} className="text-indigo-600" />
-                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Standard Entry</h3>
+                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('standard_entry')}</h3>
                         </div>
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
                           <div>
                             <div className="flex justify-between items-center mb-2">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Single Ride Ticket</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('single_ride_ticket')}</label>
                               <span className="text-sm font-black text-slate-900">${gameState.settings.pricing.ticketPrice}</span>
                             </div>
                             <input 
@@ -1956,7 +1995,7 @@ export default function App() {
                           </div>
                           <div>
                             <div className="flex justify-between items-center mb-2">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ride Bundle ({gameState.settings.pricing.bundleSize} rides)</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('ride_bundle')} ({gameState.settings.pricing.bundleSize} rides)</label>
                               <span className="text-sm font-black text-slate-900">${gameState.settings.pricing.bundlePrice}</span>
                             </div>
                             <input 
@@ -1975,12 +2014,12 @@ export default function App() {
                       <section className="space-y-4">
                         <div className="flex items-center gap-2 mb-2">
                           <CreditCard size={18} className="text-indigo-600" />
-                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Premium Passes</h3>
+                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('premium_passes')}</h3>
                         </div>
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
                           <div>
                             <div className="flex justify-between items-center mb-2">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">All-Day Wristband</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('all_day_wristband')}</label>
                               <span className="text-sm font-black text-slate-900">${gameState.settings.pricing.wristbandPrice}</span>
                             </div>
                             <input 
@@ -1995,7 +2034,7 @@ export default function App() {
                           </div>
                           <div>
                             <div className="flex justify-between items-center mb-2">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Season Pass</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('season_pass')}</label>
                               <span className="text-sm font-black text-slate-900">${gameState.settings.pricing.seasonPassPrice}</span>
                             </div>
                             <input 
@@ -2016,7 +2055,7 @@ export default function App() {
                       <div className="flex items-start gap-3">
                         <AlertCircle size={18} className="text-amber-500 shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="text-xs font-black uppercase tracking-widest text-amber-900 mb-1">Pricing Strategy Tip</h4>
+                          <h4 className="text-xs font-black uppercase tracking-widest text-amber-900 mb-1">{t('pricing_strategy_tip')}</h4>
                           <p className="text-[10px] font-medium text-amber-700 leading-relaxed">
                             Wristbands and Season Passes provide immediate cash flow but reduce per-ride income. 
                             High ticket prices will discourage visitors from staying long and reduce overall park attendance.
@@ -2030,18 +2069,18 @@ export default function App() {
                   <div className="space-y-10">
                     <div className="bg-indigo-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-indigo-200 flex flex-col md:flex-row items-center justify-between gap-6">
                       <div>
-                        <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-70 mb-1">Warehouse Capacity</h3>
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-70 mb-1">{t('warehouse_capacity')}</h3>
                         <div className="flex items-baseline gap-2">
                           <span className="text-4xl font-black">{gameState.rides.length + gameState.inventory.length} / {engine.getWarehouseCapacity()}</span>
-                          <span className="text-sm font-bold opacity-70">Attractions</span>
+                          <span className="text-sm font-bold opacity-70">{t('attractions')}</span>
                         </div>
                         <p className="text-[10px] font-bold opacity-60 mt-2 uppercase tracking-widest">
-                          Home City: {CITIES.find(c => c.id === gameState.company.homeCityId)?.name || 'Not Set'}
+                          {t('home_city')}: {gameState.company.homeCityId ? (CITIES.find(c => c.id === gameState.company.homeCityId)?.name || gameState.company.homeCityId) : t('not_set')}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-3">
                         <div className="text-right">
-                          <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Warehouse Level</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest opacity-70">{t('warehouse_level')}</p>
                           <p className="text-2xl font-black">{gameState.company.warehouseLevel}</p>
                         </div>
                         <button
@@ -2059,7 +2098,7 @@ export default function App() {
                               : 'bg-white/20 text-white/40 cursor-not-allowed'}
                           `}
                         >
-                          Upgrade (${engine.getWarehouseUpgradeCost()})
+                          {t('upgrade_label')} (${engine.getWarehouseUpgradeCost()})
                         </button>
                       </div>
                     </div>
@@ -2067,14 +2106,14 @@ export default function App() {
                     <section>
                       <div className="flex items-center gap-2 mb-4">
                         <ShoppingBag size={18} className="text-indigo-600" />
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Stored Attractions</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('stored_attractions')}</h3>
                       </div>
                       {gameState.inventory.length === 0 ? (
                         <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center">
                           <div className="mx-auto w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 mb-4">
                             <ShoppingBag size={24} />
                           </div>
-                          <p className="text-sm font-bold text-slate-500">Your warehouse is empty.</p>
+                          <p className="text-sm font-bold text-slate-500">{t('warehouse_empty')}</p>
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2094,9 +2133,9 @@ export default function App() {
                                   )}
                                 </div>
                                 <div className="flex-1">
-                                  <p className="text-sm font-black text-slate-900">{config.name}</p>
+                                  <p className="text-sm font-black text-slate-900">{t(`staff_${config.type}_name`)}</p>
                                   <p className="text-[10px] font-bold text-slate-400 uppercase">
-                                    {itemsOfType.length > 1 ? `${itemsOfType.length} items available` : `Condition: ${firstItem.condition}%`}
+                                    {itemsOfType.length > 1 ? `${itemsOfType.length} ${t('items_available')}` : `${t('condition_label')}: ${firstItem.condition}%`}
                                   </p>
                                 </div>
                                 <button
@@ -2106,7 +2145,7 @@ export default function App() {
                                   }}
                                   className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all"
                                 >
-                                  Place
+                                  {t('place_label')}
                                 </button>
                               </div>
                             );
@@ -2121,14 +2160,14 @@ export default function App() {
                     {/* Staff Overview Stats */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Staff</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('total_staff')}</p>
                         <div className="flex items-baseline gap-2">
                           <span className="text-2xl font-black text-slate-900">{gameState.staff.length}</span>
-                          <span className="text-[10px] font-bold text-slate-400">Employees</span>
+                          <span className="text-[10px] font-bold text-slate-400">{t('employees')}</span>
                         </div>
                       </div>
                       <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Avg. Happiness</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('avg_happiness')}</p>
                         <div className="flex items-baseline gap-2">
                           <span className={`text-2xl font-black ${
                             gameState.staff.length === 0 ? 'text-slate-300' :
@@ -2137,14 +2176,14 @@ export default function App() {
                           }`}>
                             {gameState.staff.length === 0 ? '0' : Math.floor(gameState.staff.reduce((acc, s) => acc + s.happiness, 0) / gameState.staff.length)}%
                           </span>
-                          <span className="text-[10px] font-bold text-slate-400">Morale</span>
+                          <span className="text-[10px] font-bold text-slate-400">{t('morale')}</span>
                         </div>
                       </div>
                       <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Hourly Payroll</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('hourly_payroll')}</p>
                         <div className="flex items-baseline gap-2">
                           <span className="text-2xl font-black text-slate-900">${gameState.staff.reduce((acc, s) => acc + s.salary, 0)}</span>
-                          <span className="text-[10px] font-bold text-slate-400">per hour</span>
+                          <span className="text-[10px] font-bold text-slate-400">{t('per_hour')}</span>
                         </div>
                       </div>
                     </div>
@@ -2152,7 +2191,7 @@ export default function App() {
                     <section>
                       <div className="flex items-center gap-2 mb-4">
                         <Briefcase size={18} className="text-indigo-600" />
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Recruitment Center</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('recruitment_center')}</h3>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {(Object.keys(STAFF_CONFIGS) as StaffType[]).map(type => {
@@ -2182,17 +2221,17 @@ export default function App() {
                                 </div>
                                 <div className="text-right">
                                   <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">${config.baseSalary}/hr</p>
-                                  <p className="text-[8px] font-bold text-slate-400 uppercase">Base Salary</p>
+                                  <p className="text-[8px] font-bold text-slate-400 uppercase">{t('base_salary')}</p>
                                   <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-1">${hiringFee}</p>
-                                  <p className="text-[8px] font-bold text-slate-400 uppercase">Hiring Fee</p>
+                                  <p className="text-[8px] font-bold text-slate-400 uppercase">{t('hiring_fee')}</p>
                                 </div>
                               </div>
                               <div className="relative z-10">
-                                <h4 className="font-black text-sm text-slate-900 uppercase tracking-tight">{config.name}</h4>
-                                <p className="text-[10px] text-slate-500 leading-relaxed mt-1 line-clamp-2">{config.description}</p>
+                                <h4 className="font-black text-sm text-slate-900 uppercase tracking-tight">{t(`staff_${config.type}_name`)}</h4>
+                                <p className="text-[10px] text-slate-500 leading-relaxed mt-1 line-clamp-2">{t(`staff_${config.type}_desc`)}</p>
                               </div>
                               <div className="mt-2 pt-3 border-t border-slate-50 flex items-center justify-between relative z-10">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-indigo-600">Hire Staff</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-indigo-600">{t('hire_staff')}</span>
                                 <Plus size={14} className="text-indigo-600 group-hover:rotate-90 transition-transform" />
                               </div>
                             </button>
@@ -2205,16 +2244,16 @@ export default function App() {
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                           <Users size={18} className="text-indigo-600" />
-                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Your Team</h3>
+                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('your_team')}</h3>
                         </div>
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          Total Hourly Wage: ${gameState.staff.reduce((acc, s) => acc + s.salary, 0)}
+                          {t('total_hourly_wage')}: ${gameState.staff.reduce((acc, s) => acc + s.salary, 0)}
                         </span>
                       </div>
 
                       {gameState.staff.length === 0 ? (
                         <div className="text-center py-12 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No staff members currently hired</p>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('no_staff_hired')}</p>
                         </div>
                       ) : (
                         <div className="space-y-8">
@@ -2227,7 +2266,7 @@ export default function App() {
                               <div key={type} className="space-y-4">
                                 <div className="flex items-center gap-2 px-2">
                                   <span className="text-lg">{config.icon}</span>
-                                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500">{config.name}s ({staffInCategory.length})</h4>
+                                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500">{t(`staff_${config.type}_name`)}s ({staffInCategory.length})</h4>
                                   <div className="flex-1 h-px bg-slate-100"></div>
                                 </div>
                                 <div className="grid gap-4">
@@ -2254,24 +2293,26 @@ export default function App() {
                                               <div className="flex items-center gap-2">
                                                 <h4 className="font-bold text-sm text-slate-900">ID: {staff.id.slice(0, 6)}</h4>
                                                 <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-600 text-white uppercase tracking-widest">
-                                                  LVL {staff.level}
+                                                  {t('lvl_label')} {staff.level}
                                                 </span>
                                                 <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
                                                   staff.state === 'WORKING' ? 'bg-emerald-100 text-emerald-700' :
                                                   staff.state === 'RESTING' ? 'bg-amber-100 text-amber-700' :
                                                   'bg-slate-100 text-slate-700'
                                                 }`}>
-                                                  {staff.state}
+                                                  {staff.state === 'WORKING' ? t('working_label') :
+                                                   staff.state === 'RESTING' ? t('resting_label') :
+                                                   t('idle_label')}
                                                 </span>
                                                 {isUnhappy && (
                                                   <span className="animate-pulse text-[8px] font-black px-2 py-0.5 rounded-full bg-rose-600 text-white uppercase tracking-widest">
-                                                    Risk of Quitting
+                                                    {t('risk_of_quitting')}
                                                   </span>
                                                 )}
                                               </div>
                                               {staff.assignedRideId && (
                                                 <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-0.5">
-                                                  Assigned: {RIDE_CONFIGS[gameState.rides.find(r => r.id === staff.assignedRideId)?.type || 'TEA_CUPS'].name}
+                                                  {t('assigned')}: {t(`ride_${gameState.rides.find(r => r.id === staff.assignedRideId)?.type || 'TEA_CUPS'}_name`)}
                                                 </p>
                                               )}
                                             </div>
@@ -2282,14 +2323,14 @@ export default function App() {
                                                 <Zap size={14} />
                                                 <span className="text-[10px] font-black">{Math.floor(staff.stamina)}%</span>
                                               </div>
-                                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Stamina</p>
+                                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{t('stamina')}</p>
                                             </div>
                                             <div className="flex flex-col items-end">
                                               <div className={`flex items-center gap-1 ${happinessColor}`}>
                                                 <HappinessIcon size={14} />
                                                 <span className="text-[10px] font-black">{Math.floor(staff.happiness)}%</span>
                                               </div>
-                                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Happiness</p>
+                                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{t('happiness')}</p>
                                             </div>
                                             <button 
                                               onClick={() => {
@@ -2307,15 +2348,15 @@ export default function App() {
                                           <div className="space-y-2">
                                             <div className="flex items-center justify-between">
                                               <div className="flex items-center gap-1">
-                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Hourly Salary</label>
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t('hourly_salary')}</label>
                                                 {salaryRatio < 1 && (
-                                                  <span className="text-[8px] font-black text-rose-500 uppercase tracking-tighter">(Underpaid)</span>
+                                                  <span className="text-[8px] font-black text-rose-500 uppercase tracking-tighter">{t('underpaid_label')}</span>
                                                 )}
                                                 {salaryRatio >= 1.2 && (
-                                                  <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">(Well Paid)</span>
+                                                  <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">{t('well_paid_label')}</span>
                                                 )}
                                               </div>
-                                              <span className="text-[9px] font-bold text-slate-400">Min: ${Math.ceil(minSalary)}</span>
+                                              <span className="text-[9px] font-bold text-slate-400">{t('min_label')}: ${Math.ceil(minSalary)}</span>
                                             </div>
                                             <div className="flex items-center gap-3">
                                               <DollarSign size={14} className={salaryRatio < 1 ? 'text-rose-500' : 'text-emerald-500'} />
@@ -2347,7 +2388,7 @@ export default function App() {
                                             className="h-10 rounded-xl bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                                           >
                                             <GraduationCap size={14} />
-                                            {staff.level >= 5 ? 'Max Level' : `Train ($${trainingCost})`}
+                                            {staff.level >= 5 ? t('max_level') : t('train_button', { cost: trainingCost })}
                                           </button>
                                         </div>
                                       </div>
@@ -2367,15 +2408,15 @@ export default function App() {
                   <section>
                     <div className="flex items-center gap-2 mb-4">
                       <Truck size={18} className="text-indigo-600" />
-                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Truck Garage</h3>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('truck_garage')}</h3>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                         <div className="flex items-center justify-between mb-6">
                           <div>
-                            <h4 className="font-black text-slate-900">Garage Level {gameState.company.garageLevel}</h4>
-                            <p className="text-xs text-slate-500">Capacity: {gameState.trucks.length} / {GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel)?.capacity || 0} Trucks</p>
+                            <h4 className="font-black text-slate-900">{t('garage_level')} {gameState.company.garageLevel}</h4>
+                            <p className="text-xs text-slate-500">{t('capacity_value', { current: gameState.trucks.length, max: GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel)?.capacity || 0 })}</p>
                           </div>
                           <div className="h-12 w-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
                             <Warehouse size={24} />
@@ -2397,11 +2438,11 @@ export default function App() {
                                 : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
                             `}
                           >
-                            Upgrade Garage (${GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel + 1)?.upgradeCost || 0})
+                            {t('upgrade_garage')} (${GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel + 1)?.upgradeCost || 0})
                           </button>
                         ) : (
                           <div className="text-center py-3 bg-slate-50 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            Max Level Reached
+                            {t('max_level_reached')}
                           </div>
                         )}
                       </div>
@@ -2409,8 +2450,8 @@ export default function App() {
                       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                         <div className="flex items-center justify-between mb-6">
                           <div>
-                            <h4 className="font-black text-slate-900">Buy New Truck</h4>
-                            <p className="text-xs text-slate-500">Cost: ${TRUCK_COST}</p>
+                            <h4 className="font-black text-slate-900">{t('buy_new_truck')}</h4>
+                            <p className="text-xs text-slate-500">{t('cost')}: ${TRUCK_COST}</p>
                           </div>
                           <div className="h-12 w-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
                             <Truck size={24} />
@@ -2432,14 +2473,14 @@ export default function App() {
                           `}
                         >
                           {gameState.trucks.length >= (GARAGE_CONFIGS.find((c: any) => c.level === gameState.company.garageLevel)?.capacity || 0)
-                            ? 'Garage Full'
-                            : `Buy Truck ($${TRUCK_COST})`}
+                            ? t('garage_full')
+                            : t('buy_truck_button', { cost: TRUCK_COST.toLocaleString() })}
                         </button>
                       </div>
                     </div>
 
                     <div className="mt-8">
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Your Trucks</h4>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">{t('your_trucks')}</h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         {gameState.trucks.map(truck => (
                           <div key={truck.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
@@ -2449,14 +2490,14 @@ export default function App() {
                             <div>
                               <p className="text-xs font-bold text-slate-900">{truck.name}</p>
                               <p className="text-[10px] font-medium text-slate-500">
-                                {truck.assignedRideId ? 'Transporting' : 'Idle'}
+                                {truck.assignedRideId ? t('transporting') : t('idle')}
                               </p>
                             </div>
                           </div>
                         ))}
                         {gameState.trucks.length === 0 && (
                           <div className="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                            <p className="text-xs font-bold text-slate-400">No trucks in your garage</p>
+                            <p className="text-xs font-bold text-slate-400">{t('no_trucks_in_garage')}</p>
                           </div>
                         )}
                       </div>
@@ -2469,7 +2510,7 @@ export default function App() {
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           <Plane size={18} className="text-indigo-600" />
-                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Travel to New Cities</h3>
+                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('travel_to_new_cities')}</h3>
                         </div>
                         
                         {/* View Toggle */}
@@ -2498,7 +2539,7 @@ export default function App() {
                             value={travelSearch}
                             onChange={(e) => setTravelSearch(e.target.value)}
                             className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-1.5 text-xs font-bold focus:border-indigo-500 focus:ring-0 transition-all"
-                            placeholder="Search..."
+                            placeholder={t('search_placeholder')}
                           />
                         </div>
 
@@ -2510,10 +2551,10 @@ export default function App() {
                               onChange={(e) => setTravelSortBy(e.target.value as any)}
                               className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold focus:border-indigo-500 focus:ring-0 transition-all"
                             >
-                              <option value="name">Name</option>
-                              <option value="population">Population</option>
-                              <option value="cost">Travel Cost</option>
-                              <option value="multiplier">Multiplier</option>
+                              <option value="name">{t('name')}</option>
+                              <option value="population">{t('population')}</option>
+                              <option value="cost">{t('travel_cost')}</option>
+                              <option value="multiplier">{t('multiplier')}</option>
                             </select>
                             <button 
                               onClick={() => setTravelSortOrder(travelSortOrder === 'asc' ? 'desc' : 'asc')}
@@ -2574,16 +2615,16 @@ export default function App() {
                                       <p className="text-xs text-slate-500 mt-0.5">{city.description}</p>
                                       <div className="flex flex-wrap items-center gap-3 mt-2">
                                         <span className="text-[10px] font-bold text-indigo-600 uppercase">
-                                          x{city.visitorMultiplier} Visitors
+                                          x{city.visitorMultiplier} {t('visitors_label')}
                                         </span>
                                         <span className="text-[10px] font-bold text-emerald-600 uppercase">
-                                          Travel: ${engine.getTravelCost(city.id)}
+                                          {t('travel_label')}: ${engine.getTravelCost(city.id)}
                                         </span>
                                         <span className="text-[10px] font-bold text-slate-500 uppercase">
-                                          Size: {city.mapWidth}x{city.mapHeight}
+                                          {t('size')}: {city.mapWidth}x{city.mapHeight}
                                         </span>
                                         <span className="text-[10px] font-bold text-slate-500 uppercase">
-                                          Terrain: {city.terrain}
+                                          {t('terrain')}: {city.terrain}
                                         </span>
                                       </div>
                                     </div>
@@ -2612,25 +2653,25 @@ export default function App() {
                                       `}
                                     >
                                       {gameState.rides.length > 0 
-                                        ? 'Dismantle First' 
+                                        ? t('dismantle_first') 
                                         : (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
-                                          ? 'Island Locked'
-                                          : 'Travel'}
+                                          ? t('island_locked')
+                                          : t('travel_button')}
                                     </button>
                                   )}
                                   {isCurrent && (
                                     <div className="flex flex-col items-end gap-1">
-                                      <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Current Location</span>
+                                      <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">{t('current_location')}</span>
                                       {city.id === gameState.company.homeCityId && (
                                         <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1">
-                                          <Home size={10} /> Home City
+                                          <Home size={10} /> {t('home_city_label')}
                                         </span>
                                       )}
                                     </div>
                                   )}
                                   {!isCurrent && city.id === gameState.company.homeCityId && (
                                     <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1">
-                                      <Home size={10} /> Home City
+                                      <Home size={10} /> {t('home_city_label')}
                                     </span>
                                   )}
                                 </div>
@@ -2761,7 +2802,7 @@ export default function App() {
                                         <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg shadow-2xl border border-slate-700 flex items-center gap-2">
                                           {isHome && <Home size={10} className="text-amber-400" />}
                                           {city.name}
-                                          <span className="opacity-50 text-[8px]">{city.country}</span>
+                                          <span className="opacity-50 text-[8px]">{t(`country_${city.country}`)}</span>
                                         </div>
                                       </div>
                                     </div>
@@ -2776,19 +2817,19 @@ export default function App() {
                             <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-700 text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-3">
                               <div className="flex items-center gap-1.5">
                                 <div className="h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
-                                <span>Current</span>
+                                <span>{t('legend_current')}</span>
                               </div>
                               <div className="flex items-center gap-1.5">
                                 <div className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                                <span>Home</span>
+                                <span>{t('legend_home')}</span>
                               </div>
                               <div className="flex items-center gap-1.5">
                                 <div className="h-2 w-2 rounded-full bg-slate-400" />
-                                <span>Available</span>
+                                <span>{t('legend_available')}</span>
                               </div>
                             </div>
                             <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-700 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-                              Drag to Pan • Scroll to Zoom
+                              {t('map_navigation')}
                             </div>
                           </div>
                         </div>
@@ -2824,53 +2865,53 @@ export default function App() {
                               </button>
                               <div>
                                 <h3 className="text-xl font-black text-slate-900">{city.name}</h3>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{city.country}</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t(`country_${city.country}`)}</p>
                               </div>
                             </div>
                             <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest
                               ${city.id === gameState.company.currentCityId ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}
                             `}>
-                              {city.id === gameState.company.currentCityId ? 'Current Location' : 'Potential Destination'}
+                              {city.id === gameState.company.currentCityId ? t('current_location') : t('potential_destination')}
                             </div>
                           </div>
                           
                           <div className="flex-1 overflow-y-auto p-8 space-y-8">
                             <section>
-                              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">About</h4>
+                              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">{t('about')}</h4>
                               <p className="text-sm text-slate-600 leading-relaxed">{city.description}</p>
                             </section>
 
                             <div className="grid grid-cols-2 gap-4">
                               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Terrain</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('terrain')}</p>
                                 <div className="flex items-center gap-2">
                                   <MapIcon size={14} className="text-indigo-600" />
-                                  <span className="text-sm font-bold text-slate-900">{city.terrain}</span>
+                                  <span className="text-sm font-bold text-slate-900">{t(`terrain_${city.terrain}`)}</span>
                                 </div>
                               </div>
                               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Map Size</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('map_size')}</p>
                                 <div className="flex items-center gap-2">
                                   <Layout size={14} className="text-indigo-600" />
                                   <span className="text-sm font-bold text-slate-900">{city.mapWidth}x{city.mapHeight}</span>
                                 </div>
                               </div>
                               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Visitor Multiplier</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('visitor_multiplier')}</p>
                                 <div className="flex items-center gap-2">
                                   <Users size={14} className="text-indigo-600" />
                                   <span className="text-sm font-bold text-slate-900">x{city.visitorMultiplier}</span>
                                 </div>
                               </div>
                               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Population</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('population')}</p>
                                 <div className="flex items-center gap-2">
                                   <Users size={14} className="text-indigo-600" />
                                   <span className="text-sm font-bold text-slate-900">{city.population.toLocaleString()}</span>
                                 </div>
                               </div>
                               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Travel Cost</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('travel_cost')}</p>
                                 <div className="flex items-center gap-2">
                                   <DollarSign size={14} className="text-emerald-600" />
                                   <span className="text-sm font-bold text-slate-900">${engine.getTravelCost(city.id)}</span>
@@ -2879,34 +2920,34 @@ export default function App() {
                             </div>
 
                             <section>
-                              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Weather Patterns</h4>
+                              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">{t('weather_patterns')}</h4>
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 <div className="flex flex-col items-center p-3 rounded-xl bg-amber-50 border border-amber-100">
                                   <Sun size={16} className="text-amber-500 mb-1" />
                                   <span className="text-[10px] font-black text-amber-900">{Math.round(city.weatherProbabilities.SUMMER.SUNNY * 100)}%</span>
-                                  <span className="text-[8px] font-bold text-amber-700 uppercase">Sunny</span>
+                                  <span className="text-[8px] font-bold text-amber-700 uppercase">{t('weather_sunny')}</span>
                                 </div>
                                 <div className="flex flex-col items-center p-3 rounded-xl bg-blue-50 border border-blue-100">
                                   <CloudRain size={16} className="text-blue-500 mb-1" />
                                   <span className="text-[10px] font-black text-blue-900">{Math.round(city.weatherProbabilities.SUMMER.RAINY * 100)}%</span>
-                                  <span className="text-[8px] font-bold text-blue-700 uppercase">Rainy</span>
+                                  <span className="text-[8px] font-bold text-blue-700 uppercase">{t('weather_rainy')}</span>
                                 </div>
                                 <div className="flex flex-col items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
                                   <Cloud size={16} className="text-slate-500 mb-1" />
                                   <span className="text-[10px] font-black text-slate-900">{Math.round(city.weatherProbabilities.SUMMER.CLOUDY * 100)}%</span>
-                                  <span className="text-[8px] font-bold text-slate-700 uppercase">Cloudy</span>
+                                  <span className="text-[8px] font-bold text-slate-700 uppercase">{t('cloudy')}</span>
                                 </div>
                                 <div className="flex flex-col items-center p-3 rounded-xl bg-indigo-50 border border-indigo-100">
                                   <Zap size={16} className="text-indigo-500 mb-1" />
                                   <span className="text-[10px] font-black text-indigo-900">{Math.round(city.weatherProbabilities.SUMMER.STORMY * 100)}%</span>
-                                  <span className="text-[8px] font-bold text-indigo-700 uppercase">Stormy</span>
+                                  <span className="text-[8px] font-bold text-indigo-700 uppercase">{t('stormy')}</span>
                                 </div>
                               </div>
                             </section>
 
                             {city.buildings && city.buildings.length > 0 && (
                               <section>
-                                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">City Center Obstacles</h4>
+                                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">{t('city_center_obstacles')}</h4>
                                 <div className="space-y-2">
                                   {city.buildings.map(b => (
                                     <div key={b.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -2927,7 +2968,7 @@ export default function App() {
                               onClick={() => setSelectedCityInfoId(null)}
                               className="w-full py-3 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
                             >
-                              Back to Travel List
+                              {t('back_to_travel')}
                             </button>
                           </div>
                         </>
@@ -2958,15 +2999,15 @@ export default function App() {
               <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
                 <AlertCircle size={32} />
               </div>
-              <h3 className="text-2xl font-black text-slate-900 mb-2">Reset Game?</h3>
-              <p className="text-slate-500 font-medium mb-8">This will permanently delete your current company and all progress. This action cannot be undone.</p>
+              <h3 className="text-2xl font-black text-slate-900 mb-2">{t('reset_game_confirm')}</h3>
+              <p className="text-slate-500 font-medium mb-8">{t('reset_confirm_desc')}</p>
               
               <div className="flex gap-3">
                 <button 
                   onClick={() => setIsResetConfirmOpen(false)}
                   className="flex-1 rounded-2xl py-3 text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button 
                   onClick={() => {
@@ -2975,115 +3016,145 @@ export default function App() {
                   }}
                   className="flex-1 rounded-2xl py-3 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all"
                 >
-                  Yes, Reset
+                  {t('yes_reset')}
                 </button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-      <div className="z-10 w-80 border-r border-slate-200 bg-white p-6 shadow-xl flex flex-col">
-        <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
-              <Building2 size={28} />
+      <div className="z-10 w-80 border-r border-slate-200 bg-white p-5 shadow-xl flex flex-col">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
+                <Building2 size={24} />
+              </div>
+              <h1 className="text-lg font-black tracking-tight truncate max-w-[140px] uppercase">{gameState.company.name}</h1>
             </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight truncate max-w-[140px]">{gameState.company.name}</h1>
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                <Globe size={10} className="text-indigo-500" />
-                <span>{gameState.cities.find(c => c.id === gameState.company.currentCityId)?.name}</span>
-                <span>•</span>
-                <span className="text-indigo-600 font-black">
-                  {MONTH_NAMES[gameState.time.month - 1]} {gameState.time.dayOfMonth}, {DAY_NAMES[gameState.time.dayOfWeek]} {gameState.time.hours.toString().padStart(2, '0')}:{gameState.time.minutes.toString().padStart(2, '0')}
-                </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${getWeatherColor(gameState.currentWeather.type)}`}>
-                  {getWeatherIcon(gameState.currentWeather.type)}
-                  <span>{gameState.currentWeather.type}</span>
-                  <span>•</span>
-                  <span>{gameState.currentWeather.temperature}°C</span>
-                </div>
-                <div className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                  {gameState.time.season}
-                </div>
-              </div>
+            <div className="flex gap-1.5">
+              <button 
+                onClick={() => {
+                  engine.togglePause();
+                  setGameState(engine.getState());
+                  audioService.playSFX('click');
+                }}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none
+                  ${gameState.settings.isPaused 
+                    ? 'bg-amber-400 text-slate-900' 
+                    : 'bg-white text-slate-900 hover:bg-slate-50'}
+                `}
+                title={gameState.settings.isPaused ? t('resume_game') : t('pause_game')}
+              >
+                {gameState.settings.isPaused ? <Play size={14} fill="currentColor" /> : <Square size={14} fill="currentColor" />}
+              </button>
+              <button 
+                onClick={() => setIsManagementOpen(true)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-slate-900 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none hover:bg-slate-50 transition-all"
+              >
+                <Settings size={14} />
+              </button>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => {
-                engine.togglePause();
-                setGameState(engine.getState());
-                audioService.playSFX('click');
-              }}
-              className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all
-                ${gameState.settings.isPaused 
-                  ? 'bg-amber-100 text-amber-600 hover:bg-amber-200' 
-                  : 'bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-600'}
-              `}
-              title={gameState.settings.isPaused ? "Resume Game" : "Pause Game"}
-            >
-              {gameState.settings.isPaused ? <Play size={20} fill="currentColor" /> : <Square size={20} fill="currentColor" />}
-            </button>
-            <button 
-              onClick={() => setIsManagementOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-600 transition-all"
-            >
-              <Settings size={20} />
-            </button>
+
+          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 space-y-2">
+            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <div className="flex items-center gap-1.5">
+                <Globe size={10} className="text-indigo-500" />
+                <span>{CITIES.find(c => c.id === gameState.company.currentCityId)?.name || gameState.company.currentCityId}</span>
+              </div>
+              <span className="text-indigo-600">
+                {t(`month_${gameState.time.month - 1}`)} {gameState.time.dayOfMonth}
+              </span>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${getWeatherColor(gameState.currentWeather.type)}`}>
+                  {getWeatherIcon(gameState.currentWeather.type)}
+                  <span>{t(`weather_${gameState.currentWeather.type.toLowerCase()}`)}</span>
+                </div>
+                <span className="text-[10px] font-black text-slate-900">{gameState.currentWeather.temperature}°C</span>
+              </div>
+              <div className="text-[10px] font-black text-slate-900 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-sm">
+                {gameState.time.hours.toString().padStart(2, '0')}:{gameState.time.minutes.toString().padStart(2, '0')}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-2 space-y-6">
-          <button 
-            onClick={() => setIsShopOpen(true)}
-            className="w-full group relative flex items-center justify-center gap-3 rounded-2xl bg-indigo-600 py-4 text-sm font-black text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-            <ShoppingBag size={20} />
-            OPEN RIDE SHOP
-          </button>
+        <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            <button 
+              onClick={() => setIsShopOpen(true)}
+              className="group relative flex flex-col items-center justify-center gap-1 rounded-2xl bg-indigo-600 py-3 text-[10px] font-black text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
+            >
+              <ShoppingBag size={18} />
+              {t('open_ride_shop')}
+            </button>
 
-          <button 
-            onClick={() => setIsZoningMode(!isZoningMode)}
-            className={`w-full flex items-center justify-center gap-3 rounded-2xl py-4 text-sm font-black transition-all
-              ${isZoningMode 
-                ? 'bg-amber-600 text-white shadow-lg shadow-amber-200 ring-4 ring-amber-100' 
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}
-            `}
-          >
-            <MapIcon size={20} />
-            {isZoningMode ? 'EXIT ZONING' : 'ZONING MODE'}
-          </button>
+            <button 
+              onClick={() => setIsZoningMode(!isZoningMode)}
+              className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-3 text-[10px] font-black transition-all border-2
+                ${isZoningMode 
+                  ? 'bg-amber-400 border-slate-900 text-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' 
+                  : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'}
+              `}
+            >
+              <MapIcon size={18} />
+              {isZoningMode ? t('exit_zoning') : t('zoning_mode')}
+            </button>
+          </div>
 
-          {isZoningMode && (
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {(['FUNFAIR', 'TRUCK', 'STAFF'] as const).map(type => (
-                <button
-                  key={type}
-                  onClick={() => setZoningType(type)}
-                  className={`py-2 text-[10px] font-bold rounded-lg border-2 transition-all
-                    ${zoningType === type 
-                      ? 'bg-amber-100 border-amber-600 text-amber-700' 
-                      : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'}
-                  `}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          )}
+          <AnimatePresence>
+            {isZoningMode && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                  {(['FUNFAIR', 'TRUCK', 'STAFF'] as const).map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setZoningType(type)}
+                      className={`py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all
+                        ${zoningType === type 
+                          ? 'bg-white text-amber-600 shadow-sm' 
+                          : 'text-slate-400 hover:bg-slate-200'}
+                      `}
+                    >
+                      {t(`zoning_${type.toLowerCase()}`)}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
+          <div className="flex bg-slate-100 p-1 rounded-xl">
             <button 
               onClick={() => setActiveTab('inventory')}
-              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all
+              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2
                 ${activeTab === 'inventory' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}
               `}
             >
-              Inventory ({gameState.inventory.length})
+              <Package size={14} />
+              {t('inventory')} ({gameState.inventory.length})
+            </button>
+            <button 
+              onClick={() => {
+                if (selectedRideId) setActiveTab('details');
+              }}
+              disabled={!selectedRideId}
+              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2
+                ${activeTab === 'details' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}
+                ${!selectedRideId ? 'opacity-30 cursor-not-allowed' : ''}
+              `}
+            >
+              <Info size={14} />
+              {t('details_tab')}
             </button>
           </div>
 
@@ -3094,67 +3165,58 @@ export default function App() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="rounded-2xl border-2 border-indigo-600 bg-indigo-50/50 p-4"
+                className="space-y-4"
               >
                 {(() => {
                   const ride = gameState.rides.find(r => r.id === selectedRideId);
                   if (!ride) return null;
                   const config = RIDE_CONFIGS[ride.type];
                   return (
-                    <>
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">
-                          {config.icon}
-                        </div>
-                        <div>
-                          <h3 className="font-bold">{config.name}</h3>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Level {ride.level}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-white p-2 rounded-lg border border-slate-100">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase">Condition</p>
-                            <p className={`text-sm font-black ${ride.condition > 50 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                              {Math.floor(ride.condition)}%
-                            </p>
+                    <div className="space-y-4">
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <h3 className="text-sm font-black uppercase tracking-tight text-slate-900">{t(`ride_${config.type}_name`)}</h3>
+                            <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">{t('level_label')} {ride.level}</p>
                           </div>
-                          <div className="bg-white p-2 rounded-lg border border-slate-100">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase">Status</p>
-                            <p className={`text-sm font-black ${ride.isStaffResting ? 'text-violet-600' : 'text-indigo-600'}`}>
-                              {ride.isStaffResting ? `STAFF RESTING (${ride.status})` : ride.status}
-                            </p>
-                          </div>
-                          <div className="bg-white p-2 rounded-lg border border-slate-100">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase">Wait Time</p>
-                            <p className="text-sm font-black text-slate-900">{ride.avgWaitTime}m</p>
-                          </div>
-                          <div className="bg-white p-2 rounded-lg border border-slate-100">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase">Ticket Price</p>
-                            <p className="text-sm font-black text-indigo-600">
-                              {config.category === 'RIDE' ? `$${gameState.settings.pricing.ticketPrice}` : `$${ride.price}`}
-                            </p>
-                          </div>
-                          <div className="bg-white p-2 rounded-lg border border-slate-100">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase">Satisfaction</p>
-                            <p className={`text-sm font-black ${ride.satisfaction > 70 ? 'text-emerald-600' : ride.satisfaction > 40 ? 'text-amber-600' : 'text-rose-600'}`}>
-                              {ride.satisfaction}%
-                            </p>
+                          <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 text-indigo-600">
+                            {config.icon}
                           </div>
                         </div>
 
-                        {/* Staff Assignment */}
-                        <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase">
-                              {RIDE_CONFIGS[ride.type].category === 'FOOD' ? 'Vendor' : 'Operator'}
-                            </p>
-                            {ride.operatorId ? (
-                              <span className="text-[10px] font-bold text-emerald-600 uppercase">Assigned</span>
-                            ) : (
-                              <span className="text-[10px] font-bold text-rose-600 uppercase">Missing</span>
-                            )}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-white p-2 rounded-xl border border-slate-100">
+                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">{t('status_label')}</p>
+                            <div className="flex items-center gap-1.5">
+                              <div className={`h-1.5 w-1.5 rounded-full ${ride.status === 'OPERATING' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                              <span className={`text-[10px] font-black uppercase ${ride.status === 'OPERATING' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {t(`status_${ride.status.toLowerCase()}`)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="bg-white p-2 rounded-xl border border-slate-100">
+                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">{t('condition_label')}</p>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full transition-all duration-500 ${ride.condition < 30 ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                                  style={{ width: `${ride.condition}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-black text-slate-900">{Math.round(ride.condition)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Operator/Mechanic Section */}
+                      <div className="space-y-2">
+                        <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[9px] font-black text-slate-400 uppercase">{config.category === 'FOOD' ? t('vendor_label') : t('operator_label')}</span>
+                            <span className={`text-[9px] font-black uppercase ${ride.operatorId ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {ride.operatorId ? t('assigned_label') : t('missing_label')}
+                            </span>
                           </div>
                           <select 
                             value={ride.operatorId || ''}
@@ -3164,42 +3226,25 @@ export default function App() {
                                 setGameState(engine.getState());
                               }
                             }}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-[10px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
-                            <option value="">Auto-Assign</option>
+                            <option value="">{t('auto_assign')}</option>
                             {gameState.staff
-                              .filter(s => s.type === (RIDE_CONFIGS[ride.type].category === 'FOOD' ? 'VENDOR' : 'OPERATOR'))
+                              .filter(s => s.type === (config.category === 'FOOD' ? 'VENDOR' : 'OPERATOR'))
                               .map(s => (
                                 <option key={s.id} value={s.id}>
-                                  {s.type === 'VENDOR' ? 'Vendor' : 'Operator'} {s.id.slice(0, 4)} {s.assignedRideId && s.assignedRideId !== ride.id ? '(Busy)' : ''}
+                                  {s.type === 'VENDOR' ? t('vendor_label') : t('operator_label')} {s.id.slice(0, 4)} {s.assignedRideId && s.assignedRideId !== ride.id ? `(${t('busy_label')})` : ''}
                                 </option>
                               ))}
                           </select>
-                          
-                          {!ride.operatorId && (
-                            <button
-                              onClick={() => {
-                                if (engine.hireRideOperator(ride.id)) {
-                                  setGameState(engine.getState());
-                                }
-                              }}
-                              className="w-full mt-2 py-2 rounded-lg bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-2"
-                            >
-                              <UserPlus size={14} />
-                              Hire {RIDE_CONFIGS[ride.type].category === 'FOOD' ? 'Vendor' : 'Operator'}
-                            </button>
-                          )}
                         </div>
 
-                        {/* Mechanic Assignment */}
-                        <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase">Mechanic</p>
-                            {ride.mechanicId ? (
-                              <span className="text-[10px] font-bold text-emerald-600 uppercase">Assigned</span>
-                            ) : (
-                              <span className="text-[10px] font-bold text-slate-400 uppercase">Auto-Assigning</span>
-                            )}
+                        <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[9px] font-black text-slate-400 uppercase">{t('mechanic_label')}</span>
+                            <span className={`text-[9px] font-black uppercase ${ride.mechanicId ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              {ride.mechanicId ? t('assigned_label') : t('auto_assigning')}
+                            </span>
                           </div>
                           <select 
                             value={ride.mechanicId || ''}
@@ -3209,104 +3254,86 @@ export default function App() {
                                 setGameState(engine.getState());
                               }
                             }}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-[10px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
-                            <option value="">Auto-Assign</option>
+                            <option value="">{t('auto_assign')}</option>
                             {gameState.staff
                               .filter(s => s.type === 'MECHANIC')
                               .map(s => (
                                 <option key={s.id} value={s.id}>
-                                  Mechanic {s.id.slice(0, 4)} {s.assignedRideId && s.assignedRideId !== ride.id ? '(Busy)' : ''}
+                                  {t('mechanic_label')} {s.id.slice(0, 4)} {s.assignedRideId && s.assignedRideId !== ride.id ? `(${t('busy_label')})` : ''}
                                 </option>
                               ))}
                           </select>
-                          
-                          {!ride.mechanicId && (
-                            <button
-                              onClick={() => {
-                                if (engine.hireRideMechanic(ride.id)) {
-                                  setGameState(engine.getState());
-                                }
-                              }}
-                              className="w-full mt-2 py-2 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
-                            >
-                              <UserPlus size={14} />
-                              Hire Mechanic
-                            </button>
-                          )}
                         </div>
+                      </div>
 
-                        {ride.status !== 'OPERATIONAL' && (
-                          <button 
-                            onClick={() => {
-                              if (engine.repairRide(ride.id)) {
-                                setGameState(engine.getState());
-                              }
-                            }}
-                            className="w-full rounded-xl bg-emerald-600 py-3 text-xs font-black text-white hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center justify-center gap-2"
-                          >
-                            <Settings size={14} />
-                            Repair (${Math.floor((100 - ride.condition) * 5)})
-                          </button>
-                        )}
-
-                        {config.category !== 'RIDE' && (
-                          <div>
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                              {config.category === 'FOOD' ? 'Item Price' : 'Service Price'}
-                            </label>
-                            <div className="flex items-center gap-3 mt-1">
-                              <input 
-                                type="range" 
-                                min="1" 
-                                max={config.baseIncome * 3} 
-                                value={ride.price}
-                                onChange={(e) => {
-                                  ride.price = parseInt(e.target.value);
-                                  setGameState(engine.getState());
-                                }}
-                                className="flex-1 accent-indigo-600"
-                              />
-                              <span className="font-bold text-indigo-900">${ride.price}</span>
-                            </div>
-                            <p className="text-[9px] text-slate-500 mt-1 italic">
-                              {ride.price > config.baseIncome * 1.5 ? "Visitors might think this is too expensive!" : "A fair price for everyone."}
-                            </p>
-                          </div>
-                        )}
-                        
-                        <div className="grid grid-cols-2 gap-2">
-                          <button 
-                            onClick={() => {
-                              engine.dismantleRide(ride.id);
-                              audioService.playSFX('sell');
+                      {/* Actions */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => {
+                            if (engine.repairRide(ride.id)) {
+                              audioService.playSFX('repair');
                               setGameState(engine.getState());
-                            }}
-                            disabled={ride.status === 'DISMANTLING' || ride.status === 'CONSTRUCTING'}
-                            className="rounded-xl bg-indigo-50 border border-indigo-100 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-100 transition-colors disabled:opacity-50"
-                          >
-                            Dismantle
-                          </button>
-                          <button 
-                            onClick={() => {
-                              engine.sellRide(ride.id);
-                              audioService.playSFX('sell');
-                              setSelectedRideId(null);
-                              setGameState(engine.getState());
-                            }}
-                            className="rounded-xl bg-rose-50 border border-rose-100 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 transition-colors"
-                          >
-                            Sell
-                          </button>
-                        </div>
-                        <button 
-                          onClick={() => setSelectedRideId(null)}
-                          className="w-full rounded-xl bg-white border border-slate-200 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                            }
+                          }}
+                          disabled={gameState.money < 100 || ride.condition >= 100}
+                          className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 transition-all shadow-lg shadow-slate-200"
                         >
-                          Deselect
+                          <Wrench size={14} />
+                          {t('repair_button', { cost: 100 })}
+                        </button>
+                        <div className="bg-white p-2 rounded-xl border border-slate-100 flex flex-col justify-center">
+                          <p className="text-[8px] font-black text-slate-400 uppercase mb-1">
+                            {config.category === 'FOOD' ? t('item_price') : t('ticket_price')}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <DollarSign size={12} className="text-emerald-500" />
+                            <input 
+                              type="number"
+                              value={ride.ticketPrice}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                engine.updateRidePrice(ride.id, val);
+                                setGameState(engine.getState());
+                              }}
+                              className="w-full bg-transparent text-xs font-black text-slate-900 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button 
+                          onClick={() => {
+                            engine.dismantleRide(ride.id);
+                            audioService.playSFX('sell');
+                            setGameState(engine.getState());
+                          }}
+                          disabled={ride.status === 'DISMANTLING' || ride.status === 'CONSTRUCTING'}
+                          className="rounded-xl bg-indigo-50 border border-indigo-100 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                        >
+                          {t('dismantle_button')}
+                        </button>
+                        <button 
+                          onClick={() => {
+                            engine.sellRide(ride.id);
+                            audioService.playSFX('sell');
+                            setSelectedRideId(null);
+                            setGameState(engine.getState());
+                          }}
+                          className="rounded-xl bg-rose-50 border border-rose-100 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 transition-colors"
+                        >
+                          {t('sell')}
                         </button>
                       </div>
-                    </>
+                      <button 
+                        onClick={() => setSelectedRideId(null)}
+                        className="w-full rounded-xl bg-white border border-slate-200 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
+                        {t('deselect')}
+                      </button>
+                    </div>
                   );
                 })()}
               </motion.section>
@@ -3316,92 +3343,82 @@ export default function App() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="rounded-2xl border-2 border-blue-600 bg-blue-50/50 p-4"
+                className="space-y-4"
               >
                 {(() => {
                   const visitor = gameState.visitors.find(v => v.id === selectedVisitorId);
                   if (!visitor) return null;
                   return (
-                    <>
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl shadow-sm" style={{ color: visitor.color }}>
-                          👤
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl shadow-sm" style={{ color: visitor.color }}>
+                            👤
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-black uppercase tracking-tight text-slate-900">{t('visitor_label')} {visitor.id.slice(0, 4)}</h3>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">{visitor.state}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-bold">Visitor {visitor.id.slice(0, 4)}</h3>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">{visitor.state}</p>
-                        </div>
-                      </div>
 
-                      <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-white p-2 rounded-lg border border-slate-100">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase">Happiness</p>
-                            <p className={`text-sm font-black ${visitor.happiness > 70 ? 'text-emerald-600' : visitor.happiness > 30 ? 'text-amber-600' : 'text-rose-600'}`}>
+                          <div className="bg-white p-2 rounded-xl border border-blue-50">
+                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">{t('happiness')}</p>
+                            <p className={`text-[10px] font-black ${visitor.happiness > 70 ? 'text-emerald-600' : visitor.happiness > 30 ? 'text-amber-600' : 'text-rose-600'}`}>
                               {Math.floor(visitor.happiness)}%
                             </p>
                           </div>
-                          <div className="bg-white p-2 rounded-lg border border-slate-100">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase">Money</p>
-                            <p className="text-sm font-black text-blue-600">${Math.floor(visitor.money)}</p>
+                          <div className="bg-white p-2 rounded-xl border border-blue-50">
+                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">{t('money')}</p>
+                            <p className="text-[10px] font-black text-blue-600">${Math.floor(visitor.money)}</p>
                           </div>
                         </div>
-
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Needs</p>
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-[10px] font-bold">
-                              <span>Hunger</span>
-                              <span>{Math.floor(visitor.hunger)}%</span>
-                            </div>
-                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-orange-400" style={{ width: `${visitor.hunger}%` }} />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-[10px] font-bold">
-                              <span>Bladder</span>
-                              <span>{Math.floor(visitor.bladder)}%</span>
-                            </div>
-                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-blue-400" style={{ width: `${visitor.bladder}%` }} />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-[10px] font-bold">
-                              <span>Stamina</span>
-                              <span>{Math.floor(visitor.stamina)}%</span>
-                            </div>
-                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-emerald-400" style={{ width: `${visitor.stamina}%` }} />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Recent Thoughts</p>
-                          <div className="space-y-2">
-                            {visitor.thoughts.length === 0 ? (
-                              <p className="text-[10px] text-slate-400 italic">No thoughts yet...</p>
-                            ) : (
-                              visitor.thoughts.map((thought, i) => (
-                                <div key={i} className="bg-white p-2 rounded-lg border border-slate-100 text-[10px] font-medium text-slate-600 flex gap-2">
-                                  <span className="text-blue-400">💭</span>
-                                  {thought}
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </div>
-
-                        <button 
-                          onClick={() => setSelectedVisitorId(null)}
-                          className="w-full rounded-xl bg-white border border-slate-200 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-                        >
-                          Deselect
-                        </button>
                       </div>
-                    </>
+
+                      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t('needs')}</p>
+                        <div className="space-y-2">
+                          {[
+                            { label: t('hunger'), value: visitor.hunger, color: 'bg-orange-400' },
+                            { label: t('bladder'), value: visitor.bladder, color: 'bg-blue-400' },
+                            { label: t('stamina'), value: visitor.stamina, color: 'bg-emerald-400' }
+                          ].map((need, i) => (
+                            <div key={i} className="space-y-1">
+                              <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-tight">
+                                <span>{need.label}</span>
+                                <span>{Math.floor(need.value)}%</span>
+                              </div>
+                              <div className="h-1.5 bg-slate-50 rounded-full overflow-hidden">
+                                <div className={`h-full ${need.color} transition-all duration-500`} style={{ width: `${need.value}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t('recent_thoughts')}</p>
+                        <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                          {visitor.thoughts.length === 0 ? (
+                            <p className="text-[10px] text-slate-400 italic text-center py-2">{t('no_thoughts')}</p>
+                          ) : (
+                            visitor.thoughts.map((thought, i) => (
+                              <div key={i} className="bg-slate-50 p-2 rounded-lg text-[10px] font-medium text-slate-600 flex gap-2 leading-relaxed">
+                                <span className="text-blue-400 shrink-0">💭</span>
+                                <span>{typeof thought === 'string' ? thought : t(thought.key, thought.replacements)}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={() => setSelectedVisitorId(null)}
+                        className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+                      >
+                        {t('deselect')}
+                      </button>
+                    </div>
                   );
                 })()}
               </motion.section>
@@ -3413,26 +3430,29 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Your Inventory</h2>
+                  <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('your_inventory_label')}</h2>
                   <div className="flex gap-1">
                     {['ALL', 'GENTLE', 'THRILL', 'EXTREME'].map(intensity => (
                       <button
                         key={intensity}
                         onClick={() => setInventoryIntensity(intensity as any)}
-                        className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-tighter transition-all
+                        className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all
                           ${inventoryIntensity === intensity 
                             ? 'bg-indigo-600 text-white shadow-sm' 
                             : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}
                         `}
                       >
-                        {intensity === 'ALL' ? 'All' : intensity[0]}
+                        {intensity === 'ALL' ? t('all_label') : t(`intensity_${intensity.toLowerCase()}`)[0]}
                       </button>
                     ))}
                   </div>
                 </div>
                 {gameState.inventory.length === 0 ? (
-                  <div className="text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                    <p className="text-xs font-bold text-slate-400 uppercase">Inventory Empty</p>
+                  <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                    <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-slate-300 mb-3 shadow-sm">
+                      <Package size={24} />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('inventory_empty_message')}</p>
                   </div>
                 ) : (
                   <div className="grid gap-3">
@@ -3446,50 +3466,44 @@ export default function App() {
                         const isPlacing = placingRideId === ride.id;
 
                         return (
-                          <div
-                            key={ride.id}
-                            className={`flex items-center gap-4 rounded-xl border p-3 transition-all duration-200
-                              ${isPlacing ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100'}
-                            `}
-                          >
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xl">
-                              {config.icon}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-xs truncate">{config.name}</p>
-                              <div className="flex items-center gap-1.5">
-                                <p className="text-[9px] text-slate-400 uppercase">{config.width}x{config.height}</p>
-                                {config.category === 'RIDE' && (
-                                  <span className={`text-[8px] font-bold px-1 rounded ${
-                                    config.intensity === 'GENTLE' ? 'bg-emerald-50 text-emerald-600' :
-                                    config.intensity === 'THRILL' ? 'bg-orange-50 text-orange-600' :
-                                    'bg-rose-50 text-rose-600'
-                                  }`}>
-                                    {config.intensity[0]}
-                                  </span>
-                                )}
+                          <div key={ride.id} className={`group bg-white p-3 rounded-2xl border transition-all ${isPlacing ? 'border-indigo-600 bg-indigo-50/30' : 'border-slate-100 shadow-sm hover:border-indigo-200'}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-50 transition-colors">
+                                  {config.icon}
+                                </div>
+                                <div>
+                                  <h4 className="text-[11px] font-black uppercase tracking-tight text-slate-900">{t(`ride_${config.type.toLowerCase()}_name`)}</h4>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{config.width}x{config.height}</span>
+                                    {config.intensity && (
+                                      <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">• {t(`intensity_${config.intensity.toLowerCase()}`)}</span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => {
-                                  if (engine.sellInventoryRide(ride.id)) {
-                                    audioService.playSFX('sell');
-                                    setGameState(engine.getState());
-                                  }
-                                }}
-                                className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all"
-                              >
-                                Sell
-                              </button>
-                              <button
-                                onClick={() => setPlacingRideId(isPlacing ? null : ride.id)}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                                  ${isPlacing ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'}
-                                `}
-                              >
-                                {isPlacing ? 'Cancel' : 'Place'}
-                              </button>
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    if (engine.sellInventoryRide(ride.id)) {
+                                      audioService.playSFX('sell');
+                                      setGameState(engine.getState());
+                                    }
+                                  }}
+                                  className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all"
+                                  title={t('sell_button')}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                                <button
+                                  onClick={() => setPlacingRideId(isPlacing ? null : ride.id)}
+                                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shadow-md
+                                    ${isPlacing ? 'bg-indigo-600 text-white shadow-indigo-100' : 'bg-slate-900 text-white hover:bg-slate-800 shadow-slate-100'}
+                                  `}
+                                >
+                                  {isPlacing ? t('cancel_button') : t('place_button')}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
@@ -3499,7 +3513,7 @@ export default function App() {
                       return inventoryIntensity === 'ALL' || config.intensity === inventoryIntensity;
                     }).length === 0 && (
                       <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">No {inventoryIntensity.toLowerCase()} items</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">{t('no_items_message', { intensity: inventoryIntensity.toLowerCase() })}</p>
                       </div>
                     )}
                   </div>
@@ -3510,21 +3524,21 @@ export default function App() {
 
           <section className="rounded-2xl bg-slate-900 p-4 text-white">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xs font-bold uppercase tracking-widest opacity-60">Park Stats</h2>
+              <h2 className="text-xs font-bold uppercase tracking-widest opacity-60">{t('park_stats')}</h2>
               <Info size={14} className="opacity-40" />
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Users size={16} className="text-indigo-400" />
-                  <span className="text-sm font-medium opacity-80">Visitors</span>
+                  <span className="text-sm font-medium opacity-80">{t('visitors')}</span>
                 </div>
                 <span className="text-lg font-bold">{gameState.visitors.length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Package size={16} className="text-indigo-400" />
-                  <span className="text-sm font-medium opacity-80">Warehouse</span>
+                  <span className="text-sm font-medium opacity-80">{t('warehouse')}</span>
                 </div>
                 <span className="text-lg font-bold">{gameState.rides.length + gameState.inventory.length} / {engine.getWarehouseCapacity()}</span>
               </div>
@@ -3539,7 +3553,7 @@ export default function App() {
                 <Coins size={20} />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Balance</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">{t('balance')}</p>
                 <p className="text-xl font-black text-emerald-900">${Math.floor(gameState.money)}</p>
               </div>
             </div>
@@ -3590,12 +3604,12 @@ export default function App() {
               className="absolute top-8 left-1/2 -translate-x-1/2 rounded-full bg-slate-900/90 px-6 py-3 text-white backdrop-blur-md shadow-2xl flex items-center gap-3"
             >
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold">1</div>
-              <span className="text-sm font-medium">Click on the grid to place your <span className="text-indigo-400 font-bold">{RIDE_CONFIGS[gameState.inventory.find(r => r.id === placingRideId)?.type || 'TEA_CUPS'].name}</span></span>
+              <span className="text-sm font-medium">{t('place_instruction')} <span className="text-indigo-400 font-bold">{t(`ride_${gameState.inventory.find(r => r.id === placingRideId)?.type || 'TEA_CUPS'}_name`)}</span></span>
               <button 
                 onClick={() => setPlacingRideId(null)}
                 className="ml-4 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
               >
-                Cancel
+                {t('cancel_button')}
               </button>
             </motion.div>
           )}
@@ -3634,7 +3648,7 @@ export default function App() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Tutorial Step {gameState.tutorialStep + 1}/10</h3>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">{t('tutorial_step_label', { step: (gameState.tutorialStep + 1).toString() })}</h3>
                     <button 
                       onClick={() => {
                         engine.skipTutorial();
@@ -3642,32 +3656,14 @@ export default function App() {
                       }}
                       className="text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-rose-500 transition-colors"
                     >
-                      Skip
+                      {t('skip_button')}
                     </button>
                   </div>
                   <h4 className="text-sm font-black text-slate-900 leading-tight">
-                    {gameState.tutorialStep === 0 && "Place your first ride"}
-                    {gameState.tutorialStep === 1 && "Create a Truck Zone"}
-                    {gameState.tutorialStep === 2 && "Hire a Ride Operator"}
-                    {gameState.tutorialStep === 3 && "Open the Park"}
-                    {gameState.tutorialStep === 4 && "Earn your first $500"}
-                    {gameState.tutorialStep === 5 && "Build a Food Stall"}
-                    {gameState.tutorialStep === 6 && "Reach 50 Visitors"}
-                    {gameState.tutorialStep === 7 && "Hire a Janitor"}
-                    {gameState.tutorialStep === 8 && "Take a Loan"}
-                    {gameState.tutorialStep === 9 && "Reach 100 Visitors"}
+                    {t(`tutorial_title_${gameState.tutorialStep}`)}
                   </h4>
                   <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                    {gameState.tutorialStep === 0 && "Open your inventory and place the Tea Cups ride near the entrance."}
-                    {gameState.tutorialStep === 1 && "Select the Zone Tool, choose 'Truck Zone', and draw an area for your trucks."}
-                    {gameState.tutorialStep === 2 && "Click on your Tea Cups ride and hire an operator to start running it."}
-                    {gameState.tutorialStep === 3 && "Open the Management Panel and toggle the Park Status to Open."}
-                    {gameState.tutorialStep === 4 && "Watch the visitors arrive and earn money until your balance reaches $2,500."}
-                    {gameState.tutorialStep === 5 && "Visitors get hungry! Place a Hot Dog Stall from your inventory."}
-                    {gameState.tutorialStep === 6 && "Keep your park attractive and wait until you have 50 visitors at once."}
-                    {gameState.tutorialStep === 7 && "A clean park is a happy park! Go to Management > Staff and hire a Janitor."}
-                    {gameState.tutorialStep === 8 && "Need more cash? Go to Management > Loans and take out a Small Business Loan."}
-                    {gameState.tutorialStep === 9 && "Grow your park with more rides and stalls to attract 100 visitors simultaneously."}
+                    {t(`tutorial_desc_${gameState.tutorialStep}`)}
                   </p>
                 </div>
               </div>
@@ -3697,12 +3693,12 @@ export default function App() {
                   <CheckCircle size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-widest opacity-70">Tutorial Complete</h3>
-                  <h4 className="text-lg font-black leading-tight">You're ready to go!</h4>
+                  <h3 className="text-xs font-black uppercase tracking-widest opacity-70">{t('tutorial_complete_title')}</h3>
+                  <h4 className="text-lg font-black leading-tight">{t('tutorial_complete_subtitle')}</h4>
                 </div>
               </div>
               <p className="text-xs opacity-90 leading-relaxed mb-6">
-                You've mastered the basics. Now expand your park, travel to new cities, and become a Funfair Tycoon!
+                {t('tutorial_complete_desc')}
               </p>
               <button 
                 onClick={() => {
@@ -3711,7 +3707,7 @@ export default function App() {
                 }}
                 className="w-full py-3 rounded-xl bg-white text-emerald-600 text-xs font-black uppercase tracking-widest shadow-lg hover:bg-emerald-50 transition-all"
               >
-                Start Managing
+                {t('start_managing')}
               </button>
             </motion.div>
           )}
@@ -3739,9 +3735,9 @@ export default function App() {
                       <ShoppingBag size={32} />
                     </div>
                     <div>
-                      <h2 className="text-3xl font-black tracking-tight">Ride Shop</h2>
+                      <h2 className="text-3xl font-black tracking-tight">{t('ride_shop_title')}</h2>
                       <p className="text-indigo-100 text-sm font-medium">
-                        Warehouse: {gameState.rides.length + gameState.inventory.length} / {engine.getWarehouseCapacity()}
+                        {t('warehouse')}: {gameState.rides.length + gameState.inventory.length} / {engine.getWarehouseCapacity()}
                       </p>
                     </div>
                   </div>
@@ -3757,11 +3753,11 @@ export default function App() {
                 <div className="flex flex-col gap-4">
                   <div className="flex gap-2">
                     {[
-                      { id: 'ALL', label: 'All Items', icon: <ShoppingBag size={14} /> },
-                      { id: 'RIDE', label: 'Rides', icon: <Ticket size={14} /> },
-                      { id: 'FOOD', label: 'Food & Drink', icon: <Coffee size={14} /> },
-                      { id: 'FACILITY', label: 'Facilities', icon: <Tent size={14} /> },
-                      { id: 'INFRASTRUCTURE', label: 'Infrastructure', icon: <Layout size={14} /> }
+                      { id: 'ALL', label: t('shop_cat_all'), icon: <ShoppingBag size={14} /> },
+                      { id: 'RIDE', label: t('shop_cat_rides'), icon: <Ticket size={14} /> },
+                      { id: 'FOOD', label: t('shop_cat_food'), icon: <Coffee size={14} /> },
+                      { id: 'FACILITY', label: t('shop_cat_facilities'), icon: <Tent size={14} /> },
+                      { id: 'INFRASTRUCTURE', label: t('shop_cat_infrastructure'), icon: <Layout size={14} /> }
                     ].map(cat => (
                       <button
                         key={cat.id}
@@ -3781,10 +3777,10 @@ export default function App() {
                   {shopCategory === 'RIDE' && (
                     <div className="flex gap-2">
                       {[
-                        { id: 'ALL', label: 'All Intensities' },
-                        { id: 'GENTLE', label: 'Gentle' },
-                        { id: 'THRILL', label: 'Thrill' },
-                        { id: 'EXTREME', label: 'Extreme' }
+                        { id: 'ALL', label: t('shop_intensity_all') },
+                        { id: 'GENTLE', label: t('intensity_gentle') },
+                        { id: 'THRILL', label: t('intensity_thrill') },
+                        { id: 'EXTREME', label: t('intensity_extreme') }
                       ].map(intensity => (
                         <button
                           key={intensity.id}
@@ -3849,33 +3845,33 @@ export default function App() {
                           </div>
 
                           <div className="mb-6">
-                            <h3 className="text-lg font-black text-slate-900 mb-1">{config.name}</h3>
+                            <h3 className="text-lg font-black text-slate-900 mb-1">{t(`ride_${config.type}_name`)}</h3>
                             <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                              <span className="px-2 py-0.5 rounded bg-slate-100">{config.category}</span>
+                              <span className="px-2 py-0.5 rounded bg-slate-100">{t(`category_${config.category.toLowerCase()}`)}</span>
                               {config.category === 'RIDE' && (
                                 <span className={`px-2 py-0.5 rounded ${
                                   config.intensity === 'GENTLE' ? 'bg-emerald-50 text-emerald-600' :
                                   config.intensity === 'THRILL' ? 'bg-orange-50 text-orange-600' :
                                   'bg-rose-50 text-rose-600'
                                 }`}>
-                                  {config.intensity}
+                                  {t(`intensity_${config.intensity.toLowerCase()}`)}
                                 </span>
                               )}
                               <span>•</span>
-                              <span>{config.width}x{config.height} Tiles</span>
+                              <span>{config.width}x{config.height} {t('tiles_label')}</span>
                             </div>
                             {!truckAvailable && (
-                              <p className="text-[10px] font-bold text-rose-500 mt-2 uppercase tracking-widest">No Trucks Available</p>
+                              <p className="text-[10px] font-bold text-rose-500 mt-2 uppercase tracking-widest">{t('no_trucks_available_message')}</p>
                             )}
                           </div>
 
                           <div className="grid grid-cols-2 gap-4 mb-8">
                             <div className="bg-slate-50 rounded-2xl p-3">
-                              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Income</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">{t('income_label')}</p>
                               <p className="text-sm font-black text-indigo-600">${config.baseIncome}</p>
                             </div>
                             <div className="bg-slate-50 rounded-2xl p-3">
-                              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Capacity</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">{t('capacity_label')}</p>
                               <p className="text-sm font-black text-indigo-600">{config.baseCapacity}</p>
                             </div>
                           </div>
@@ -3901,7 +3897,7 @@ export default function App() {
                                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
                             `}
                           >
-                            {!canAfford ? 'Insufficient Funds' : !truckAvailable ? 'No Truck Available' : !warehouseCapacity ? 'Warehouse Full' : 'Purchase Item'}
+                            {!canAfford ? t('insufficient_funds') : !truckAvailable ? t('no_truck_available') : !warehouseCapacity ? t('warehouse_full') : t('purchase_item')}
                           </button>
                         </div>
                       );
@@ -3916,12 +3912,12 @@ export default function App() {
                     <Coins size={20} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Available Balance</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">{t('available_balance')}</p>
                     <p className="text-xl font-black text-slate-900">${gameState.money.toLocaleString()}</p>
                   </div>
                 </div>
                 <p className="text-xs font-medium text-slate-400 italic">
-                  Select an item to add it to your inventory
+                  {t('select_item_to_add')}
                 </p>
               </div>
             </motion.div>
