@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from './gameEngine';
-import { RIDE_CONFIGS, RideType, RideIntensity, GRID_SIZE, STAFF_CONFIGS, StaffType, RideCategory, CITIES, GARAGE_CONFIGS, TRUCK_COST, GameState } from './types';
+import { RIDE_CONFIGS, RideType, RideIntensity, GRID_SIZE, STAFF_CONFIGS, StaffType, RideCategory, CITIES, GARAGE_CONFIGS, TRUCK_COST, GameState, Achievement, TravelForm, REGION_OPERATING_MONTHS } from './types';
 import { 
   Truck,
   Warehouse,
   Coins, 
   Users, 
+  Handshake,
+  ArrowRightLeft,
   Plus, 
   TrendingUp, 
   Info, 
@@ -22,6 +24,8 @@ import {
   Wrench,
   Play,
   Square,
+  FastForward,
+  ChevronLeft,
   AlertCircle,
   Briefcase,
   GraduationCap,
@@ -42,10 +46,19 @@ import {
   Zap,
   Home,
   CheckCircle,
+  CheckCircle2,
   ArrowRight,
   ArrowUp,
   ArrowDown,
   List,
+  Target,
+  Trophy,
+  Wallet,
+  Gem,
+  FlaskConical,
+  Lock,
+  LayoutDashboard,
+  Search,
   ZoomIn,
   ZoomOut,
   Maximize,
@@ -54,21 +67,703 @@ import {
   CloudRain,
   Snowflake,
   Thermometer,
-  Search
+  Flag,
+  ArrowLeft,
+  Palette,
+  Edit2,
+  Star,
+  Factory,
+  FileText,
+  Check,
+  Landmark,
+  Shield,
+  Utensils,
+  Clock,
+  ChevronRight,
+  PlaneTakeoff,
+  Minus,
+  Activity,
 } from 'lucide-react';
+import { RESEARCH_PROJECTS, INITIAL_UNLOCKED_RIDES } from './researchData';
+import { MANUFACTURERS } from './manufacturerData';
+import { ACHIEVEMENTS } from './achievementData';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { audioService } from './audioService';
-import { TRANSLATIONS, LANGUAGES } from './localization';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTH_NAMES = [
-  'Mar', 'Apr', 'May', // Spring
-  'Jun', 'Jul', 'Aug', // Summer
-  'Sep', 'Oct', 'Nov', // Autumn
-  'Dec', 'Jan', 'Feb'  // Winter
+  'Jan', 'Feb', 'Mar',
+  'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep',
+  'Oct', 'Nov', 'Dec'
 ];
+
+const ENGLISH_TRANSLATIONS: Record<string, string> = {
+  marketplace: 'Marketplace',
+  operations_group: 'Operations',
+  logistics_group: 'Logistics',
+  finance_group: 'Finance',
+  career_group: 'Career',
+  career_hub: 'Career Hub',
+  administration: 'Administration',
+  financials_tab: 'Financials',
+  management_hub: 'Management Hub',
+  active_obligations: 'Active Obligations',
+  available_liquidity: 'Available Liquidity',
+  system_group: 'System',
+  management: 'Management',
+  inventory: 'Inventory',
+  shop: 'Shop',
+  travel: 'Travel',
+  staff: 'Staff',
+  budget: 'Budget',
+  settings: 'Settings',
+  open_park: 'Open Park',
+  close_park: 'Close Park',
+  park_closed: 'Park is Closed',
+  park_open: 'Park is Open',
+  money: 'Money',
+  visitors: 'Visitors',
+  happiness: 'Happiness',
+  day: 'Day',
+  weather: 'Weather',
+  travel_to: 'Travel to',
+  achievements: 'Achievements',
+  total_achievements_unlocked: 'Total achievements unlocked once',
+  business_permit: 'Business Permit',
+  travel_permit_form: 'Travel Registration',
+  target_city: 'Target Destination',
+  purpose_of_stay: 'Primary Purpose of Stay',
+  insurance_tier: 'Insurance Coverage',
+  stay_duration: 'Expected Stay Duration',
+  owner_signature: 'Company Owner Signature',
+  register_travel: 'Authorize Travel',
+  reason_expansion: 'Business Expansion',
+  reason_event: 'Temporary Event',
+  reason_cultural: 'Cultural Exchange',
+  reason_trade: 'Commercial Trade',
+  funfair_area_rental: 'Funfair Area Selection',
+  tier_community: 'Community Lot',
+  tier_prime: 'Prime Lot',
+  tier_vip: 'VIP Square',
+  days: 'Days',
+  sign_here: 'Sign your name here...',
+  details_tab: 'Details',
+  back_to_territories: 'Back to Territories',
+  cities_lower: 'cities',
+  explore_territory: 'Explore Territory',
+  headquarters: 'Headquarters',
+  demand: 'Demand',
+  area: 'Area',
+  gross_revenue: 'Gross Revenue',
+  operating_expenses: 'Operating Expenses',
+  payroll: 'Payroll',
+  utilities: 'Utilities',
+  rent: 'Rent',
+  concessions: 'Concessions',
+  miscellaneous: 'Miscellaneous',
+  total_revenue: 'Total Revenue',
+  total_overhead: 'Total Overhead',
+  daily_net_income: 'Daily Net Income',
+  ARPU: 'ARPU',
+  credit_facility: 'Credit Facility',
+  days_limit: 'Days Limit',
+  interest_short: 'Int.',
+  daily_repayment: 'Daily Repayment',
+  original_debt: 'Original Debt',
+  settle_full_debt: 'Settle Full Debt',
+  financial_ledger: 'Financial Ledger',
+  daily_accounting: 'Daily Accounting',
+  historical_yield: 'Historical Yield',
+  audit_recorded: 'Audit Recorded',
+  net_daily: 'Net Daily',
+  remaining_debt: 'Remaining Debt',
+  accept: 'Accept',
+  pay_off: 'Pay Off',
+  achievements_and_challenges: 'Achievements & Challenges',
+  active_milestones: 'Active Milestones',
+  unlocked_accolades: 'Unlocked Accolades',
+  reward: 'Reward',
+  progress: 'Progress',
+  wristbands: 'Wristbands',
+  season_passes: 'Season Passes',
+  achievement_first_stop_name: 'First Stop',
+  achievement_first_stop_desc: 'Travel to your first city.',
+  achievement_millionaire_name: 'Millionaire',
+  achievement_millionaire_desc: 'Reach a total career earnings of $1,000,000.',
+  achievement_crowd_magnet_name: 'Crowd Magnet',
+  achievement_crowd_magnet_desc: 'Have 500 visitors in the park at once.',
+  achievement_research_pioneer_name: 'Research Pioneer',
+  achievement_research_pioneer_desc: 'Complete 5 research projects.',
+  achievement_safety_first_name: 'Safety First',
+  achievement_safety_first_desc: 'Keep all active rides above 90% condition for 5 days.',
+  achievement_continental_tour_name: 'Continental Tour',
+  achievement_continental_tour_desc: 'Visit 5 different countries.',
+  achievement_rollercoaster_tycoon_name: 'Rollercoaster Tycoon',
+  achievement_rollercoaster_tycoon_desc: 'Have at least 3 rollercoasters in your park at once.',
+  achievement_foodie_paradise_name: 'Foodie Paradise',
+  achievement_foodie_paradise_desc: 'Have at least 5 different food stalls in your park.',
+  achievement_workaholic_name: 'Workaholic',
+  achievement_workaholic_desc: 'Reach 100 days in a single career.',
+  achievement_high_roller_name: 'High Roller',
+  achievement_high_roller_desc: 'Purchase an expensive high-end attraction.',
+  achievement_first_ride_name: 'Small Beginnings',
+  achievement_first_ride_desc: 'Purchase your very first attraction.',
+  achievement_staff_hero_name: 'Team Leader',
+  achievement_staff_hero_desc: 'Hire 10 staff members at once.',
+  achievement_unlocked_title: 'Achievement Unlocked!',
+  current_location: 'Current Location',
+  home_city: 'Home City',
+  dismantle_first: 'Dismantle First',
+  island_locked: 'Island Locked',
+  apply_now: 'Apply Now',
+  total_income: 'Total Income',
+  total_expenses: 'Total Expenses',
+  net_profit: 'Net Profit',
+  language: 'Language',
+  music_volume: 'Music Volume',
+  sfx_volume: 'SFX Volume',
+  reset_game: 'Reset Game',
+  confirm_reset: 'Are you sure you want to reset? All progress will be lost.',
+  cancel: 'Cancel',
+  confirm: 'Confirm',
+  park_management: 'Park Management',
+  launch_company: 'Launch Company',
+  continue_game: 'Continue Existing Game',
+  reset_game_confirm: 'Reset Game?',
+  yes_reset: 'Yes, Reset',
+  back_to_travel: 'Back to Travel List',
+  city_center_obstacles: 'City Center Obstacles',
+  cloudy: 'Cloudy',
+  stormy: 'Stormy',
+  needs: 'Needs',
+  hunger: 'Hunger',
+  bladder: 'Bladder',
+  stamina: 'Stamina',
+  recent_thoughts: 'Recent Thoughts',
+  no_thoughts: 'No thoughts yet...',
+  sell: 'Sell',
+  deselect: 'Deselect',
+  park_stats: 'Park Stats',
+  warehouse: 'Warehouse',
+  balance: 'Balance',
+  exit_zoning: 'Exit Zoning',
+  zoning_mode: 'Zoning Mode',
+  open_ride_shop: 'Open Ride Shop',
+  insufficient_funds: 'Insufficient Funds',
+  no_truck_available: 'No Truck Available',
+  warehouse_full: 'Warehouse Full',
+  purchase_item: 'Purchase Item',
+  available_balance: 'Available Balance',
+  select_item_to_add: 'Select an item to add it to your inventory',
+  company_name: 'Company Name',
+  loans: 'Loans',
+  daily_net_profit: 'Daily Net Profit',
+  visitor_insights: 'Visitor Insights',
+  avg_happiness: 'Avg. Happiness',
+  avg_spend: 'Avg. Spend',
+  recent_performance: 'Recent Performance',
+  park_operations: 'Park Operations',
+  manual_override: 'Manual Override',
+  total_visitors: 'Total Visitors',
+  operating_hours: 'Operating Hours',
+  operating_season: 'Operating Season',
+  open_time: 'Open Time',
+  close_time: 'Close Time',
+  visitor_demand: 'Visitor Demand',
+  standard_entry: 'Standard Entry',
+  single_ride_ticket: 'Single Ride Ticket',
+  ride_bundle: 'Ride Bundle',
+  premium_passes: 'Premium Passes',
+  all_day_wristband: 'All-Day Wristband',
+  season_pass: 'Season Pass',
+  pricing_strategy_tip: 'Pricing Strategy Tip',
+  warehouse_capacity: 'Warehouse Capacity',
+  warehouse_level: 'Warehouse Level',
+  total_staff: 'Total Staff',
+  employees: 'Employees',
+  morale: 'Morale',
+  hourly_payroll: 'Hourly Payroll',
+  per_hour: 'per hour',
+  recruitment_center: 'Recruitment Center',
+  base_salary: 'Base Salary',
+  hiring_fee: 'Hiring Fee',
+  hire_staff: 'Hire Staff',
+  your_team: 'Your Team',
+  total_hourly_wage: 'Total Hourly Wage',
+  no_staff_hired: 'No staff members currently hired',
+  risk_of_quitting: 'Risk of Quitting',
+  assigned: 'Assigned',
+  upgrade_garage: 'Upgrade Garage',
+  max_level_reached: 'Max Level Reached',
+  buy_new_truck: 'Buy New Truck',
+  cost: 'Cost',
+  garage_full: 'Garage Full',
+  buy_truck: 'Buy Truck',
+  your_trucks: 'Your Trucks',
+  transporting: 'Transporting',
+  idle: 'Idle',
+  no_trucks_in_garage: 'No trucks in your garage',
+  travel_to_new_cities: 'Travel to New Cities',
+  search_placeholder: 'Search...',
+  name: 'Name',
+  population: 'Population',
+  travel_cost: 'Travel Cost',
+  multiplier: 'Multiplier',
+  visitors_label: 'Visitors',
+  travel_label: 'Travel',
+  size: 'Size',
+  available_loan_offers: 'Available Loan Offers',
+  day_term: 'Day Term',
+  income_today: 'Income (Today)',
+  ride_tickets: 'Ride Tickets',
+  wristbands_label: 'Wristbands',
+  season_passes_label: 'Season Passes',
+  ticket_bundles: 'Ticket Bundles',
+  food_drinks: 'Food & Drinks',
+  other_label: 'Other',
+  expenses_today: 'Expenses (Today)',
+  staff_wages: 'Staff Wages',
+  electricity: 'Electricity',
+  loan_interest: 'Loan Interest',
+  loan_principal: 'Loan Principal',
+  area_rent: 'Area Rent',
+  maintenance_label: 'Maintenance',
+  upgrade_label: 'Upgrade',
+  stored_attractions: 'Stored Attractions',
+  warehouse_empty: 'Your warehouse is empty.',
+  items_available: 'items available',
+  condition_label: 'Condition',
+  place_label: 'Place',
+  working_label: 'WORKING',
+  resting_label: 'RESTING',
+  idle_label: 'IDLE',
+  lvl_label: 'LVL',
+  travel_button: 'Travel',
+  home_city_label: 'Home City',
+  sound_effects: 'Sound Effects',
+  of_potential: 'of potential',
+  price_demand_warning: 'Higher prices reduce visitor spawn rate',
+  resume_game: 'Resume Game',
+  pause_game: 'Pause Game',
+  level_label: 'Level',
+  status_label: 'Status',
+  wait_time: 'Wait Time',
+  ticket_price: 'Ticket Price',
+  satisfaction_label: 'Satisfaction',
+  staff_resting: 'STAFF RESTING',
+  repair_button: 'Repair',
+  item_price: 'Item Price',
+  service_price: 'Service Price',
+  too_expensive_warning: 'Visitors might think this is too expensive!',
+  fair_price_label: 'A fair price for everyone.',
+  dismantle_button: 'Dismantle',
+  visitor_label: 'Visitor',
+  no_items_message: 'No {intensity} items',
+  place_instruction: 'Click on the grid to place your',
+  cancel_button: 'Cancel',
+  tutorial_step_label: 'Tutorial Step {step}/20',
+  skip_button: 'Skip',
+  tutorial_title_0: 'Place your first ride',
+  tutorial_title_1: 'Create a Truck Zone',
+  tutorial_title_2: 'Hire a Ride Operator',
+  tutorial_title_3: 'Open the Park',
+  tutorial_title_4: 'Earn your first $500',
+  tutorial_title_5: 'Build a Food Stall',
+  tutorial_title_6: 'Reach 50 Visitors',
+  tutorial_title_7: 'Hire a Janitor',
+  tutorial_title_8: 'Take a Loan',
+  tutorial_title_9: 'Reach 100 Visitors',
+  tutorial_title_10: 'Start Research',
+  tutorial_title_11: 'Hire a Mechanic',
+  tutorial_title_12: 'Increase Ticket Price',
+  tutorial_title_13: 'Upgrade Warehouse',
+  tutorial_title_14: 'Customise a Ride',
+  tutorial_title_15: 'Hire Security',
+  tutorial_title_16: 'Buy a New Truck',
+  tutorial_title_17: 'Reach 100 Research Points',
+  tutorial_title_18: 'Travel to New City',
+  tutorial_title_19: 'Become a Tycoon',
+  tutorial_desc_0: 'Open your inventory and place the Tea Cups ride near the entrance.',
+  tutorial_desc_1: "Select the Zone Tool, choose 'Truck Zone', and draw an area for your trucks.",
+  tutorial_desc_2: 'Click on your Tea Cups ride and hire an operator to start running it.',
+  tutorial_desc_3: 'Open the Management Panel and toggle the Park Status to Open.',
+  tutorial_desc_4: 'Watch the visitors arrive and earn money until your balance reaches $2,500.',
+  tutorial_desc_5: 'Visitors get hungry! Place a Hot Dog Stall from your inventory.',
+  tutorial_desc_6: 'Keep your park attractive and wait until you have 50 visitors at once.',
+  tutorial_desc_7: 'A clean park is a happy park! Go to Management > Staff and hire a Janitor.',
+  tutorial_desc_8: 'Need more cash? Go to Management > Loans and take out a Small Business Loan.',
+  tutorial_desc_9: 'Grow your park with more rides and stalls to attract 100 visitors simultaneously.',
+  tutorial_desc_10: 'Go to Research and select a project to start researching new attractions.',
+  tutorial_desc_11: 'Rides break down! Hire a Mechanic in the Staff panel to keep them running.',
+  tutorial_desc_12: 'Maximise profits by increasing the single ride Ticket Price to $7 in Pricing.',
+  tutorial_desc_13: 'Need more storage? Upgrade your Warehouse to Level 2 in Management.',
+  tutorial_desc_14: 'Select an active ride and give it a custom name or unique color.',
+  tutorial_desc_15: 'Keep visitors safe and happy by hiring a Security Guard in the Staff panel.',
+  tutorial_desc_16: 'Go to the Garage and purchase an additional truck for faster transport.',
+  tutorial_desc_17: 'Collect more Research Points by having active visitors in your park.',
+  tutorial_desc_18: 'Ready for a new market? Go to Travel and move your park to another city.',
+  tutorial_desc_19: 'The ultimate goal! Reach $10,000 in total career earnings.',
+  reset_confirm_desc: 'This will permanently delete your current company and all progress. This action cannot be undone.',
+  weather_sunny: 'Sunny',
+  weather_cloudy: 'Cloudy',
+  weather_rainy: 'Rainy',
+  weather_snowy: 'Snowy',
+  weather_freezing: 'Freezing',
+  weather_stormy: 'Stormy',
+  weather_desc_sunny: 'A beautiful sunny day!',
+  weather_desc_cloudy: 'A bit cloudy, but fine for a funfair.',
+  weather_desc_rainy: 'Rainy day. Some guests might stay home.',
+  weather_desc_snowy: 'Heavy snow! The park must remain closed.',
+  weather_desc_freezing: 'Freezing cold! Too dangerous to open.',
+  weather_desc_stormy: 'Severe storm! Safety first, park is closed.',
+  season_spring: 'Spring',
+  season_summer: 'Summer',
+  season_autumn: 'Autumn',
+  season_winter: 'Winter',
+  month_0: 'January',
+  month_1: 'February',
+  month_2: 'March',
+  month_3: 'April',
+  month_4: 'May',
+  month_5: 'June',
+  month_6: 'July',
+  month_7: 'August',
+  month_8: 'September',
+  month_9: 'October',
+  month_10: 'November',
+  month_11: 'December',
+  day_0: 'Sunday',
+  day_1: 'Monday',
+  day_2: 'Tuesday',
+  day_3: 'Wednesday',
+  day_4: 'Thursday',
+  day_5: 'Friday',
+  research_tab: 'Research',
+  challenges_tab: 'Challenges',
+  loyalty_index: 'Loyalty Index',
+  status_offline: 'Offline',
+  status_linked: 'Linked',
+  auto_dispatch: 'Auto Dispatch',
+  crew_assignment: 'Crew Assignment',
+  operator_unit: 'Operator Unit',
+  vendor_unit: 'Vendor Unit',
+  primary_hue: 'Primary Hue',
+  custom_identifier: 'Custom Identifier',
+  spec_customization: 'Spec Customization',
+  energy_reserve: 'Energy Reserve',
+  bladder_pressure: 'Bladder Pressure',
+  metabolic_hunger: 'Metabolic Hunger',
+  biometric_readout: 'Biometric Readout',
+  current_task: 'Current Task',
+  status_active: 'Active',
+  entity_id: 'Entity ID',
+  day_6: 'Saturday',
+  zoning_funfair: 'Funfair',
+  zoning_truck: 'Truck',
+  zoning_staff: 'Staff',
+  status_operational: 'Operational',
+  status_constructing: 'Constructing',
+  status_dismantling: 'Dismantling',
+  status_broken: 'Broken',
+  status_repairing: 'Repairing',
+  sell_button: 'Sell',
+  place_button: 'Place',
+  intensity_gentle: 'Gentle',
+  intensity_thrill: 'Thrill',
+  intensity_extreme: 'Extreme',
+  your_inventory_label: 'Your Inventory',
+  all_label: 'All',
+  inventory_empty_message: 'Inventory Empty',
+  tiles_label: 'Tiles',
+  no_trucks_available_message: 'No Trucks Available',
+  income_label: 'Income',
+  capacity_label: 'Capacity',
+  category_ride: 'Ride',
+  category_food: 'Food',
+  category_facility: 'Facility',
+  category_infrastructure: 'Infrastructure',
+  shop_cat_all: 'All Items',
+  shop_cat_rides: 'Rides',
+  shop_cat_stalls: 'Stalls',
+  shop_cat_facilities: 'Facilities',
+  shop_cat_infrastructure: 'Infrastructure',
+  shop_intensity_all: 'All Intensities',
+  ride_shop_title: 'Ride Shop',
+  manufacturer_label: 'Manufacturer',
+  build_quality: 'Build Quality',
+  base_reliability: 'Base Reliability',
+  connections: 'Network',
+  connections_desc: 'Build relationships with fellow showmen to rent unique attractions or rent out your own.',
+  rent_in: 'Rent Attraction',
+  rent_out: 'Rent Out',
+  rental_duration: 'Duration (Days)',
+  partner: 'Partner',
+  daily_rate: 'Daily Rate',
+  rent_in_title: 'Rent from {name}',
+  rent_out_title: 'Rent out {rideName}',
+  transport_included: 'Transport Included',
+  no_connections: 'No active business connections yet.',
+  active_rentals: 'Active Rental Agreements',
+  remaining: 'Remaining',
+  rent_out_income: 'Daily Income',
+  rent_in_cost: 'Daily Cost',
+  thought_not_allowed: "I'm not allowed in there!",
+  thought_hungry: "I'm hungry, heading to {rideName}.",
+  thought_starving: "I'm starving! Why is there no food in this park?",
+  thought_restroom_need: "I really need a restroom...",
+  thought_restroom_none: "I can't find a restroom anywhere!",
+  thought_tired: "I'm so tired, I need to rest.",
+  thought_nowhere_sit: "My feet are killing me, and there's nowhere to sit!",
+  thought_price_high: "The price for {rideName} is a bit high...",
+  thought_heading_to: "Heading to {rideName}!",
+  thought_cant_afford: "I can't afford {rideName}. I need more money.",
+  thought_too_expensive: "{rideName} was way too expensive!",
+  thought_unsafe: "{rideName} felt unsafe and poorly maintained.",
+  thought_no_operator: "There was no one even running {rideName}!",
+  thought_fantastic: "That ride on {rideName} was fantastic!",
+  thought_out_of_money: "I'm out of money. Time to go home.",
+  thought_no_fun: "I'm not having any fun here. I'm leaving.",
+  thought_seen_enough: "I've seen enough. Heading out.",
+  thought_too_tired_hungry: 'I\'m too tired or hungry to stay any longer.',
+  not_set: 'Not Set',
+  ride_TEA_CUPS_name: 'Tea Cups',
+  ride_FERRIS_WHEEL_name: 'Ferris Wheel',
+  ride_BUMPER_CARS_name: 'Bumper Cars',
+  ride_CAROUSEL_name: 'Carousel',
+  ride_HAUNTED_HOUSE_name: 'Haunted House',
+  ride_ROLLERCOASTER_name: 'Roller Coaster',
+  ride_LOG_FLUME_name: 'Log Flume',
+  ride_PIRATE_SHIP_name: 'Pirate Ship',
+  ride_COTTON_CANDY_name: 'Cotton Candy',
+  ride_ICE_CREAM_name: 'Ice Cream',
+  ride_BUNGEE_JUMP_name: 'Bungee Jump',
+  ride_DROP_TOWER_name: 'Drop Tower',
+  ride_SWING_RIDE_name: 'Swing Ride',
+  ride_FOOD_STALL_name: 'Food Stall',
+  ride_RESTROOM_name: 'Restroom',
+  ride_BENCH_name: 'Bench',
+  ride_TRASH_CAN_name: 'Trash Can',
+  ride_CLIMBING_WALL_name: 'Climbing Wall',
+  ride_SLINGSHOT_name: 'Slingshot',
+  ride_TOP_SPIN_name: 'Top Spin',
+  ride_ENTERPRISE_name: 'Enterprise',
+  ride_WALTZER_name: 'Waltzer',
+  ride_HELTER_SKELTER_name: 'Helter Skelter',
+  ride_KIDDIE_COASTER_name: 'Kiddie Coaster',
+  ride_DUCK_POND_name: 'Duck Pond',
+  ride_SHOOTING_GALLERY_name: 'Shooting Gallery',
+  ride_COCONUT_SHY_name: 'Coconut Shy',
+  ride_STRENGTH_TEST_name: 'Strength Test',
+  ride_PONY_TREK_name: 'Pony Trek',
+  ride_CARAVAN_name: 'Staff Caravan',
+  ride_QUEUE_PATH_name: 'Queue Path',
+  ride_SKY_SWING_name: 'Sky Swing',
+  ride_GIANT_WHEEL_name: 'Giant Wheel',
+  ride_WOODEN_COASTER_name: 'Wooden Coaster',
+  ride_ZIP_LINE_name: 'Zip Line',
+  ride_BURGER_JOINT_name: 'Burger Joint',
+  ride_PIZZA_PARLOR_name: 'Pizza Parlor',
+  ride_TACO_TRUCK_name: 'Taco Truck',
+  ride_SODA_FOUNTAIN_name: 'Soda Fountain',
+  ride_WHACK_A_MOLE_name: 'Whack-a-Mole',
+  ride_BASKETBALL_TOSS_name: 'Basketball Toss',
+  ride_CLAW_MACHINE_name: 'Claw Machine',
+  ride_FIRST_AID_name: 'First Aid',
+  ride_INFO_KIOSK_name: 'Info Kiosk',
+  ride_ATM_name: 'ATM',
+  ride_SHELTER_name: 'Rain Shelter',
+  ride_STAFF_ROOM_name: 'Staff Room',
+  ride_MAINTENANCE_DEPOT_name: 'Maintenance Depot',
+  ride_PATH_name: 'Brick Path',
+  ride_FLOWER_BED_name: 'Flower Bed',
+  ride_FENCE_name: 'Safety Fence',
+  ride_STREET_LIGHT_name: 'Street Light',
+  ride_TEA_CUPS_desc: 'Whirling teacups provide gentle thrills for all ages.',
+  ride_FERRIS_WHEEL_desc: 'A classic view from above, perfect for families.',
+  ride_BUMPER_CARS_desc: 'Action-packed driving where bumping is the goal.',
+  ride_CAROUSEL_desc: 'Timeless wooden horses and calliope music.',
+  ride_HAUNTED_HOUSE_desc: 'Spooky surprises await in this dark walk-through.',
+  ride_ROLLERCOASTER_desc: 'High-speed twists and turns for maximum excitement.',
+  ride_LOG_FLUME_desc: 'Splash down and soak the riders in this water classic.',
+  ride_PIRATE_SHIP_desc: 'A massive swinging ship that defies gravity.',
+  ride_COTTON_CANDY_desc: 'Sweet spun sugar that everyone loves.',
+  ride_ICE_CREAM_desc: 'Refreshing cold treats on a sunny park day.',
+  ride_BUNGEE_JUMP_desc: 'The ultimate leap of faith for adrenaline junkies.',
+  ride_DROP_TOWER_desc: 'A sudden vertical plunge that takes your breath away.',
+  ride_SWING_RIDE_desc: 'Soar through the air on these flying chairs.',
+  ride_FOOD_STALL_desc: 'Quick and tasty hot dogs for hungry guests.',
+  ride_RESTROOM_desc: 'Essential facilities to keep guests comfortable.',
+  ride_BENCH_desc: 'A place to rest tired feet and enjoy the view.',
+  ride_TRASH_CAN_desc: 'Helps keep the park clean and tidy.',
+  ride_SLINGSHOT_desc: 'Be catapulted into the sky at extreme speeds.',
+  ride_TOP_SPIN_desc: 'Multi-axis rotation that turns your world upside down.',
+  ride_ENTERPRISE_desc: 'Feel the G-force in this spinning vertical wheel.',
+  ride_WALTZER_desc: 'Spinning cars that gain speed with every turn.',
+  ride_HELTER_SKELTER_desc: 'A traditional slide that kids adore.',
+  ride_KIDDIE_COASTER_desc: 'The perfect first coaster for young adventurers.',
+  ride_DUCK_POND_desc: 'Traditional hook-a-duck game for prizes.',
+  ride_SHOOTING_GALLERY_desc: 'Test your aim with these classic air rifles.',
+  ride_COCONUT_SHY_desc: 'Knock them off to win! A fairground favorite.',
+  ride_STRENGTH_TEST_desc: 'Ring the bell and show off your power.',
+  ride_CARAVAN_desc: 'Basic rest area for your hard-working staff.',
+  ride_QUEUE_PATH_desc: 'Essential for organizing guests at ride entrances.',
+  ride_SKY_SWING_desc: 'A massive swing that takes you high above the fair.',
+  ride_GIANT_WHEEL_desc: 'A massive landmark visible from across the city.',
+  ride_WOODEN_COASTER_desc: 'Classic rattling thrills and airtime hills.',
+  ride_ZIP_LINE_desc: 'Glide across the park for a unique perspective.',
+  ride_BURGER_JOINT_desc: 'Juicy burgers and fries for a satisfying meal.',
+  ride_PIZZA_PARLOR_desc: 'Freshly baked pizzas with various toppings.',
+  ride_TACO_TRUCK_desc: 'Spicy and fresh Mexican street food.',
+  ride_SODA_FOUNTAIN_desc: 'Ice-cold soft drinks to quench any thirst.',
+  ride_WHACK_A_MOLE_desc: 'Fast reflexes are needed for this classic game.',
+  ride_BASKETBALL_TOSS_desc: 'Can you sink the shot and win the prize?',
+  ride_CLAW_MACHINE_desc: 'The ultimate test of skill and patience.',
+  ride_FIRST_AID_desc: 'Handles minor injuries and sickness.',
+  ride_INFO_KIOSK_desc: 'Helps guests find their way and learn about prices.',
+  ride_ATM_desc: 'Allows guests to withdraw more cash to spend.',
+  ride_SHELTER_desc: 'Protects guests from rain, keeping them in the park.',
+  ride_STAFF_ROOM_desc: 'Comfortable area for staff to recover stamina faster.',
+  ride_MAINTENANCE_DEPOT_desc: 'Base for mechanics, enabling faster repairs.',
+  ride_PATH_desc: 'Creates a more durable and attractive walking surface.',
+  ride_FLOWER_BED_desc: 'Decorative greenery that boosts park beauty.',
+  ride_FENCE_desc: 'Defines boundaries and improves park safety.',
+  ride_STREET_LIGHT_desc: 'Keeps the park illuminated and safe at night.',
+  staff_OPERATOR_name: 'Ride Operator',
+  staff_OPERATOR_desc: 'Required to run rides. Higher level increases ride safety.',
+  staff_MECHANIC_name: 'Mechanic',
+  staff_MECHANIC_desc: 'Repairs rides and reduces wear and tear.',
+  staff_JANITOR_name: 'Janitor',
+  staff_JANITOR_desc: 'Keeps the park clean, improving visitor happiness.',
+  staff_SECURITY_name: 'Security Guard',
+  staff_SECURITY_desc: 'Ensures safety and prevents happiness from dropping too fast.',
+  staff_VENDOR_name: 'Vendor',
+  staff_VENDOR_desc: 'Increases secondary income from visitors.',
+  reason_weather: 'Park is closed due to {weatherType} weather.',
+  reason_no_rides: 'No operational rides with operators',
+  reason_outside_hours: 'Outside of scheduled hours',
+  reason_seasonal_closure: 'Park is closed for the season in {region} (Open months: {startMonth}-{endMonth})',
+  skip_to_opening: 'Skip to Opening Season',
+  audio_settings: 'Audio Settings',
+  legend_current: 'Current',
+  legend_home: 'Home',
+  legend_available: 'Available',
+  back_to_countries: 'Back to Countries',
+  cities_label: 'Cities',
+  select_country_label: 'Select a country to view available cities',
+  country_UK: 'UK',
+  country_France: 'France',
+  country_Germany: 'Germany',
+  country_Spain: 'Spain',
+  country_Italy: 'Italy',
+  country_Portugal: 'Portugal',
+  country_Netherlands: 'Netherlands',
+  country_Sweden: 'Sweden',
+  country_Norway: 'Norway',
+  country_Denmark: 'Denmark',
+  country_Finland: 'Finland',
+  country_Iceland: 'Iceland',
+  country_Poland: 'Poland',
+  country_Russia: 'Russia',
+  country_Turkey: 'Turkey',
+  country_Greece: 'Greece',
+  country_Czech_Republic: 'Czech Republic',
+  country_Hungary: 'Hungary',
+  country_Romania: 'Romania',
+  country_Bulgaria: 'Bulgaria',
+  country_Croatia: 'Croatia',
+  country_Slovakia: 'Slovakia',
+  country_Slovenia: 'Slovenia',
+  country_Estonia: 'Estonia',
+  country_Latvia: 'Latvia',
+  country_Lithuania: 'Lithuania',
+  country_Malta: 'Malta',
+  country_Ireland: 'Ireland',
+  country_Cyprus: 'Cyprus',
+  country_Albania: 'Albania',
+  country_North_Macedonia: 'North Macedonia',
+  country_Bosnia_and_Herzegovina: 'Bosnia & Herzegovina',
+  country_Montenegro: 'Montenegro',
+  country_Serbia: 'Serbia',
+  country_Luxembourg: 'Luxembourg',
+  country_Belgium: 'Belgium',
+  country_Switzerland: 'Switzerland',
+  country_Kosovo: 'Kosovo',
+  country_Austria: 'Austria',
+  start_empire: 'Start Your Empire',
+  setup_desc: 'Define your company and choose your first European city.',
+  home_country: 'Home Country',
+  starting_city_in: 'Starting City in {country}',
+  cities_available: '{count} Cities Available',
+  population_short: 'pop',
+  map_navigation: 'Drag to Pan • Scroll to Zoom',
+  potential_destination: 'Potential Destination',
+  about: 'About',
+  map_size: 'Map Size',
+  visitor_multiplier: 'Visitor Multiplier',
+  weather_patterns: 'Weather Patterns',
+  terrain_GRASS: 'Grass',
+  terrain_ASPHALT: 'Asphalt',
+  terrain_GRAVEL: 'Gravel',
+  terrain_PLAINS: 'Plains',
+  terrain_COASTAL: 'Coastal',
+  terrain_MOUNTAIN: 'Mountain',
+  terrain_FOREST: 'Forest',
+  terrain_ISLAND: 'Island',
+  terrain_URBAN: 'Urban',
+  terrain_RIVER: 'River',
+  terrain_DESERT: 'Desert',
+  terrain_TROPICAL: 'Tropical',
+  terrain_ARCTIC: 'Arctic',
+  save: 'Save',
+  reset: 'Reset',
+  close_panel: 'Close Panel',
+  remaining_principal: 'Remaining Principal',
+  interest_rate: 'Interest Rate',
+  daily_payment: 'Daily Payment',
+  original_amount: 'Original Amount',
+  repay_amount: 'Repay ${amount}',
+  small_business_loan: 'Small Business Loan',
+  expansion_credit: 'Expansion Credit',
+  venture_capital: 'Venture Capital',
+  today: 'today',
+  visitor_stats: 'Visitor Stats',
+  pre_opening: 'PRE-OPENING',
+  force_park_desc: 'Force the park to open or close regardless of schedule.',
+  park_is_open: 'Park is Open',
+  park_is_closed: 'Park is Closed',
+  attractions: 'Attractions',
+  auto_assign: 'Auto-Assign',
+  busy_label: 'Busy',
+  assigned_label: 'Assigned',
+  missing_label: 'Missing',
+  hire_operator: 'Hire Operator',
+  hire_vendor: 'Hire Vendor',
+  hire_mechanic: 'Hire Mechanic',
+  mechanic_label: 'Mechanic',
+  operator_label: 'Operator',
+  vendor_label: 'Vendor',
+  auto_assigning: 'Auto-Assigning',
+  hourly_salary: 'Hourly Salary',
+  underpaid_label: 'Underpaid',
+  well_paid_label: 'Well Paid',
+  min_label: 'Min',
+  max_level: 'Max Level',
+  train_button: 'Train (${cost})',
+  truck_garage: 'Truck Garage',
+  garage_level: 'Garage Level',
+  capacity_value: 'Capacity: {current} / {max} Trucks',
+  buy_truck_button: 'Buy Truck (${cost})',
+  travelling_to: 'Travelling to {city}',
+  avoid_obstacles: 'Avoid the obstacles! Hits cost money!',
+  search_cities: 'Search cities...',
+  tutorial_complete_title: 'Tutorial Complete',
+  tutorial_complete_subtitle: "You're ready to go!",
+  tutorial_complete_desc: "You've mastered the basics. Now expand your park, travel to new cities, and become a Funfair Tycoon!",
+  start_managing: 'Start Managing',
+};
 
 const getWeatherIcon = (type: string) => {
   switch (type) {
@@ -94,14 +789,37 @@ const getWeatherColor = (type: string) => {
   }
 };
 
+const getTimeTheme = (hours: number) => {
+  if (hours >= 5 && hours < 8) return { bg: 'bg-indigo-200', overlay: 'bg-orange-500/10', vignette: 'opacity-20' };
+  if (hours >= 8 && hours < 17) return { bg: 'bg-slate-200', overlay: 'bg-transparent', vignette: 'opacity-0' };
+  if (hours >= 17 && hours < 20) return { bg: 'bg-amber-100', overlay: 'bg-rose-500/20', vignette: 'opacity-30' };
+  return { bg: 'bg-slate-950', overlay: 'bg-indigo-900/40', vignette: 'opacity-60' };
+};
+
 const TruckMinigame = ({ engine, gameState }: { engine: GameEngine, gameState: GameState }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const t = (key: string, replacements?: Record<string, string>) => {
-    const lang = gameState.settings.language;
-    let text = TRANSLATIONS[lang]?.[key] || TRANSLATIONS.EN[key] || key;
+  const t = (key: string, replacements?: Record<string, string | number>) => {
+    // Handle city names and descriptions by defaulting to English from CITIES array
+    if (key.startsWith('city_name_')) {
+      const cityId = key.replace('city_name_', '');
+      const city = CITIES.find(c => c.id === cityId);
+      if (city) return city.name;
+    }
+    if (key.startsWith('city_desc_')) {
+      const cityId = key.replace('city_desc_', '');
+      const city = CITIES.find(c => c.id === cityId);
+      if (city) return city.description;
+    }
+
+    if (key.startsWith('country_')) {
+      const countryRaw = key.replace('country_', '').replace(/_/g, ' ');
+      return ENGLISH_TRANSLATIONS[key] || countryRaw;
+    }
+
+    let text = ENGLISH_TRANSLATIONS[key] || key;
     if (replacements) {
       Object.entries(replacements).forEach(([k, v]) => {
-        text = text.replace(`{${k}}`, v);
+        text = text.replace(`{${k}}`, String(v));
       });
     }
     return text;
@@ -125,7 +843,7 @@ const TruckMinigame = ({ engine, gameState }: { engine: GameEngine, gameState: G
     >
       <div className="absolute top-10 left-10 right-10 flex flex-col items-center">
         <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-2">
-          {t('travelling_to', { city: targetCity?.name || '' })}
+          {t('travelling_to', { city: t('city_name_' + gameState.travelingToCityId) })}
         </h2>
         <div className="w-full max-w-2xl h-4 bg-slate-800 rounded-full overflow-hidden border-2 border-slate-700">
           <motion.div 
@@ -186,24 +904,37 @@ export default function App() {
   const [gameState, setGameState] = useState(() => engine.update());
   const [isSetupOpen, setIsSetupOpen] = useState(!GameEngine.hasSave());
   const [setupName, setSetupName] = useState('');
+  const [setupCountry, setSetupCountry] = useState('UK');
   const [setupCity, setSetupCity] = useState('london');
   const [setupSearch, setSetupSearch] = useState('');
   const [travelSearch, setTravelSearch] = useState('');
   const [selectedRideType, setSelectedRideType] = useState<RideType | null>(null);
   const [selectedRideId, setSelectedRideId] = useState<string | null>(null);
   const [selectedVisitorId, setSelectedVisitorId] = useState<string | null>(null);
+  const [unlockedAchievementIds, setUnlockedAchievementIds] = useState<string[]>([]);
+  const [showAchievementToast, setShowAchievementToast] = useState<Achievement | null>(null);
   const [placingRideId, setPlacingRideId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'inventory'>('inventory');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sidebarTab, setSidebarTab] = useState<'overview' | 'inventory' | 'management' | 'zoning'>('overview');
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false); // We'll keep this for the rail toggle logic
   const [isManagementOpen, setIsManagementOpen] = useState(false);
-  const [isShopOpen, setIsShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<RideCategory | 'ALL'>('ALL');
-  const [shopIntensity, setShopIntensity] = useState<RideIntensity | 'ALL'>('ALL');
   const [inventoryIntensity, setInventoryIntensity] = useState<RideIntensity | 'ALL'>('ALL');
-  const [activeManagementTab, setActiveManagementTab] = useState<'settings' | 'travel' | 'staff' | 'budget' | 'warehouse' | 'pricing' | 'garage' | 'finance'>('settings');
+  const [activeManagementTab, setActiveManagementTab] = useState<'settings' | 'travel' | 'staff' | 'budget' | 'warehouse' | 'pricing' | 'garage' | 'finance' | 'achievements' | 'connections' | 'research' | 'challenges' | 'marketplace'>('settings');
   const [selectedCityInfoId, setSelectedCityInfoId] = useState<string | null>(null);
+  const [isPermitFormOpen, setIsPermitFormOpen] = useState(false);
+  const [pendingTravelCityId, setPendingTravelCityId] = useState<string | null>(null);
+  const [draftPermit, setDraftPermit] = useState<TravelForm>({
+    reason: 'BUSINESS',
+    days: 14,
+    signature: '',
+    insuranceLevel: 'BASIC',
+    rentTier: 'COMMUNITY'
+  });
   const [travelSortBy, setTravelSortBy] = useState<'name' | 'population' | 'cost' | 'multiplier'>('name');
   const [travelSortOrder, setTravelSortOrder] = useState<'asc' | 'desc'>('asc');
   const [travelView, setTravelView] = useState<'list' | 'map'>('list');
+  const [selectedTravelCountry, setSelectedTravelCountry] = useState<string | null>(null);
   const [travelMapScale, setTravelMapScale] = useState(1);
   const [travelMapOffset, setTravelMapOffset] = useState({ x: 0, y: 0 });
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
@@ -227,17 +958,34 @@ export default function App() {
       key = keyOrObj as string;
     }
 
-    const lang = gameState.settings.language || 'EN';
-    const langTranslations = TRANSLATIONS[lang] || TRANSLATIONS['EN'];
-    let text = langTranslations[key] || TRANSLATIONS['EN'][key] || key;
+    // Handle city names and descriptions by defaulting to English from CITIES array
+    if (key.startsWith('city_name_')) {
+      const cityId = key.replace('city_name_', '');
+      const city = CITIES.find(c => c.id === cityId);
+      if (city) return city.name;
+    }
+    if (key.startsWith('city_desc_')) {
+      const cityId = key.replace('city_desc_', '');
+      const city = CITIES.find(c => c.id === cityId);
+      if (city) return city.description;
+    }
+
+    if (key.startsWith('country_')) {
+      const countryRaw = key.replace('country_', '').replace(/_/g, ' ');
+      return ENGLISH_TRANSLATIONS[key] || countryRaw;
+    }
+
+    let text = ENGLISH_TRANSLATIONS[key] || key;
 
     if (typeof text !== 'string') {
       text = String(text);
     }
 
     if (reps) {
-      Object.entries(reps).forEach(([k, v]) => {
-        text = text.replace(`{${k}}`, String(v));
+      Object.entries(reps).forEach(([k, k_val]) => {
+        // Try to translate the value itself if it looks like a translation key
+        const val = typeof k_val === 'string' && ENGLISH_TRANSLATIONS[k_val] ? ENGLISH_TRANSLATIONS[k_val] : String(k_val);
+        text = text.replace(`{${k}}`, val);
       });
     }
     return text;
@@ -248,14 +996,15 @@ export default function App() {
     const handleResize = () => {
       const canvas = canvasRef.current;
       if (canvas) {
-        canvas.width = window.innerWidth - 320;
+        const sidebarOffset = isSidebarOpen ? 332 : 0;
+        canvas.width = window.innerWidth - sidebarOffset;
         canvas.height = window.innerHeight;
       }
     };
     window.addEventListener('resize', handleResize);
     handleResize();
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [isSidebarOpen]);
 
   // Update render ref
   useEffect(() => {
@@ -285,6 +1034,21 @@ export default function App() {
     return () => clearInterval(interval);
   }, [engine, isSetupOpen]);
 
+  // Manage achievement notifications
+  useEffect(() => {
+    // Already handled via game engine state, but we need to ensure we clear items after some time
+    // if the user doesn't dismiss them manually.
+    if (gameState.newAchievements.length > 0) {
+      gameState.newAchievements.forEach(achievement => {
+        const timer = setTimeout(() => {
+          engine.clearNewAchievement(achievement.id);
+          setGameState(engine.getState());
+        }, 6000);
+        return () => clearTimeout(timer);
+      });
+    }
+  }, [gameState.newAchievements.length, engine]);
+
   // Sync Audio Settings
   useEffect(() => {
     audioService.updateSettings({
@@ -292,6 +1056,17 @@ export default function App() {
       sfxVolume: gameState.settings.sfxVolume
     });
   }, [gameState.settings.musicVolume, gameState.settings.sfxVolume]);
+
+  // Achievement Auto-dismiss
+  useEffect(() => {
+    if (gameState.newAchievements.length > 0) {
+      const timer = setTimeout(() => {
+        engine.clearNewAchievement(gameState.newAchievements[0].id);
+        setGameState(engine.getState());
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.newAchievements, engine]);
 
   // Tutorial Progress Check
   useEffect(() => {
@@ -328,6 +1103,36 @@ export default function App() {
     } else if (gameState.tutorialStep === 9 && gameState.visitors.length >= 100) {
       engine.advanceTutorial();
       advanced = true;
+    } else if (gameState.tutorialStep === 10 && (gameState.activeResearchId !== null || gameState.completedResearchIds.length > 0)) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 11 && gameState.staff.some(s => s.type === 'MECHANIC')) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 12 && gameState.settings.pricing.ticketPrice >= 7) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 13 && gameState.company.warehouseLevel > 1) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 14 && gameState.rides.some(r => r.customName || r.customColor)) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 15 && gameState.staff.some(s => s.type === 'SECURITY')) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 16 && gameState.trucks.length > 2) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 17 && gameState.researchPoints >= 100) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 18 && gameState.totalCitiesVisited.length > 1) {
+      engine.advanceTutorial();
+      advanced = true;
+    } else if (gameState.tutorialStep === 19 && gameState.totalMoneyEarned >= 10000) {
+      engine.advanceTutorial();
+      advanced = true;
     }
 
     if (advanced) {
@@ -356,18 +1161,33 @@ export default function App() {
     ctx.scale(camera.zoom, camera.zoom);
 
     // Draw Terrain Background
+    const hours = gameState.time.hours;
+    const isNight = hours < 6 || hours >= 20;
+    const isSunrise = hours >= 6 && hours < 8;
+    const isSunset = hours >= 18 && hours < 20;
+
     if (city.terrain === 'GRASS') {
-      ctx.fillStyle = '#dcfce7'; // Light green
+      if (isNight) ctx.fillStyle = '#064e3b'; // Very dark green
+      else if (isSunrise) ctx.fillStyle = '#14532d'; // Darker green
+      else if (isSunset) ctx.fillStyle = '#166534'; // Mid green
+      else ctx.fillStyle = '#dcfce7'; // Light green
     } else if (city.terrain === 'ASPHALT') {
-      ctx.fillStyle = '#e2e8f0'; // Light slate/gray
+      if (isNight) ctx.fillStyle = '#0f172a'; // Very dark slate
+      else if (isSunrise) ctx.fillStyle = '#1e293b'; // Darker slate
+      else if (isSunset) ctx.fillStyle = '#334155'; // Mid slate
+      else ctx.fillStyle = '#e2e8f0'; // Light slate/gray
     } else {
-      ctx.fillStyle = '#fef3c7'; // Light amber/gravel
+      if (isNight) ctx.fillStyle = '#451a03'; // Darker amber/brown
+      else if (isSunrise) ctx.fillStyle = '#78350f'; // Darker amber
+      else if (isSunset) ctx.fillStyle = '#92400e'; // Mid amber
+      else ctx.fillStyle = '#fef3c7'; // Light amber/gravel
     }
     ctx.fillRect(0, 0, mapWidth, mapHeight);
     
     // Subtle texture based on terrain
+    const textureOpacity = isNight ? 0.3 : 1;
     if (city.terrain === 'GRASS') {
-      ctx.strokeStyle = '#bbf7d0';
+      ctx.strokeStyle = isNight ? 'rgba(187, 247, 208, 0.2)' : '#bbf7d0';
       ctx.lineWidth = 1;
       for (let i = 0; i < 200; i++) {
         const gx = (i * 137.5) % mapWidth;
@@ -378,7 +1198,7 @@ export default function App() {
         ctx.stroke();
       }
     } else if (city.terrain === 'ASPHALT') {
-      ctx.strokeStyle = '#cbd5e1';
+      ctx.strokeStyle = isNight ? 'rgba(203, 213, 225, 0.2)' : '#cbd5e1';
       ctx.lineWidth = 1;
       for (let i = 0; i < 150; i++) {
         const gx = (i * 137.5) % mapWidth;
@@ -386,7 +1206,7 @@ export default function App() {
         ctx.strokeRect(gx, gy, 2, 2);
       }
     } else {
-      ctx.strokeStyle = '#fde68a';
+      ctx.strokeStyle = isNight ? 'rgba(253, 230, 138, 0.2)' : '#fde68a';
       ctx.lineWidth = 1;
       for (let i = 0; i < 300; i++) {
         const gx = (i * 137.5) % mapWidth;
@@ -1095,7 +1915,6 @@ export default function App() {
     });
 
     // Day/Night Overlay
-    const hours = gameState.time.hours;
     let overlayAlpha = 0;
     if (hours >= 20 || hours < 5) {
       overlayAlpha = 0.4; // Night
@@ -1277,99 +2096,143 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900 p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900 p-0 md:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              className="w-full max-w-lg rounded-[2.5rem] bg-white p-10 shadow-2xl text-center"
+              className="w-full h-full md:h-[90vh] md:max-w-7xl rounded-none md:rounded-[3rem] bg-white p-6 md:p-10 shadow-2xl overflow-hidden flex flex-col"
             >
-              <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-3xl bg-indigo-600 text-white shadow-2xl shadow-indigo-500/40">
-                <Building2 size={40} />
-              </div>
-              <h1 className="text-3xl font-black text-slate-900 mb-2">Start Your Empire</h1>
-              <p className="text-slate-500 font-medium mb-10">Define your company and choose your first European city.</p>
-              
-              <div className="space-y-6 text-left">
-                <div>
-                  <label className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2 block">Company Name</label>
-                  <input 
-                    type="text" 
-                    value={setupName}
-                    onChange={(e) => setSetupName(e.target.value)}
-                    className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 p-4 text-lg font-bold focus:border-indigo-500 focus:ring-0 transition-all"
-                    placeholder="e.g. DreamWorld Parks"
-                  />
+              <div className="flex flex-col lg:flex-row gap-10 h-full overflow-hidden">
+                <div className="w-full lg:w-[400px] flex flex-col justify-center shrink-0">
+                  <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-xl shadow-indigo-500/30">
+                    <Building2 size={32} />
+                  </div>
+                  <h1 className="text-3xl font-black text-slate-900 mb-2 leading-tight">{t('start_empire')}</h1>
+                  <p className="text-slate-500 font-medium mb-8 text-sm">{t('setup_desc')}</p>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">{t('company_name')}</label>
+                      <input 
+                        type="text" 
+                        value={setupName}
+                        onChange={(e) => setSetupName(e.target.value)}
+                        className="w-full rounded-xl border-2 border-slate-100 bg-slate-50 p-4 text-lg font-bold focus:border-indigo-500 focus:ring-0 transition-all"
+                        placeholder="e.g. DreamWorld Parks"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">{t('home_country')}</label>
+                      <div className="grid grid-cols-3 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                        {Array.from(new Set(CITIES.map(c => c.country))).sort().map(country => (
+                          <button
+                            key={country}
+                            onClick={() => {
+                              setSetupCountry(country);
+                              const firstCity = CITIES.find(c => c.country === country);
+                              if (firstCity) setSetupCity(firstCity.id);
+                            }}
+                            className={`px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border-2
+                              ${setupCountry === country 
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100' 
+                                : 'bg-white text-slate-500 border-slate-100 hover:border-slate-200'}
+                            `}
+                          >
+                            {t('country_' + country.replace(/\s+/g, '_'))}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 pt-6 border-t border-slate-100">
+                    <button 
+                      disabled={!setupName.trim()}
+                      onClick={() => {
+                        engine.initNewGame(setupName, setupCity);
+                        setGameState(engine.update());
+                        setIsSetupOpen(false);
+                        confetti({
+                          particleCount: 200,
+                          spread: 100,
+                          origin: { y: 0.6 }
+                        });
+                      }}
+                      className={`w-full rounded-xl py-4 text-base font-black uppercase tracking-widest transition-all
+                        ${setupName.trim() 
+                          ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100' 
+                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
+                      `}
+                    >
+                      {t('launch_company')}
+                    </button>
+
+                    {GameEngine.hasSave() && (
+                      <button 
+                        onClick={() => setIsSetupOpen(false)}
+                        className="mt-4 w-full text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors"
+                      >
+                        {t('continue_game')}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                
-                <div>
-                  <label className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2 block">Starting City</label>
-                  <div className="relative mb-3">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+
+                <div className="flex-1 bg-slate-50 rounded-[2rem] p-6 border border-slate-100 flex flex-col overflow-hidden">
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+                      {t('starting_city_in', { country: t('country_' + setupCountry.replace(/\s+/g, '_')) })}
+                    </label>
+                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
+                      {t('cities_available', { count: CITIES.filter(c => c.country === setupCountry).length })}
+                    </span>
+                  </div>
+                  <div className="relative mb-6">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
                       type="text" 
                       value={setupSearch}
                       onChange={(e) => setSetupSearch(e.target.value)}
-                      className="w-full rounded-xl border-2 border-slate-100 bg-slate-50 pl-11 pr-4 py-2 text-sm font-bold focus:border-indigo-500 focus:ring-0 transition-all"
-                      placeholder="Search cities..."
+                      className="w-full rounded-xl border-2 border-slate-100 bg-white pl-12 pr-4 py-3 text-sm font-bold focus:border-indigo-500 focus:ring-0 transition-all shadow-sm"
+                      placeholder={t('search_cities')}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                    {gameState.cities
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                    {CITIES
+                      .filter(city => city.country === setupCountry)
                       .filter(city => 
-                        city.name.toLowerCase().includes(setupSearch.toLowerCase()) || 
-                        city.country.toLowerCase().includes(setupSearch.toLowerCase())
+                        city.name.toLowerCase().includes(setupSearch.toLowerCase())
                       )
                       .map(city => (
                       <button
                         key={city.id}
                         onClick={() => setSetupCity(city.id)}
-                        className={`flex flex-col items-center gap-1 rounded-2xl border-2 p-3 transition-all
+                        className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition-all
                           ${setupCity === city.id 
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-600' 
-                            : 'border-slate-100 hover:border-slate-200 text-slate-500'}
+                            ? 'border-indigo-600 bg-white text-indigo-600 shadow-lg' 
+                            : 'border-white bg-white/50 hover:border-slate-200 text-slate-500'}
                         `}
                       >
-                        <Globe size={16} />
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center transition-colors ${setupCity === city.id ? 'bg-indigo-50' : 'bg-slate-100'}`}>
+                          <Globe size={20} />
+                        </div>
                         <div className="text-center">
-                          <p className="text-sm font-bold leading-tight">{t(city.name)}</p>
-                          <p className="text-[10px] font-black uppercase opacity-60 tracking-tighter">{city.country} • {city.population.toLocaleString()}</p>
+                          <p className="text-[10px] font-black leading-tight mb-0.5">{t('city_name_' + city.id)}</p>
+                          <p className="text-[9px] font-black uppercase opacity-60 tracking-widest mb-1">{city.population.toLocaleString()} {t('population_short')}</p>
+                          <div className="flex items-center gap-1 justify-center">
+                            <Clock size={10} className="opacity-60" />
+                            <p className="text-[9px] font-black uppercase opacity-60 tracking-widest">
+                              {REGION_OPERATING_MONTHS[city.region].startMonth}-{REGION_OPERATING_MONTHS[city.region].endMonth}
+                            </p>
+                          </div>
                         </div>
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
-
-              <button 
-                disabled={!setupName.trim()}
-                onClick={() => {
-                  engine.initNewGame(setupName, setupCity);
-                  setGameState(engine.update());
-                  setIsSetupOpen(false);
-                  confetti({
-                    particleCount: 200,
-                    spread: 100,
-                    origin: { y: 0.6 }
-                  });
-                }}
-                className={`mt-10 w-full rounded-2xl py-4 text-lg font-black uppercase tracking-widest transition-all
-                  ${setupName.trim() 
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-200' 
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
-                `}
-              >
-                {t('launch_company')}
-              </button>
-
-              {GameEngine.hasSave() && (
-                <button 
-                  onClick={() => setIsSetupOpen(false)}
-                  className="mt-4 w-full text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors"
-                >
-                  {t('continue_game')}
-                </button>
-              )}
             </motion.div>
           </motion.div>
         )}
@@ -1388,47 +2251,72 @@ export default function App() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="w-full max-w-6xl rounded-3xl bg-white shadow-2xl overflow-hidden flex flex-col h-[90vh]"
             >
               <div className="flex h-full overflow-hidden">
                 {/* Sidebar */}
-                <div className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col">
-                  <div className="p-6 border-b border-slate-200">
+                <div className="w-72 bg-slate-50 border-r border-slate-200 flex flex-col">
+                  <div className="p-8 pb-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-100">
                         <Settings size={20} />
                       </div>
-                      <h2 className="text-xl font-black text-slate-900">{t('park_management')}</h2>
+                      <div>
+                        <h2 className="text-lg font-black text-slate-900 tracking-tight">{t('management')}</h2>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('park_operations')}</p>
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+                  <div className="flex-1 overflow-y-auto py-4 px-4 space-y-1 custom-scrollbar">
                     {[
-                      { id: 'settings', label: t('settings'), icon: Settings },
-                      { id: 'staff', label: t('staff'), icon: Users, count: gameState.staff.length },
-                      { id: 'budget', label: t('budget'), icon: TrendingUp },
-                      { id: 'finance', label: t('loans'), icon: Coins },
-                      { id: 'pricing', label: t('pricing'), icon: DollarSign },
-                      { id: 'travel', label: t('travel'), icon: MapIcon },
-                      { id: 'warehouse', label: t('warehouse'), icon: Package },
-                      { id: 'garage', label: t('garage'), icon: Truck, count: gameState.trucks.length },
-                    ].map((tab) => (
+                      { id: 'marketplace', label: t('marketplace'), icon: ShoppingBag, group: 'operations' },
+                      { id: 'travel', label: t('travel'), icon: MapIcon, group: 'operations' },
+                      { id: 'pricing', label: t('pricing'), icon: DollarSign, group: 'operations' },
+                      { id: 'research', label: t('research_tab'), icon: FlaskConical, group: 'operations' },
+                      { id: 'warehouse', label: t('warehouse'), icon: Package, group: 'logistics' },
+                      { id: 'garage', label: t('garage'), icon: Truck, count: gameState.trucks.length, group: 'logistics' },
+                      { id: 'staff', label: t('staff'), icon: Users, count: gameState.staff.length, group: 'logistics' },
+                      { id: 'connections', label: t('connections'), icon: Handshake, count: gameState.connections.length, group: 'logistics' },
+                      { id: 'finance', label: t('financials_tab') || 'Financials', icon: Coins, group: 'finance' },
+                      { id: 'challenges', label: t('career_hub') || 'Career Hub', icon: Trophy, count: gameState.challenges.filter(c => !c.isCompleted).length, group: 'career' },
+                      { id: 'settings', label: t('administration') || 'Administration', icon: Settings, group: 'system' },
+                    ].reduce((acc: any[], tab) => {
+                      const groupLabels = {
+                        operations: t('operations_group'),
+                        logistics: t('logistics_group'),
+                        finance: t('finance_group'),
+                        career: t('career_group'),
+                        system: t('system_group') || 'System'
+                      };
+                      
+                      const lastTab = acc[acc.length - 1];
+                      if (!lastTab || lastTab.group !== tab.group) {
+                        acc.push({ isHeader: true, label: groupLabels[tab.group as keyof typeof groupLabels] || tab.group, group: tab.group });
+                      }
+                      acc.push(tab);
+                      return acc;
+                    }, []).map((tab, idx) => tab.isHeader ? (
+                      <div key={`header-${idx}`} className="px-4 pt-6 pb-2">
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">{tab.label}</span>
+                      </div>
+                    ) : (
                       <button
                         key={tab.id}
                         onClick={() => setActiveManagementTab(tab.id as any)}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all duration-200 group ${
                           activeManagementTab === tab.id 
-                            ? 'bg-indigo-600 text-white shadow-md' 
-                            : 'text-slate-500 hover:bg-slate-200 hover:text-slate-900'
+                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100 translate-x-1' 
+                            : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-900'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <tab.icon size={16} />
+                          <tab.icon size={16} className={activeManagementTab === tab.id ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'} />
                           <span>{tab.label}</span>
                         </div>
                         {tab.count !== undefined && (
-                          <span className={`px-2 py-0.5 rounded-full text-[8px] ${
-                            activeManagementTab === tab.id ? 'bg-indigo-500 text-white' : 'bg-slate-200 text-slate-600'
+                          <span className={`px-1.5 py-0.5 rounded-lg text-[8px] min-w-[1.2rem] text-center font-bold ${
+                            activeManagementTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-400'
                           }`}>
                             {tab.count}
                           </span>
@@ -1468,10 +2356,11 @@ export default function App() {
 
                 {/* Content Area */}
                 <div className="flex-1 flex flex-col bg-white">
-                  <div className="h-16 border-b border-slate-100 flex items-center justify-between px-8">
+                  <div className="h-16 border-b border-slate-100 flex items-center justify-between px-8 shrink-0">
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                      {activeManagementTab === 'settings' ? t('settings') : 
-                       activeManagementTab === 'finance' ? t('loans') : 
+                      {activeManagementTab === 'settings' ? t('administration') : 
+                       activeManagementTab === 'finance' ? t('financials_tab') : 
+                       activeManagementTab === 'challenges' ? t('career_hub') :
                        t(activeManagementTab)}
                     </h3>
                     <button 
@@ -1481,89 +2370,506 @@ export default function App() {
                       <X size={20} />
                     </button>
                   </div>
-                  
-                  <div className="flex-1 overflow-y-auto p-8">
-                    {activeManagementTab === 'finance' && (
-                  <div className="space-y-8">
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">{t('active_loans')}</h3>
-                      <div className="space-y-4">
-                        {gameState.activeLoans.length === 0 ? (
-                          <div className="p-8 border-2 border-dashed border-slate-200 rounded-xl text-center">
-                            <p className="text-slate-400 font-medium">{t('no_active_loans')}</p>
-                          </div>
-                        ) : (
-                          gameState.activeLoans.map(loan => (
-                            <div key={loan.id} className="p-6 bg-white border-2 border-slate-900 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                              <div className="flex justify-between items-start mb-4">
-                                <div>
-                                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">{t('remaining_principal')}</p>
-                                  <p className="text-2xl font-black text-slate-900">${Math.round(loan.remainingPrincipal).toLocaleString()}</p>
+
+                  <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
+                  {activeManagementTab === 'marketplace' && (
+                    <div className="space-y-8">
+                       <div className="flex items-center gap-4 mb-8">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-xl shadow-indigo-100">
+                          <ShoppingBag size={24} />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-black text-slate-900 tracking-tight">{t('marketplace')}</h2>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('select_item_to_add')}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-4 p-1 bg-slate-100 rounded-2xl w-fit mb-8">
+                        {(['ALL', 'RIDE', 'FOOD', 'FACILITY', 'INFRASTRUCTURE'] as const).map(cat => (
+                          <button
+                            key={cat}
+                            onClick={() => setShopCategory(cat)}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+                              ${shopCategory === cat ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-indigo-600'}
+                            `}
+                          >
+                            {t(`category_${cat.toLowerCase()}`)}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {(Object.keys(RIDE_CONFIGS) as RideType[])
+                          .filter(type => {
+                            const config = RIDE_CONFIGS[type];
+                            if (shopCategory !== 'ALL' && config.category !== shopCategory) return false;
+                            return true;
+                          })
+                          .map(type => {
+                            const config = RIDE_CONFIGS[type];
+                            const manufacturer = config.manufacturerId ? MANUFACTURERS.find(m => m.id === config.manufacturerId) : null;
+                            const finalCost = Math.floor(config.cost * (manufacturer?.costMultiplier || 1.0));
+                            const projectForRide = RESEARCH_PROJECTS.find(p => p.unlocksRides.includes(type));
+                            const isLocked = !gameState.completedResearchIds.includes(projectForRide?.id as any) && !Object.values(INITIAL_UNLOCKED_RIDES).flat().includes(type) && projectForRide !== undefined;
+                            const canAfford = gameState.money >= finalCost;
+                            const truckAvailable = gameState.trucks.some(t => !t.assignedRideId);
+                            const warehouseCapacity = config.category === 'INFRASTRUCTURE' || (gameState.rides.length + gameState.inventory.length < engine.getWarehouseCapacity());
+
+                            return (
+                              <div key={type} className={`group relative flex flex-col rounded-[2.5rem] border bg-white transition-all duration-300 overflow-hidden ${
+                                canAfford && truckAvailable && warehouseCapacity && !isLocked
+                                  ? 'border-slate-200 shadow-sm hover:shadow-2xl hover:border-indigo-400' 
+                                  : 'border-slate-100 bg-slate-50/50 opacity-80'
+                              }`}>
+                                <div className={`p-4 border-b font-mono text-[9px] flex items-center justify-between ${
+                                  isLocked ? 'bg-slate-200 text-slate-500' : 'bg-slate-50 text-slate-400'
+                                }`}>
+                                  <span className="uppercase">{config.category}</span>
+                                  <span className="font-bold uppercase tracking-widest">{config.intensity}</span>
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">{t('interest_rate')}</p>
-                                  <p className="text-lg font-black text-indigo-600">{(loan.interestRate * 100).toFixed(1)}%</p>
+
+                                <div className="p-8">
+                                  <div className="flex items-start justify-between mb-6">
+                                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-inner transition-colors ${
+                                       isLocked ? 'bg-slate-200 text-slate-400' : 'bg-slate-50 text-indigo-600'
+                                     }`}>
+                                       {config.icon}
+                                     </div>
+                                     <div className="text-right">
+                                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">{t('cost')}</p>
+                                        <p className={`text-2xl font-black tracking-tight ${canAfford ? 'text-slate-900' : 'text-rose-500'}`}>${finalCost.toLocaleString()}</p>
+                                     </div>
+                                  </div>
+
+                                  <div className="mb-6">
+                                    <h3 className="text-lg font-black text-slate-900 tracking-tight leading-tight mb-2 uppercase">{t(`ride_${config.type}_name`)}</h3>
+                                    <p className="text-[10px] text-slate-500 leading-relaxed min-h-[3em]">{t(`ride_${config.type}_desc`)}</p>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2 mb-6">
+                                    <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{t('size')}</p>
+                                      <p className="text-[10px] font-black text-slate-900">{config.width}x{config.height}</p>
+                                    </div>
+                                    <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{t('reliability_label') || 'Reliability'}</p>
+                                      <p className="text-[10px] font-black text-slate-900">{manufacturer ? `${(manufacturer.reliabilityBonus * 100).toFixed(0)}%` : '100%'}</p>
+                                    </div>
+                                  </div>
+
+                                  {!isLocked ? (
+                                    <button
+                                      disabled={!canAfford || !truckAvailable || !warehouseCapacity}
+                                      onClick={() => {
+                                        if (engine.buyRide(type)) {
+                                          audioService.playSFX('buy');
+                                          setGameState(engine.getState());
+                                          confetti({ particleCount: 50, spread: 60 });
+                                        }
+                                      }}
+                                      className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                        canAfford && truckAvailable && warehouseCapacity 
+                                          ? 'bg-indigo-600 text-white hover:bg-slate-900 shadow-xl shadow-indigo-100' 
+                                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                      }`}
+                                    >
+                                      {canAfford ? t('buy_button') : t('insufficient_funds')}
+                                    </button>
+                                  ) : (
+                                    <div className="flex flex-col items-center gap-2 py-2 bg-slate-100 rounded-2xl border border-slate-200">
+                                      <Lock size={14} className="text-slate-400" />
+                                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest text-center leading-tight px-4">
+                                        {t('requires_research')}:<br/>
+                                        <span className="text-indigo-600">{projectForRide?.name}</span>
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                              <div className="grid grid-cols-2 gap-4 mb-6">
-                                <div>
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('daily_payment')}</p>
-                                  <p className="font-bold text-slate-700">${Math.round(loan.dailyPayment).toLocaleString()}</p>
-                                </div>
-                                <div>
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('original_amount')}</p>
-                                  <p className="font-bold text-slate-700">${loan.amount.toLocaleString()}</p>
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <button 
-                                  onClick={() => engine.repayLoan(loan.id, 1000)}
-                                  disabled={gameState.money < 1000}
-                                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 transition-all active:translate-y-1 active:shadow-none"
-                                >
-                                  {t('repay_amount', { amount: '1,000' })}
-                                </button>
-                                <button 
-                                  onClick={() => engine.repayLoan(loan.id, 5000)}
-                                  disabled={gameState.money < 5000}
-                                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 transition-all active:translate-y-1 active:shadow-none"
-                                >
-                                  {t('repay_amount', { amount: '5,000' })}
-                                </button>
-                                <button 
-                                  onClick={() => engine.repayLoan(loan.id, loan.remainingPrincipal * (1 + loan.interestRate))}
-                                  disabled={gameState.money < loan.remainingPrincipal * (1 + loan.interestRate)}
-                                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-1 active:shadow-none"
-                                >
-                                  {t('pay_off')}
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        )}
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+                  {activeManagementTab === 'connections' && (
+                  <section className="space-y-12">
+                    <div className="flex items-center gap-4 mb-8">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-xl shadow-indigo-100">
+                        <Handshake size={24} />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-black text-slate-900 tracking-tight">{t('connections')}</h2>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('connections_desc')}</p>
                       </div>
                     </div>
 
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">{t('available_loan_offers')}</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {[
-                          { amount: 5000, term: 7, label: t('small_business_loan') },
-                          { amount: 20000, term: 14, label: t('expansion_credit') },
-                          { amount: 50000, term: 30, label: t('venture_capital') }
-                        ].map((offer, i) => (
-                          <div key={i} className="p-4 bg-slate-50 border-2 border-slate-900 rounded-xl flex flex-col justify-between">
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1">{offer.label}</p>
-                              <p className="text-xl font-black text-slate-900">${offer.amount.toLocaleString()}</p>
-                              <p className="text-[10px] font-medium text-slate-500 mb-4">{offer.term} {t('day_term')}</p>
+                    {/* Active Rentals Summary */}
+                    {gameState.activeRentals.length > 0 && (
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t('active_rentals')}</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {gameState.activeRentals.map(rental => {
+                            const config = RIDE_CONFIGS[gameState.rides.find(r => r.id === rental.rideId)?.type || gameState.inventory.find(r => r.id === rental.rideId)?.type || 'TEA_CUPS'];
+                            const partner = gameState.connections.find(c => c.id === rental.partnerId);
+                            
+                            return (
+                              <div key={rental.id} className="bg-white p-4 rounded-[2rem] border-2 border-slate-100 flex items-center justify-between shadow-sm">
+                                <div className="flex items-center gap-4">
+                                  <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${rental.type === 'RENT_IN' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                    <ArrowRightLeft size={20} />
+                                  </div>
+                                  <div>
+                                    <h4 className="text-xs font-black text-slate-900 uppercase">
+                                      {rental.type === 'RENT_IN' ? t('rent_in') : t('rent_out')}: {t(`ride_${config.type}_name`)}
+                                    </h4>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{partner?.name}</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-lg font-black text-slate-900 tracking-tighter">{rental.remainingDays} {t('days')}</p>
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('remaining')}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Showmen Network */}
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t('showmen_network')}</h3>
+                        <div className="h-px flex-1 bg-slate-100" />
+                      </div>
+                      
+                      {gameState.connections.length === 0 ? (
+                        <div className="py-16 text-center bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
+                          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('no_connections')}</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          {gameState.connections.map(conn => (
+                            <div key={conn.id} className="bg-white rounded-[3rem] border-2 border-slate-100 overflow-hidden shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all group">
+                              <div className="p-8 flex items-center justify-between bg-slate-50 border-b border-slate-100">
+                                <div className="flex items-center gap-4">
+                                  <div className="h-14 w-14 flex items-center justify-center bg-indigo-600 rounded-2xl text-2xl text-white shadow-lg shadow-indigo-100 group-hover:scale-110 transition-transform">
+                                    {conn.specialty === 'RIDE' ? '🎢' : '🌭'}
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">{conn.name}</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{CITIES.find(c => c.id === conn.location)?.name}</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="flex items-center gap-1.5 justify-end mb-1">
+                                    <TrendingUp size={14} className="text-emerald-500" />
+                                    <span className="text-lg font-black text-slate-900 tracking-tighter">{conn.reputation}%</span>
+                                  </div>
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('reputation')}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="p-8 space-y-8">
+                                {/* Available for Rent In */}
+                                <div className="space-y-4">
+                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('rent_in_market')}</h5>
+                                  <div className="grid grid-cols-1 gap-3">
+                                    {conn.availableRides.map(rideType => {
+                                      const config = RIDE_CONFIGS[rideType];
+                                      const dailyRate = Math.floor(config.cost * 0.02);
+                                      const alreadyRented = gameState.activeRentals.some(r => r.partnerId === conn.id && gameState.inventory.find(i => i.id === r.rideId)?.type === rideType);
+                                      
+                                      return (
+                                        <div key={rideType} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-xl">{config.icon}</span>
+                                            <div>
+                                              <span className="text-xs font-bold text-slate-900 block">{t(`ride_${config.type}_name`)}</span>
+                                              <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">${dailyRate}/{t('day_label')}</span>
+                                            </div>
+                                          </div>
+                                          <button
+                                            disabled={alreadyRented || gameState.money < dailyRate}
+                                            onClick={() => {
+                                              if (engine.rentRideIn(conn.id, rideType, 10)) {
+                                                audioService.playSFX('build');
+                                                setGameState(engine.getState());
+                                              }
+                                            }}
+                                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+                                              ${alreadyRented ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-50 active:scale-95'}
+                                            `}
+                                          >
+                                            {alreadyRented ? t('rented') : t('rent_button')}
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Rent Out Options */}
+                                <div className="space-y-4">
+                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('rent_out_inventory')}</h5>
+                                  {gameState.inventory.length === 0 ? (
+                                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-center py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-100 italic">No spare rides to rent out.</p>
+                                  ) : (
+                                    <div className="grid grid-cols-1 gap-3">
+                                      {gameState.inventory.slice(0, 3).map(ride => {
+                                        const config = RIDE_CONFIGS[ride.type];
+                                        const dailyIncome = Math.floor(config.cost * 0.015);
+                                        
+                                        return (
+                                          <div key={ride.id} className="flex items-center justify-between p-4 rounded-2xl bg-emerald-50/20 border border-emerald-100/50">
+                                            <div className="flex items-center gap-3">
+                                              <span className="text-xl">{config.icon}</span>
+                                              <div>
+                                                <span className="text-xs font-bold text-slate-900 block">{t(`ride_${config.type}_name`)}</span>
+                                                <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">+${dailyIncome}/{t('day_label')}</span>
+                                              </div>
+                                            </div>
+                                            <button
+                                              onClick={() => {
+                                                if (engine.rentRideOut(ride.id, conn.id, 10)) {
+                                                  audioService.playSFX('coins');
+                                                  setGameState(engine.getState());
+                                                }
+                                              }}
+                                              className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-50 active:scale-95 transition-all"
+                                            >
+                                              {t('rent_out')}
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <button 
-                              onClick={() => engine.takeLoan(offer.amount, offer.term)}
-                              className="w-full py-2 bg-white hover:bg-indigo-50 text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-lg border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-1 active:shadow-none"
-                            >
-                              {t('apply_now')}
-                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )}
+                {activeManagementTab === 'finance' && (
+                  <div className="space-y-12 max-w-5xl mx-auto">
+                    <div className="flex items-center gap-4 mb-8">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-xl shadow-emerald-100">
+                        <Wallet size={24} />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-black text-slate-900 tracking-tight">{t('financial_ledger')}</h2>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('daily_accounting')}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Income Statement */}
+                      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                        <div className="flex items-center gap-3 pb-4 border-b border-slate-50">
+                          <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                            <ArrowUpRight size={20} />
+                          </div>
+                          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900">{t('gross_revenue')}</h3>
+                        </div>
+                        <div className="space-y-4">
+                          {[
+                            { label: t('ride_tickets'), value: gameState.finances.income.tickets },
+                            { label: t('wristbands'), value: gameState.finances.income.wristbands },
+                            { label: t('concessions'), value: gameState.finances.income.food },
+                            { label: t('miscellaneous'), value: gameState.finances.income.other }
+                          ].map((row, i) => (
+                            <div key={i} className="flex justify-between items-center group/row px-1">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest group-hover/row:text-slate-600 transition-colors">{row.label}</span>
+                              <span className="text-[11px] font-black text-emerald-600">+${row.value.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="pt-6 border-t border-slate-50 flex justify-between items-center px-1">
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">{t('total_revenue')}</span>
+                          <span className="text-xl font-black text-emerald-600">
+                            +${(Object.values(gameState.finances.income) as number[]).reduce((a, b) => a + b, 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Expense Report */}
+                      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                        <div className="flex items-center gap-3 pb-4 border-b border-slate-50">
+                          <div className="p-2 rounded-xl bg-rose-50 text-rose-600">
+                            <ArrowDownRight size={20} />
+                          </div>
+                          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900">{t('operating_expenses')}</h3>
+                        </div>
+                        <div className="space-y-4">
+                          {[
+                            { label: t('payroll'), value: gameState.finances.expenses.wages },
+                            { label: t('utilities'), value: gameState.finances.expenses.electricity },
+                            { label: t('rent'), value: gameState.finances.expenses.rent },
+                            { label: t('maintenance_label'), value: gameState.finances.expenses.maintenance }
+                          ].map((row, i) => (
+                            <div key={i} className="flex justify-between items-center group/row px-1">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest group-hover/row:text-slate-600 transition-colors">{row.label}</span>
+                              <span className="text-[11px] font-black text-rose-500">-${row.value.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="pt-6 border-t border-slate-50 flex justify-between items-center px-1">
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">{t('total_overhead')}</span>
+                          <span className="text-xl font-black text-rose-500">
+                            -${(Object.values(gameState.finances.expenses) as number[]).reduce((a, b) => a + b, 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Credit Facility & Loans Integration */}
+                    <div className="space-y-10">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">{t('credit_facility')}</h3>
+                        <div className="h-px flex-1 bg-slate-100" />
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Active Loans List */}
+                        <div className="space-y-4">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">{t('active_obligations') || 'ACTIVE OBLIGATIONS'}</p>
+                          {gameState.activeLoans.length === 0 ? (
+                            <div className="p-8 border-2 border-dashed border-slate-100 rounded-[2.5rem] text-center bg-slate-50/50 flex flex-col items-center justify-center min-h-[220px]">
+                              <Coins size={24} className="text-slate-300 mb-3" />
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('no_active_loans')}</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4 max-h-[460px] overflow-y-auto pr-2 custom-scrollbar">
+                              {gameState.activeLoans.map(loan => (
+                                <div key={loan.id} className="p-6 bg-white border border-slate-100 rounded-[2rem] shadow-sm hover:shadow-md transition-shadow">
+                                  <div className="flex justify-between items-start mb-6">
+                                    <div>
+                                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{t('remaining_debt') || 'DEBT'}</p>
+                                      <p className="text-2xl font-black text-slate-900 tracking-tight">${Math.round(loan.remainingPrincipal).toLocaleString()}</p>
+                                    </div>
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-50 text-indigo-600 text-[10px] font-black">
+                                      {(loan.interestRate * 100).toFixed(1)}% {t('interest_short')}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button 
+                                      onClick={() => engine.repayLoan(loan.id, Math.min(gameState.money, 5000))}
+                                      disabled={gameState.money < 100}
+                                      className="flex-1 py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 font-black text-[9px] uppercase tracking-widest rounded-1.5xl transition-all"
+                                    >
+                                      $5,000
+                                    </button>
+                                    <button 
+                                      onClick={() => engine.repayLoan(loan.id, Math.min(gameState.money, loan.remainingPrincipal))}
+                                      disabled={gameState.money < 100}
+                                      className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-[9px] uppercase tracking-widest rounded-1.5xl shadow-lg transition-all"
+                                    >
+                                      {t('pay_off') || 'SETTLE'}
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Credit Marketplace */}
+                        <div className="space-y-4">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">{t('available_liquidity') || 'AVAILABLE LIQUIDITY'}</p>
+                          <div className="grid grid-cols-1 gap-4">
+                            {[
+                              { amount: 10000, term: 14, label: t('expansion_credit'), icon: <Zap size={18} /> },
+                              { amount: 50000, term: 30, label: t('venture_capital'), icon: <Gem size={18} /> }
+                            ].map((offer, i) => (
+                              <div key={i} className="p-6 bg-slate-50 border border-slate-200 rounded-[2rem] shadow-sm hover:border-indigo-200 transition-all group flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <div className="p-3 bg-white rounded-xl text-slate-400 group-hover:text-indigo-500 transition-colors">
+                                    {offer.icon}
+                                  </div>
+                                  <div>
+                                    <p className="text-[9px] font-black uppercase text-indigo-500 mb-0.5">{offer.label}</p>
+                                    <p className="text-xl font-black text-slate-900 tracking-tight">${offer.amount.toLocaleString()}</p>
+                                  </div>
+                                </div>
+                                <button 
+                                  onClick={() => engine.takeLoan(offer.amount, offer.term)}
+                                  className="px-6 py-3 bg-white border-2 border-slate-900 text-slate-900 font-black text-[9px] uppercase tracking-widest rounded-1.5xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-0.5 hover:translate-x-0.5 hover:shadow-none transition-all"
+                                >
+                                  {t('accept') || 'ACCEPT'}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeManagementTab === 'challenges' && (
+                  <div className="space-y-12 max-w-5xl mx-auto">
+                    <div className="flex items-center gap-4 mb-8">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-xl shadow-amber-100">
+                        <Trophy size={24} />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-black text-slate-900 tracking-tight">{t('career_hub')}</h2>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('achievements_and_challenges') || 'GOALS & REWARDS'}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t('active_milestones') || 'ACTIVE MILESTONES'}</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {gameState.challenges.filter(c => !c.isCompleted).map(challenge => (
+                          <div key={challenge.id} className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+                            <div className="flex justify-between items-start mb-4">
+                              <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+                                <Target size={20} />
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">{t('reward') || 'REWARD'}</p>
+                                <p className="text-xs font-black text-emerald-600">+${challenge.rewardMoney.toLocaleString()}</p>
+                              </div>
+                            </div>
+                            <h4 className="text-xs font-black text-slate-900 uppercase mb-1">{challenge.title}</h4>
+                            <p className="text-[10px] text-slate-400 leading-tight mb-4">{challenge.description}</p>
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between text-[8px] font-black uppercase text-slate-400">
+                                <span>{t('progress')}</span>
+                                <span>{challenge.current} / {challenge.target}</span>
+                              </div>
+                              <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
+                                <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${(challenge.current/challenge.target)*100}%` }} />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t('unlocked_accolades') || 'UNLOCKED ACCOLADES'}</h3>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                        {gameState.achievements.map((achievement) => (
+                          <div key={achievement.id} className={`aspect-square rounded-[1.5rem] border relative group transition-all ${
+                            achievement.isUnlocked ? 'bg-white border-slate-100 shadow-sm' : 'bg-slate-50/50 border-slate-100/50 opacity-40 grayscale'
+                          }`}>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center">
+                              <span className={`text-2xl mb-1 ${achievement.isUnlocked ? 'text-indigo-600' : 'text-slate-300'}`}>
+                                {achievement.isUnlocked ? '🏆' : '🔒'}
+                              </span>
+                              <span className="text-[8px] font-black uppercase tracking-tight text-slate-900 line-clamp-2">{achievement.title}</span>
+                            </div>
+                            {achievement.isUnlocked && (
+                              <div className="absolute inset-0 bg-slate-900/95 opacity-0 group-hover:opacity-100 transition-all rounded-[1.5rem] flex items-center justify-center p-4">
+                                <p className="text-[8px] font-bold text-white leading-tight uppercase tracking-tight">{achievement.description}</p>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1571,194 +2877,101 @@ export default function App() {
                   </div>
                 )}
 
-                {activeManagementTab === 'budget' && (
+                {activeManagementTab === 'research' && (
                   <div className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Income Section */}
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="p-2 rounded-lg bg-emerald-100 text-emerald-600">
-                            <ArrowUpRight size={18} />
-                          </div>
-                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('income_today')}</h3>
-                        </div>
-                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">{t('ride_tickets')}</span>
-                            <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.tickets}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">{t('wristbands_label')}</span>
-                            <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.wristbands}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">{t('season_passes_label')}</span>
-                            <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.seasonPasses}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">{t('ticket_bundles')}</span>
-                            <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.bundles}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">{t('food_drinks')}</span>
-                            <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.food}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">{t('other_label')}</span>
-                            <span className="text-sm font-black text-emerald-600">+${gameState.finances.income.other}</span>
-                          </div>
-                          <div className="pt-4 border-top border-slate-50 flex justify-between items-center">
-                            <span className="text-sm font-black text-slate-900">{t('total_income')}</span>
-                            <span className="text-lg font-black text-emerald-600">
-                              +${gameState.finances.income.tickets + gameState.finances.income.wristbands + gameState.finances.income.seasonPasses + gameState.finances.income.bundles + gameState.finances.income.food + gameState.finances.income.other}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Expenses Section */}
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="p-2 rounded-lg bg-rose-100 text-rose-600">
-                            <ArrowDownRight size={18} />
-                          </div>
-                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('expenses_today')}</h3>
-                        </div>
-                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <Briefcase size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">{t('staff_wages')}</span>
-                            </div>
-                            <span className="text-sm font-black text-rose-600">-${gameState.finances.expenses.wages}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <Zap size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">{t('electricity')}</span>
-                            </div>
-                            <span className="text-sm font-black text-rose-600">-${gameState.finances.expenses.electricity}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <CreditCard size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">{t('loan_interest')}</span>
-                            </div>
-                            <span className="text-sm font-black text-rose-600">-${Math.round(gameState.finances.expenses.loanInterest)}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <CreditCard size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">{t('loan_principal')}</span>
-                            </div>
-                            <span className="text-sm font-black text-rose-600">-${Math.round(gameState.finances.expenses.loanPrincipal)}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <Home size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">{t('area_rent')}</span>
-                            </div>
-                            <span className="text-sm font-black text-rose-600">-${gameState.finances.expenses.rent}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <Settings size={12} className="text-slate-400" />
-                              <span className="text-xs font-bold text-slate-500">{t('maintenance_label')}</span>
-                            </div>
-                            <span className="text-sm font-black text-rose-600">-${gameState.finances.expenses.maintenance}</span>
-                          </div>
-                          <div className="pt-4 border-top border-slate-50 flex justify-between items-center">
-                            <span className="text-sm font-black text-slate-900">{t('total_expenses')}</span>
-                            <span className="text-lg font-black text-rose-600">
-                              -${gameState.finances.expenses.wages + gameState.finances.expenses.electricity + gameState.finances.expenses.rent + gameState.finances.expenses.maintenance + gameState.finances.expenses.loanInterest + gameState.finances.expenses.loanPrincipal + gameState.finances.expenses.other}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Net Profit Summary */}
-                    <div className="bg-indigo-600 p-8 rounded-[2rem] text-white shadow-xl shadow-indigo-200 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-xl shadow-slate-200 flex flex-col md:flex-row items-center justify-between gap-6">
                       <div>
-                        <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-70 mb-1">{t('daily_net_profit')}</h3>
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-70 mb-1">Research Points</h3>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-4xl font-black">
-                            {(gameState.finances.income.tickets + gameState.finances.income.wristbands + gameState.finances.income.seasonPasses + gameState.finances.income.bundles + gameState.finances.income.food + gameState.finances.income.other) - (gameState.finances.expenses.wages + gameState.finances.expenses.electricity + gameState.finances.expenses.rent + gameState.finances.expenses.maintenance + gameState.finances.expenses.other) >= 0 ? '+' : ''}
-                            ${(gameState.finances.income.tickets + gameState.finances.income.wristbands + gameState.finances.income.seasonPasses + gameState.finances.income.bundles + gameState.finances.income.food + gameState.finances.income.other) - (gameState.finances.expenses.wages + gameState.finances.expenses.electricity + gameState.finances.expenses.rent + gameState.finances.expenses.maintenance + gameState.finances.expenses.other)}
-                          </span>
-                          <span className="text-sm font-bold opacity-70">{t('today')}</span>
+                          <span className="text-4xl font-black">{Math.floor(gameState.researchPoints)} RP</span>
+                          <span className="text-sm font-bold opacity-70">available</span>
                         </div>
+                        <p className="text-[10px] font-bold opacity-60 mt-2 uppercase tracking-widest">
+                          Generate RP based on park visitor count
+                        </p>
                       </div>
-                      <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
-                        <PieChart size={24} />
-                      </div>
+                      
+                      {gameState.activeResearchId && (
+                        <div className="flex-1 max-w-xs space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Researching: {RESEARCH_PROJECTS.find(p => p.id === gameState.activeResearchId)?.name}</span>
+                            <span className="text-xs font-black">{Math.floor(gameState.researchProgress)}%</span>
+                          </div>
+                          <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-indigo-500"
+                              style={{ width: `${gameState.researchProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Visitor Stats */}
-                    <section>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Users size={18} className="text-indigo-600" />
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('visitor_insights')}</h3>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('total_visitors')}</p>
-                          <p className="text-2xl font-black text-slate-900">{gameState.finances.visitorStats.totalVisitors}</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('avg_happiness')}</p>
-                          <p className="text-2xl font-black text-emerald-600">{Math.floor(gameState.finances.visitorStats.avgHappiness)}%</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('avg_spend')}</p>
-                          <p className="text-2xl font-black text-indigo-600">${Math.floor(gameState.finances.visitorStats.avgSpend)}</p>
-                        </div>
-                      </div>
-                    </section>
-
-                    {/* Daily History */}
-                    {gameState.dailyHistory.length > 0 && (
-                      <section>
-                        <div className="flex items-center gap-2 mb-4">
-                          <TrendingUp size={18} className="text-indigo-600" />
-                          <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('recent_performance')}</h3>
-                        </div>
-                        <div className="space-y-3">
-                          {gameState.dailyHistory.map((day, idx) => {
-                            const dayIncome = day.income.tickets + day.income.wristbands + day.income.seasonPasses + day.income.bundles + day.income.food + day.income.other;
-                            const dayExpenses = day.expenses.wages + day.expenses.electricity + day.expenses.rent + day.expenses.maintenance + day.expenses.other;
-                            const net = dayIncome - dayExpenses;
-                            return (
-                              <div key={idx} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                  <div className={`p-2 rounded-lg ${net >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                                    {net >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-slate-700">{t('day')} {gameState.time.day - (idx + 1)}</span>
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase">
-                                      {(() => {
-                                        const hDay = gameState.time.day - (idx + 1);
-                                        if (hDay <= 0) return t('pre_opening');
-                                        const hMonth = Math.floor(((hDay - 1) % 120) / 10) + 1;
-                                        const hDayOfMonth = ((hDay - 1) % 10) + 1;
-                                        return `${t(`month_${hMonth - 1}`)} ${hDayOfMonth}`;
-                                      })()}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <p className={`text-sm font-black ${net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                    {net >= 0 ? '+' : ''}${net}
-                                  </p>
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase">{t('net_profit')}</p>
-                                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {RESEARCH_PROJECTS.map(project => {
+                        const isCompleted = gameState.completedResearchIds.includes(project.id);
+                        const isActive = gameState.activeResearchId === project.id;
+                        const canStart = !isCompleted && !isActive && !gameState.activeResearchId && gameState.researchPoints >= project.cost;
+                        const isLocked = !isCompleted && project.prerequisiteIds.some(preId => !gameState.completedResearchIds.includes(preId));
+                        
+                        return (
+                          <div key={project.id} className={`p-6 rounded-3xl border-2 transition-all ${
+                            isCompleted ? 'bg-emerald-50 border-emerald-100' : 
+                            isActive ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500 ring-offset-2' :
+                            isLocked ? 'bg-slate-50 border-slate-100 opacity-60' :
+                            'bg-white border-slate-100 hover:border-indigo-200 hover:shadow-md'
+                          }`}>
+                            <div className="flex justify-between items-start mb-4">
+                              <div className={`p-3 rounded-2xl ${isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                <FlaskConical size={20} />
                               </div>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    )}
+                              {isCompleted ? (
+                                <span className="text-emerald-600"><CheckCircle2 size={24} /></span>
+                              ) : isLocked ? (
+                                <Lock size={20} className="text-slate-400" />
+                              ) : (
+                                <div className="text-right">
+                                  <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{project.cost} RP</p>
+                                  <p className="text-[8px] font-bold text-slate-400 uppercase">Requirement</p>
+                                </div>
+                              )}
+                            </div>
+
+                            <h4 className="font-black text-slate-900 uppercase tracking-tight">{project.name}</h4>
+                            <p className="text-xs text-slate-500 mt-1 mb-4 leading-relaxed">{project.description}</p>
+                            
+                            <div className="mt-4 pt-4 border-t border-white/50 space-y-2">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Unlocks:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {project.unlocksRides.map(rideType => (
+                                  <span key={rideType} className="px-2 py-1 bg-white border border-slate-100 rounded-lg text-[9px] font-bold text-slate-600 uppercase">
+                                    {RIDE_CONFIGS[rideType].name}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {!isCompleted && (
+                              <button
+                                disabled={!canStart || isLocked}
+                                onClick={() => {
+                                  engine.startResearch(project.id);
+                                  setGameState(engine.getState());
+                                  audioService.playSFX('select');
+                                }}
+                                className={`w-full mt-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                  isActive ? 'bg-indigo-100 text-indigo-600 cursor-default' :
+                                  canStart ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100' :
+                                  'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                }`}
+                              >
+                                {isActive ? 'Researching...' : isLocked ? 'Prerequisites Required' : 'Start Research'}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
                 {activeManagementTab === 'settings' && (
@@ -1833,11 +3046,26 @@ export default function App() {
                           const canOpen = engine.canParkOpen();
                           if (!canOpen.canOpen && !gameState.settings.isManuallyClosed) {
                             return (
-                              <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
-                                <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                                <p className="text-xs font-medium text-amber-700 leading-tight">
-                                  {canOpen.reason && t(canOpen.reason.key, canOpen.reason.replacements)}
-                                </p>
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                                  <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                                  <p className="text-xs font-medium text-amber-700 leading-tight">
+                                    {canOpen.reason && t(canOpen.reason.key, canOpen.reason.replacements)}
+                                  </p>
+                                </div>
+                                {canOpen.reason?.key === 'reason_seasonal_closure' && (
+                                  <button 
+                                    onClick={() => {
+                                      if (engine.skipToNextOpening()) {
+                                        setGameState(engine.getState());
+                                      }
+                                    }}
+                                    className="w-full flex items-center justify-center gap-2 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-widest rounded-lg border border-indigo-100 transition-colors"
+                                  >
+                                    <FastForward size={14} />
+                                    {t('skip_to_opening')}
+                                  </button>
+                                )}
                               </div>
                             );
                           }
@@ -2075,7 +3303,7 @@ export default function App() {
                           <span className="text-sm font-bold opacity-70">{t('attractions')}</span>
                         </div>
                         <p className="text-[10px] font-bold opacity-60 mt-2 uppercase tracking-widest">
-                          {t('home_city')}: {gameState.company.homeCityId ? (CITIES.find(c => c.id === gameState.company.homeCityId)?.name || gameState.company.homeCityId) : t('not_set')}
+                          {t('home_city')}: {gameState.company.homeCityId ? t('city_name_' + gameState.company.homeCityId) : t('not_set')}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-3">
@@ -2133,7 +3361,7 @@ export default function App() {
                                   )}
                                 </div>
                                 <div className="flex-1">
-                                  <p className="text-sm font-black text-slate-900">{t(`staff_${config.type}_name`)}</p>
+                                  <p className="text-sm font-black text-slate-900">{t(`ride_${config.type}_name`)}</p>
                                   <p className="text-[10px] font-bold text-slate-400 uppercase">
                                     {itemsOfType.length > 1 ? `${itemsOfType.length} ${t('items_available')}` : `${t('condition_label')}: ${firstItem.condition}%`}
                                   </p>
@@ -2269,7 +3497,7 @@ export default function App() {
                                   <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500">{t(`staff_${config.type}_name`)}s ({staffInCategory.length})</h4>
                                   <div className="flex-1 h-px bg-slate-100"></div>
                                 </div>
-                                <div className="grid gap-4">
+                                <div className="grid gap-3">
                                   {staffInCategory.map(staff => {
                                     const minSalary = config.baseSalary * (1 + (staff.level - 1) * 0.5);
                                     const trainingCost = staff.level * 500;
@@ -2279,87 +3507,68 @@ export default function App() {
                                     const salaryRatio = staff.salary / minSalary;
 
                                     return (
-                                      <div key={staff.id} className={`p-5 rounded-3xl border transition-all ${
-                                        isUnhappy ? 'border-rose-200 bg-rose-50/30' : 'border-slate-100 bg-white'
-                                      } shadow-sm hover:shadow-md`}>
-                                        <div className="flex items-center justify-between mb-4">
-                                          <div className="flex items-center gap-3">
-                                            <div className={`h-10 w-10 flex items-center justify-center rounded-xl text-xl ${
-                                              isUnhappy ? 'bg-rose-100' : 'bg-slate-50'
+                                      <div key={staff.id} className={`p-4 rounded-2xl border transition-all ${
+                                        isUnhappy ? 'border-rose-100 bg-rose-50/50 shadow-sm' : 'border-slate-100 bg-white shadow-sm'
+                                      } hover:border-indigo-100 hover:shadow-md group/card`}>
+                                        <div className="flex items-center justify-between gap-6">
+                                          {/* Left Info Section */}
+                                          <div className="flex items-center gap-4 flex-1">
+                                            <div className={`h-12 w-12 flex items-center justify-center rounded-xl text-xl shrink-0 ${
+                                              isUnhappy ? 'bg-rose-100 shadow-inner' : 'bg-slate-50 shadow-sm group-hover/card:bg-indigo-50 transition-colors'
                                             }`}>
                                               {config.icon}
                                             </div>
-                                            <div>
-                                              <div className="flex items-center gap-2">
-                                                <h4 className="font-bold text-sm text-slate-900">ID: {staff.id.slice(0, 6)}</h4>
-                                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-600 text-white uppercase tracking-widest">
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center gap-2 mb-1 overflow-x-auto no-scrollbar">
+                                                <h4 className="font-bold text-xs text-slate-900 shrink-0">ID: {staff.id.slice(0, 6)}</h4>
+                                                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100 uppercase tracking-widest shrink-0">
                                                   {t('lvl_label')} {staff.level}
                                                 </span>
-                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
-                                                  staff.state === 'WORKING' ? 'bg-emerald-100 text-emerald-700' :
-                                                  staff.state === 'RESTING' ? 'bg-amber-100 text-amber-700' :
-                                                  'bg-slate-100 text-slate-700'
+                                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-widest shrink-0 border ${
+                                                  staff.state === 'WORKING' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                  staff.state === 'RESTING' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                                  'bg-slate-50 text-slate-500 border-slate-100'
                                                 }`}>
                                                   {staff.state === 'WORKING' ? t('working_label') :
                                                    staff.state === 'RESTING' ? t('resting_label') :
                                                    t('idle_label')}
                                                 </span>
-                                                {isUnhappy && (
-                                                  <span className="animate-pulse text-[8px] font-black px-2 py-0.5 rounded-full bg-rose-600 text-white uppercase tracking-widest">
-                                                    {t('risk_of_quitting')}
-                                                  </span>
-                                                )}
                                               </div>
-                                              {staff.assignedRideId && (
-                                                <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-0.5">
+                                              {staff.assignedRideId ? (
+                                                <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest truncate">
                                                   {t('assigned')}: {t(`ride_${gameState.rides.find(r => r.id === staff.assignedRideId)?.type || 'TEA_CUPS'}_name`)}
                                                 </p>
+                                              ) : (
+                                                <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{t('unassigned')}</p>
                                               )}
                                             </div>
                                           </div>
-                                          <div className="flex items-center gap-4">
-                                            <div className="flex flex-col items-end">
+
+                                          {/* Middle Stats Section */}
+                                          <div className="flex items-center gap-6 shrink-0">
+                                            <div className="flex flex-col items-center gap-1 min-w-[3rem]">
                                               <div className={`flex items-center gap-1 ${staff.stamina > 70 ? 'text-emerald-500' : staff.stamina > 30 ? 'text-amber-500' : 'text-rose-500'}`}>
-                                                <Zap size={14} />
+                                                <Zap size={12} fill="currentColor" />
                                                 <span className="text-[10px] font-black">{Math.floor(staff.stamina)}%</span>
                                               </div>
-                                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{t('stamina')}</p>
+                                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter opacity-70">{t('stamina')}</p>
                                             </div>
-                                            <div className="flex flex-col items-end">
+                                            <div className="flex flex-col items-center gap-1 min-w-[3rem]">
                                               <div className={`flex items-center gap-1 ${happinessColor}`}>
-                                                <HappinessIcon size={14} />
+                                                <HappinessIcon size={12} fill="currentColor" />
                                                 <span className="text-[10px] font-black">{Math.floor(staff.happiness)}%</span>
                                               </div>
-                                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{t('happiness')}</p>
+                                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter opacity-70">{t('happiness')}</p>
                                             </div>
-                                            <button 
-                                              onClick={() => {
-                                                engine.fireStaff(staff.id);
-                                                setGameState(engine.getState());
-                                              }}
-                                              className="h-8 w-8 flex items-center justify-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
-                                            >
-                                              <Trash2 size={14} />
-                                            </button>
                                           </div>
-                                        </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-end">
-                                          <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                              <div className="flex items-center gap-1">
-                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t('hourly_salary')}</label>
-                                                {salaryRatio < 1 && (
-                                                  <span className="text-[8px] font-black text-rose-500 uppercase tracking-tighter">{t('underpaid_label')}</span>
-                                                )}
-                                                {salaryRatio >= 1.2 && (
-                                                  <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">{t('well_paid_label')}</span>
-                                                )}
+                                          {/* Right Slider Section */}
+                                          <div className="w-56 shrink-0 flex items-center gap-4 border-l border-slate-100 pl-4">
+                                            <div className="flex-1">
+                                              <div className="flex justify-between items-center mb-1">
+                                                <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">${staff.salary}/hr</span>
+                                                {salaryRatio < 1 && <span className="text-[7px] font-black text-rose-500 uppercase">Underpaid</span>}
                                               </div>
-                                              <span className="text-[9px] font-bold text-slate-400">{t('min_label')}: ${Math.ceil(minSalary)}</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                              <DollarSign size={14} className={salaryRatio < 1 ? 'text-rose-500' : 'text-emerald-500'} />
                                               <input 
                                                 type="range"
                                                 min={Math.ceil(minSalary * 0.5)}
@@ -2370,26 +3579,34 @@ export default function App() {
                                                   engine.updateStaffSalary(staff.id, val);
                                                   setGameState(engine.getState());
                                                 }}
-                                                className="flex-1 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                                className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-600 transition-all"
                                               />
-                                              <span className={`text-xs font-black w-8 text-right ${
-                                                salaryRatio < 1 ? 'text-rose-600' : 'text-slate-900'
-                                              }`}>${staff.salary}</span>
+                                            </div>
+                                            <div className="flex gap-1 shrink-0">
+                                              <button 
+                                                disabled={staff.level >= 5 || gameState.money < trainingCost}
+                                                onClick={() => {
+                                                  if (engine.trainStaff(staff.id)) {
+                                                    setGameState(engine.getState());
+                                                  }
+                                                }}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white disabled:opacity-30 transition-all"
+                                                title={t('train_button', { cost: trainingCost })}
+                                              >
+                                                <GraduationCap size={16} />
+                                              </button>
+                                              <button 
+                                                onClick={() => {
+                                                  engine.fireStaff(staff.id);
+                                                  setGameState(engine.getState());
+                                                }}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white transition-all"
+                                                title={t('fire_staff')}
+                                              >
+                                                <Trash2 size={16} />
+                                              </button>
                                             </div>
                                           </div>
-
-                                          <button 
-                                            disabled={staff.level >= 5 || gameState.money < trainingCost}
-                                            onClick={() => {
-                                              if (engine.trainStaff(staff.id)) {
-                                                setGameState(engine.getState());
-                                              }
-                                            }}
-                                            className="h-10 rounded-xl bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                                          >
-                                            <GraduationCap size={14} />
-                                            {staff.level >= 5 ? t('max_level') : t('train_button', { cost: trainingCost })}
-                                          </button>
                                         </div>
                                       </div>
                                     );
@@ -2504,6 +3721,7 @@ export default function App() {
                     </div>
                   </section>
                 )}
+
                 {activeManagementTab === 'travel' && (
                   <section className="h-full flex flex-col">
                     <div className="flex items-center justify-between mb-4 shrink-0">
@@ -2569,181 +3787,228 @@ export default function App() {
 
                     <div className="flex-1 overflow-hidden">
                       {travelView === 'list' ? (
-                        <div className="h-full overflow-y-auto pr-2 space-y-4">
-                          {gameState.cities
-                            .filter(city => 
-                              city.name.toLowerCase().includes(travelSearch.toLowerCase()) || 
-                              city.country.toLowerCase().includes(travelSearch.toLowerCase())
-                            )
-                            .sort((a, b) => {
-                              let valA: any, valB: any;
-                              switch (travelSortBy) {
-                                case 'name': valA = a.name; valB = b.name; break;
-                                case 'population': valA = a.population; valB = b.population; break;
-                                case 'cost': valA = engine.getTravelCost(a.id); valB = engine.getTravelCost(b.id); break;
-                                case 'multiplier': valA = a.visitorMultiplier; valB = b.visitorMultiplier; break;
-                              }
-                              const modifier = travelSortOrder === 'asc' ? 1 : -1;
-                              if (valA < valB) return -1 * modifier;
-                              if (valA > valB) return 1 * modifier;
-                              return 0;
-                            })
-                            .map(city => {
-                              const isCurrent = city.id === gameState.company.currentCityId;
-                              
-                              return (
-                                <div 
-                                  key={city.id}
-                                  onClick={() => setSelectedCityInfoId(city.id)}
-                                  className={`flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer
-                                    ${isCurrent ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}
-                                  `}
-                                >
-                                  <div className="flex items-center gap-4">
-                                    <div className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl
-                                      ${isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}
-                                    `}>
-                                      <Globe size={24} />
-                                    </div>
-                                    <div>
-                                      <div className="flex items-center gap-2">
-                                        <h4 className="font-bold text-slate-900">{city.name}</h4>
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 uppercase">
-                                          {city.country}
-                                        </span>
+                        <div className="h-full overflow-y-auto pr-2 custom-scrollbar">
+                          <div className="space-y-4 pb-12">
+                            {travelSearch || selectedTravelCountry ? (
+                              <div className="space-y-6">
+                                {selectedTravelCountry && !travelSearch && (
+                                  <button 
+                                    onClick={() => setSelectedTravelCountry(null)}
+                                    className="flex items-center gap-2 text-indigo-600 hover:gap-3 transition-all font-black uppercase tracking-widest text-[10px] mb-4 bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100"
+                                  >
+                                    <ArrowLeft size={14} /> {t('back_to_territories')}
+                                  </button>
+                                )}
+                                
+                                <div className="grid grid-cols-1 gap-4">
+                                  {(travelSearch ? 
+                                    gameState.cities.filter(city => 
+                                      city.name.toLowerCase().includes(travelSearch.toLowerCase()) || 
+                                      city.country.toLowerCase().includes(travelSearch.toLowerCase())
+                                    ) :
+                                    gameState.cities.filter(city => city.country === selectedTravelCountry)
+                                  )
+                                  .sort((a, b) => {
+                                    let valA: any, valB: any;
+                                    switch (travelSortBy) {
+                                      case 'name': valA = a.name; valB = b.name; break;
+                                      case 'population': valA = a.population; valB = b.population; break;
+                                      case 'cost': valA = engine.getTravelCost(a.id); valB = engine.getTravelCost(b.id); break;
+                                      case 'multiplier': valA = a.visitorMultiplier; valB = b.visitorMultiplier; break;
+                                    }
+                                    const modifier = travelSortOrder === 'asc' ? 1 : -1;
+                                    if (valA < valB) return -1 * modifier;
+                                    if (valA > valB) return 1 * modifier;
+                                    return 0;
+                                  })
+                                  .map(city => {
+                                    const isCurrent = city.id === gameState.company.currentCityId;
+                                    const cost = engine.getTravelCost(city.id);
+                                    const canAfford = gameState.money >= cost;
+                                    const isClean = gameState.rides.length === 0;
+                                    
+                                    return (
+                                      <div 
+                                        key={city.id}
+                                        onClick={() => setSelectedCityInfoId(city.id)}
+                                        className={`group relative flex flex-col sm:flex-row items-center gap-6 p-6 rounded-[2rem] border-2 transition-all cursor-pointer overflow-hidden ${
+                                          isCurrent 
+                                            ? 'border-indigo-600 bg-indigo-50 shadow-lg shadow-indigo-100' 
+                                            : 'border-slate-100 bg-white hover:border-indigo-200 hover:shadow-md'
+                                        }`}
+                                      >
+                                        {/* Ticket Pattern Edge */}
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-12 w-6 border-r-2 border-slate-100 rounded-r-full bg-slate-50 -ml-3 group-hover:border-indigo-200 transition-colors" />
+                                        
+                                        <div className="flex items-center gap-6 flex-1 w-full pl-4">
+                                          <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-2xl shadow-inner transition-colors ${
+                                            isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500'
+                                          }`}>
+                                            <PlaneTakeoff size={32} />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-3 mb-1">
+                                              <h4 className="font-black text-lg text-slate-900 tracking-tight">{t('city_name_' + city.id)}</h4>
+                                              <span className="text-[10px] font-black px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500 uppercase tracking-widest">
+                                                {t('country_' + city.country.replace(/\s+/g, '_'))}
+                                              </span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-2">
+                                              <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                                                <TrendingUp size={12} /> x{city.visitorMultiplier} {t('demand')}
+                                              </span>
+                                              <span className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
+                                                <MapIcon size={12} /> {city.mapWidth}x{city.mapHeight} {t('area')}
+                                              </span>
+                                              <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                <Users size={12} /> {(city.population / 1000000).toFixed(1)}M {t('pop')}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end gap-3 sm:gap-2 sm:pl-6 sm:border-l border-slate-100">
+                                          {!isCurrent ? (
+                                            <>
+                                              <p className={`text-xl font-black ${canAfford ? 'text-slate-900' : 'text-rose-400'}`}>
+                                                ${cost.toLocaleString()}
+                                              </p>
+                                              <button
+                                                disabled={!canAfford || !isClean || (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setPendingTravelCityId(city.id);
+                                                  setDraftPermit(prev => ({ ...prev, signature: gameState.company.name }));
+                                                  setIsPermitFormOpen(true);
+                                                }}
+                                                className={`whitespace-nowrap px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg ${
+                                                  canAfford && isClean && !(gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
+                                                    ? 'bg-indigo-600 text-white hover:bg-slate-900 shadow-indigo-100 hover:shadow-slate-100' 
+                                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                                                }`}
+                                              >
+                                                {gameState.rides.length > 0 ? t('park_full') : t('buy_permit')}
+                                              </button>
+                                            </>
+                                          ) : (
+                                            <div className="flex flex-col items-end">
+                                              <span className="px-4 py-2 rounded-2xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100">
+                                                {t('active_site')}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
-                                      <p className="text-xs text-slate-500 mt-0.5">{city.description}</p>
-                                      <div className="flex flex-wrap items-center gap-3 mt-2">
-                                        <span className="text-[10px] font-bold text-indigo-600 uppercase">
-                                          x{city.visitorMultiplier} {t('visitors_label')}
-                                        </span>
-                                        <span className="text-[10px] font-bold text-emerald-600 uppercase">
-                                          {t('travel_label')}: ${engine.getTravelCost(city.id)}
-                                        </span>
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase">
-                                          {t('size')}: {city.mapWidth}x{city.mapHeight}
-                                        </span>
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase">
-                                          {t('terrain')}: {city.terrain}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-                                  {!isCurrent && (
-                                    <button
-                                      disabled={gameState.money < engine.getTravelCost(city.id) || gameState.rides.length > 0 || (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (engine.travelToCity(city.id)) {
-                                          audioService.playSFX('buy');
-                                          setGameState(engine.getState());
-                                          setIsManagementOpen(false);
-                                          confetti({
-                                            particleCount: 150,
-                                            spread: 100,
-                                            origin: { y: 0.6 }
-                                          });
-                                        }
-                                      }}
-                                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all
-                                        ${gameState.money >= engine.getTravelCost(city.id) && gameState.rides.length === 0 && !(gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
-                                          ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200' 
-                                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
-                                      `}
-                                    >
-                                      {gameState.rides.length > 0 
-                                        ? t('dismantle_first') 
-                                        : (gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === 'UK' && city.country !== 'UK')
-                                          ? t('island_locked')
-                                          : t('travel_button')}
-                                    </button>
-                                  )}
-                                  {isCurrent && (
-                                    <div className="flex flex-col items-end gap-1">
-                                      <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">{t('current_location')}</span>
-                                      {city.id === gameState.company.homeCityId && (
-                                        <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1">
-                                          <Home size={10} /> {t('home_city_label')}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                  {!isCurrent && city.id === gameState.company.homeCityId && (
-                                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1">
-                                      <Home size={10} /> {t('home_city_label')}
-                                    </span>
-                                  )}
+                                    );
+                                  })}
                                 </div>
-                              );
-                            })
-                          }
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {Array.from(new Set(gameState.cities.map(c => c.country as string))).sort().map((country: string) => {
+                                  const citiesInCountry = gameState.cities.filter(c => c.country === country);
+                                  const isCurrentCountry = gameState.cities.find(c => c.id === gameState.company.currentCityId)?.country === country;
+                                  
+                                  return (
+                                    <button
+                                      key={country}
+                                      onClick={() => setSelectedTravelCountry(country)}
+                                      className={`group flex flex-col items-start p-8 rounded-[2.5rem] border-2 transition-all hover:-translate-y-1 active:translate-y-0 ${
+                                        isCurrentCountry ? 'border-indigo-600 bg-indigo-50 shadow-xl shadow-indigo-50' : 'border-slate-100 bg-white hover:border-indigo-200 shadow-sm'
+                                      }`}
+                                    >
+                                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-6 transition-all ${
+                                        isCurrentCountry ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500'
+                                      }`}>
+                                        <Flag size={28} />
+                                      </div>
+                                      <h4 className="font-black text-slate-400 uppercase tracking-[0.2em] text-[10px] mb-2">{t(`country_${country.replace(/\s+/g, '_')}`) || country}</h4>
+                                      <p className="text-2xl font-black text-slate-900 tracking-tight mb-4">{citiesInCountry.length} {t('cities_lower')}</p>
+                                      {isCurrentCountry ? (
+                                        <div className="flex items-center gap-2 text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+                                          <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+                                          {t('headquarters')}
+                                        </div>
+                                      ) : (
+                                        <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">
+                                          {t('explore_territory')} &rarr;
+                                        </div>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ) : (
-                        <div className="h-full bg-slate-950 rounded-3xl border-2 border-slate-900 relative overflow-hidden flex items-center justify-center group/map">
+                        <div className="h-full bg-slate-950 rounded-[2.5rem] border border-slate-900 relative overflow-hidden flex items-center justify-center group/map shadow-2xl">
                           {/* Map Controls */}
-                          <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+                          <div className="absolute top-6 right-6 z-10 flex flex-col gap-2">
                             <button 
                               onClick={() => setTravelMapScale(prev => Math.min(prev + 0.2, 3))}
-                              className="p-2 bg-slate-900/80 backdrop-blur-md border border-slate-700 text-slate-300 rounded-xl hover:text-white hover:bg-slate-800 transition-all"
+                              className="p-3 bg-slate-900/40 backdrop-blur-xl border border-white/10 text-white/50 rounded-2xl hover:text-white hover:bg-slate-800 transition-all shadow-xl"
                             >
-                              <ZoomIn size={18} />
+                              <Plus size={20} />
                             </button>
                             <button 
                               onClick={() => setTravelMapScale(prev => Math.max(prev - 0.2, 0.5))}
-                              className="p-2 bg-slate-900/80 backdrop-blur-md border border-slate-700 text-slate-300 rounded-xl hover:text-white hover:bg-slate-800 transition-all"
+                              className="p-3 bg-slate-900/40 backdrop-blur-xl border border-white/10 text-white/50 rounded-2xl hover:text-white hover:bg-slate-800 transition-all shadow-xl"
                             >
-                              <ZoomOut size={18} />
+                              <Minus size={20} />
                             </button>
                             <button 
                               onClick={() => {
                                 setTravelMapScale(1);
                                 setTravelMapOffset({ x: 0, y: 0 });
                               }}
-                              className="p-2 bg-slate-900/80 backdrop-blur-md border border-slate-700 text-slate-300 rounded-xl hover:text-white hover:bg-slate-800 transition-all"
+                              className="p-3 bg-slate-900/40 backdrop-blur-xl border border-white/10 text-white/50 rounded-2xl hover:text-white hover:bg-slate-800 transition-all shadow-xl"
                             >
-                              <Maximize size={18} />
+                              <Maximize size={20} />
                             </button>
                           </div>
 
                           {/* Interactive Map Surface */}
                           <motion.div 
                             drag
-                            dragConstraints={{ left: -1000, right: 1000, top: -1000, bottom: 1000 }}
+                            dragConstraints={{ left: -1500, right: 1500, top: -1125, bottom: 1125 }}
                             dragElastic={0.1}
-                            dragMomentum={false}
+                            dragMomentum={true}
                             onWheel={(e) => {
                               const delta = e.deltaY > 0 ? -0.1 : 0.1;
                               setTravelMapScale(prev => Math.max(0.5, Math.min(3, prev + delta)));
                             }}
                             animate={{ scale: travelMapScale, x: travelMapOffset.x, y: travelMapOffset.y }}
-                            className="relative w-[2000px] h-[1500px] cursor-grab active:cursor-grabbing"
+                            className="relative w-[3000px] h-[2250px] cursor-grab active:cursor-grabbing flex items-center justify-center"
                           >
-                            {/* Radar Scan Line */}
-                            <motion.div 
-                              animate={{ top: ['0%', '100%'] }}
-                              transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-                              className="absolute left-0 right-0 h-[2px] bg-indigo-500/30 blur-sm pointer-events-none z-[5]"
-                            />
-
-                            {/* Grid Lines */}
-                            <div className="absolute inset-0 grid grid-cols-[repeat(40,1fr)] grid-rows-[repeat(30,1fr)] opacity-10 pointer-events-none">
-                              {[...Array(1200)].map((_, i) => <div key={i} className="border-[0.5px] border-indigo-400" />)}
+                            {/* Scanning HUD Overlay */}
+                            <div className="absolute inset-0 pointer-events-none z-10">
+                              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-full bg-indigo-500/10" />
+                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-px bg-indigo-500/10" />
+                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-indigo-500/10 rounded-full" />
+                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1600px] h-[1600px] border border-indigo-500/5 rounded-full" />
                             </div>
 
-                            {/* Abstract Landmasses (Decorative) */}
-                            <div className="absolute inset-0 opacity-5 pointer-events-none">
-                              <div className="absolute top-[20%] left-[30%] w-[400px] h-[300px] bg-indigo-500 rounded-full blur-[100px]" />
-                              <div className="absolute top-[40%] left-[50%] w-[500px] h-[400px] bg-indigo-600 rounded-full blur-[120px]" />
-                              <div className="absolute top-[10%] left-[60%] w-[300px] h-[200px] bg-indigo-400 rounded-full blur-[80px]" />
+                            {/* Radar Scan Light */}
+                            <motion.div 
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+                              className="absolute inset-0 pointer-events-none z-0"
+                            >
+                               <div className="absolute top-1/2 left-1/2 w-[1500px] h-[1500px] -translate-x-1/2 -translate-y-1/2 bg-conic-gradient from-indigo-500/20 via-transparent to-transparent origin-center opacity-30" />
+                            </motion.div>
+
+                            {/* Grid Lines */}
+                            <div className="absolute inset-0 grid grid-cols-[repeat(60,1fr)] grid-rows-[repeat(45,1fr)] opacity-[0.03] pointer-events-none">
+                              {[...Array(2700)].map((_, i) => <div key={i} className="border-[0.5px] border-indigo-400" />)}
                             </div>
 
                             {/* City Connections (Lines from current city) */}
                             {(() => {
                               const currentCity = gameState.cities.find(c => c.id === gameState.company.currentCityId);
                               if (!currentCity) return null;
-                              const currentX = ((currentCity.x || 0) + 600) / 1200 * 2000;
-                              const currentY = (600 - (currentCity.y || 0)) / 1400 * 1500;
+                              const currentX = ((currentCity.x || 0) + 600) / 1200 * 3000;
+                              const currentY = (600 - (currentCity.y || 0)) / 1400 * 2250;
 
                               return gameState.cities
                                 .filter(city => city.id !== currentCity.id && (
@@ -2751,15 +4016,18 @@ export default function App() {
                                   city.country.toLowerCase().includes(travelSearch.toLowerCase())
                                 ))
                                 .map(city => {
-                                  const targetX = ((city.x || 0) + 600) / 1200 * 2000;
-                                  const targetY = (600 - (city.y || 0)) / 1400 * 1500;
+                                  const targetX = ((city.x || 0) + 600) / 1200 * 3000;
+                                  const targetY = (600 - (city.y || 0)) / 1400 * 2250;
                                   
                                   return (
-                                    <svg key={`line-${city.id}`} className="absolute inset-0 w-full h-full pointer-events-none opacity-10">
-                                      <line 
+                                    <svg key={`line-${city.id}`} className="absolute inset-0 w-full h-full pointer-events-none z-[1]">
+                                      <motion.line 
+                                        initial={{ pathLength: 0, opacity: 0 }}
+                                        animate={{ pathLength: 1, opacity: 1 }}
+                                        transition={{ duration: 1 }}
                                         x1={currentX} y1={currentY} 
                                         x2={targetX} y2={targetY} 
-                                        stroke="white" strokeWidth="1" strokeDasharray="4 4"
+                                        stroke="rgba(99, 102, 241, 0.15)" strokeWidth="1" strokeDasharray="8 8"
                                       />
                                     </svg>
                                   );
@@ -2775,34 +4043,39 @@ export default function App() {
                               .map(city => {
                                 const isCurrent = city.id === gameState.company.currentCityId;
                                 const isHome = city.id === gameState.company.homeCityId;
-                                const mapX = ((city.x || 0) + 600) / 1200 * 2000;
-                                const mapY = (600 - (city.y || 0)) / 1400 * 1500;
+                                const mapX = ((city.x || 0) + 600) / 1200 * 3000;
+                                const mapY = (600 - (city.y || 0)) / 1400 * 2250;
 
                                 return (
                                   <motion.button
                                     key={city.id}
-                                    whileHover={{ scale: 1.5, zIndex: 20 }}
+                                    whileHover={{ scale: 1.4, zIndex: 50 }}
                                     onClick={() => setSelectedCityInfoId(city.id)}
-                                    className="absolute -translate-x-1/2 -translate-y-1/2 group"
+                                    className="absolute -translate-x-1/2 -translate-y-1/2 z-[2]"
                                     style={{ left: mapX, top: mapY }}
                                   >
-                                    <div className="relative flex items-center justify-center">
-                                      {/* Pulse Effect for Current City */}
+                                    <div className="relative group">
+                                      {/* Radar Circle */}
+                                      <div className={`absolute -inset-4 rounded-full border border-white/5 transition-all group-hover:border-indigo-500/50 group-hover:bg-indigo-500/10 ${isCurrent ? 'border-indigo-500/20' : ''}`} />
+                                      
+                                      {/* Beacon Effect for Current City */}
                                       {isCurrent && (
-                                        <div className="absolute inset-0 h-8 w-8 -translate-x-1/4 -translate-y-1/4 rounded-full bg-indigo-500/20 animate-ping" />
+                                        <div className="absolute inset-0 h-4 w-4 -translate-x-0 -translate-y-0 rounded-full bg-indigo-500/40 animate-ping" />
                                       )}
                                       
-                                      {/* Marker Dot */}
-                                      <div className={`h-4 w-4 rounded-full border-2 border-slate-900 shadow-2xl transition-all
-                                        ${isCurrent ? 'bg-indigo-500 scale-125' : isHome ? 'bg-amber-500' : 'bg-slate-400 group-hover:bg-white'}
-                                      `} />
+                                      {/* Core Marker */}
+                                      <div className={`relative h-3 w-3 rounded-sm rotate-45 border-2 shadow-lg transition-all ${
+                                        isCurrent ? 'bg-indigo-500 border-white scale-125' : 
+                                        isHome ? 'bg-amber-400 border-white' : 
+                                        'bg-slate-700 border-slate-500 group-hover:bg-white group-hover:border-indigo-500'
+                                      }`} />
                                       
-                                      {/* Label */}
-                                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none">
-                                        <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg shadow-2xl border border-slate-700 flex items-center gap-2">
-                                          {isHome && <Home size={10} className="text-amber-400" />}
-                                          {city.name}
-                                          <span className="opacity-50 text-[8px]">{t(`country_${city.country}`)}</span>
+                                      {/* Label Backdrop */}
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap">
+                                        <div className="bg-slate-900/90 backdrop-blur-xl px-4 py-2.5 rounded-2xl border border-white/10 shadow-2xl flex flex-col items-center gap-1">
+                                          <span className="text-[10px] font-black tracking-widest text-white uppercase">{t('city_name_' + city.id)}</span>
+                                          <div className="h-px w-8 bg-indigo-500/30" />
+                                          <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-[0.2em]">{t(`country_${city.country.replace(/\s+/g, '_')}`)}</span>
                                         </div>
                                       </div>
                                     </div>
@@ -2813,25 +4086,43 @@ export default function App() {
                           </motion.div>
                           
                           {/* Map Overlay HUD */}
-                          <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between pointer-events-none">
-                            <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-700 text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-3">
-                              <div className="flex items-center gap-1.5">
-                                <div className="h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
-                                <span>{t('legend_current')}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <div className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                                <span>{t('legend_home')}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <div className="h-2 w-2 rounded-full bg-slate-400" />
-                                <span>{t('legend_available')}</span>
+                          <div className="absolute bottom-10 left-10 right-10 flex items-end justify-between pointer-events-none">
+                            <div className="space-y-4">
+                              <div className="bg-slate-900/60 backdrop-blur-xl p-6 rounded-[2rem] border border-white/5 space-y-4 shadow-2xl">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                                    <Activity size={20} />
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-black text-white uppercase tracking-widest">{t('global_radar')}</p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('scanning_active_sites')}</p>
+                                  </div>
+                                </div>
+                                <div className="h-px bg-white/5" />
+                                <div className="space-y-2">
+                                  {[
+                                    { color: 'bg-indigo-500', label: t('active_operations') },
+                                    { color: 'bg-amber-400', label: t('registered_hq') },
+                                    { color: 'bg-slate-500', label: t('market_prospects') }
+                                  ].map((item, i) => (
+                                    <div key={i} className="flex items-center gap-3">
+                                      <div className={`h-2 w-2 rounded-sm rotate-45 ${item.color} shadow-sm`} />
+                                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             </div>
-                            <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-700 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-                              {t('map_navigation')}
+
+                            <div className="flex flex-col items-end gap-4">
+                               <div className="bg-slate-900/60 backdrop-blur-xl px-6 py-4 rounded-2xl border border-white/5 text-[9px] font-black text-indigo-400 uppercase tracking-[0.3em] shadow-2xl">
+                                {t('system_ready')} // COORDINATES: {Math.round(travelMapOffset.x)}, {Math.round(travelMapOffset.y)}
+                              </div>
                             </div>
                           </div>
+
+                          {/* Outer Map Vignette */}
+                          <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_150px_rgba(0,0,0,0.8)]" />
                         </div>
                       )}
                     </div>
@@ -2865,7 +4156,7 @@ export default function App() {
                               </button>
                               <div>
                                 <h3 className="text-xl font-black text-slate-900">{city.name}</h3>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t(`country_${city.country}`)}</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t(`country_${city.country.replace(/\s+/g, '_')}`)}</p>
                               </div>
                             </div>
                             <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest
@@ -2915,6 +4206,15 @@ export default function App() {
                                 <div className="flex items-center gap-2">
                                   <DollarSign size={14} className="text-emerald-600" />
                                   <span className="text-sm font-bold text-slate-900">${engine.getTravelCost(city.id)}</span>
+                                </div>
+                              </div>
+                              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('operating_season')}</p>
+                                <div className="flex items-center gap-2">
+                                  <Clock size={14} className="text-indigo-600" />
+                                  <span className="text-sm font-bold text-slate-900">
+                                    {t(`month_${REGION_OPERATING_MONTHS[city.region].startMonth - 1}`)} - {t(`month_${REGION_OPERATING_MONTHS[city.region].endMonth - 1}`)}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -3023,546 +4323,319 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-      <div className="z-10 w-80 border-r border-slate-200 bg-white p-5 shadow-xl flex flex-col">
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
-                <Building2 size={24} />
+      <AnimatePresence mode="wait">
+        {isSidebarOpen && (
+          <div className="flex h-full z-10 shrink-0">
+            {/* Navigation Rail */}
+            <div className="w-[72px] bg-slate-900 flex flex-col items-center py-8 gap-4 border-r border-white/5 h-full">
+              <div className="flex-1 flex flex-col items-center gap-4">
+                {[
+                  { id: 'overview' as const, icon: <Layout size={20} />, label: t('overview') },
+                  { id: 'inventory' as const, icon: <Package size={20} />, label: t('inventory') },
+                  { id: 'management' as const, icon: <LayoutDashboard size={20} />, label: t('management') },
+                  { id: 'zoning' as const, icon: <MapIcon size={20} />, label: t('zoning') },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setSidebarTab(tab.id);
+                      audioService.playSFX('click');
+                    }}
+                    className={`relative group flex h-12 w-12 items-center justify-center rounded-2xl transition-all
+                      ${sidebarTab === tab.id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}
+                    `}
+                    title={tab.label}
+                  >
+                    {tab.icon}
+                    {sidebarTab === tab.id && (
+                      <motion.div 
+                        layoutId="sidebarActiveRailIndicator"
+                        className="absolute -left-1 w-1.5 h-6 bg-indigo-500 rounded-full"
+                      />
+                    )}
+                  </button>
+                ))}
               </div>
-              <h1 className="text-lg font-black tracking-tight truncate max-w-[140px] uppercase">{gameState.company.name}</h1>
-            </div>
-            <div className="flex gap-1.5">
+
+              {/* Close Button at bottom of rail */}
               <button 
-                onClick={() => {
-                  engine.togglePause();
-                  setGameState(engine.getState());
-                  audioService.playSFX('click');
-                }}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none
-                  ${gameState.settings.isPaused 
-                    ? 'bg-amber-400 text-slate-900' 
-                    : 'bg-white text-slate-900 hover:bg-slate-50'}
-                `}
-                title={gameState.settings.isPaused ? t('resume_game') : t('pause_game')}
+                onClick={() => setIsSidebarOpen(false)}
+                className="h-12 w-12 flex items-center justify-center rounded-2xl text-slate-500 hover:text-white hover:bg-white/10 transition-all mb-4"
+                title={t('hide_sidebar')}
               >
-                {gameState.settings.isPaused ? <Play size={14} fill="currentColor" /> : <Square size={14} fill="currentColor" />}
-              </button>
-              <button 
-                onClick={() => setIsManagementOpen(true)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-slate-900 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none hover:bg-slate-50 transition-all"
-              >
-                <Settings size={14} />
+                <ChevronLeft size={24} />
               </button>
             </div>
-          </div>
 
-          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 space-y-2">
-            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <Globe size={10} className="text-indigo-500" />
-                <span>{CITIES.find(c => c.id === gameState.company.currentCityId)?.name || gameState.company.currentCityId}</span>
-              </div>
-              <span className="text-indigo-600">
-                {t(`month_${gameState.time.month - 1}`)} {gameState.time.dayOfMonth}
-              </span>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${getWeatherColor(gameState.currentWeather.type)}`}>
-                  {getWeatherIcon(gameState.currentWeather.type)}
-                  <span>{t(`weather_${gameState.currentWeather.type.toLowerCase()}`)}</span>
+            {/* Content Panel */}
+            <motion.div 
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 260, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              className="bg-white p-6 shadow-2xl flex flex-col overflow-hidden border-r border-slate-200"
+            >
+              <div className="mb-6 flex items-center justify-between">
+                <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
+                  {sidebarTab.toUpperCase()}
+                </h2>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                      engine.togglePause();
+                      setGameState(engine.getState());
+                      audioService.playSFX('click');
+                    }}
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                      gameState.settings.isPaused ? 'bg-amber-400 text-slate-900 shadow-lg shadow-amber-100' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                    }`}
+                  >
+                    {gameState.settings.isPaused ? <Play size={14} fill="currentColor" /> : <Square size={14} fill="currentColor" />}
+                  </button>
                 </div>
-                <span className="text-[10px] font-black text-slate-900">{gameState.currentWeather.temperature}°C</span>
               </div>
-              <div className="text-[10px] font-black text-slate-900 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-sm">
-                {gameState.time.hours.toString().padStart(2, '0')}:{gameState.time.minutes.toString().padStart(2, '0')}
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-          <div className="grid grid-cols-2 gap-2">
-            <button 
-              onClick={() => setIsShopOpen(true)}
-              className="group relative flex flex-col items-center justify-center gap-1 rounded-2xl bg-indigo-600 py-3 text-[10px] font-black text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
-            >
-              <ShoppingBag size={18} />
-              {t('open_ride_shop')}
-            </button>
-
-            <button 
-              onClick={() => setIsZoningMode(!isZoningMode)}
-              className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-3 text-[10px] font-black transition-all border-2
-                ${isZoningMode 
-                  ? 'bg-amber-400 border-slate-900 text-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' 
-                  : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'}
-              `}
-            >
-              <MapIcon size={18} />
-              {isZoningMode ? t('exit_zoning') : t('zoning_mode')}
-            </button>
-          </div>
-
-          <AnimatePresence>
-            {isZoningMode && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl">
-                  {(['FUNFAIR', 'TRUCK', 'STAFF'] as const).map(type => (
-                    <button
-                      key={type}
-                      onClick={() => setZoningType(type)}
-                      className={`py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all
-                        ${zoningType === type 
-                          ? 'bg-white text-amber-600 shadow-sm' 
-                          : 'text-slate-400 hover:bg-slate-200'}
-                      `}
-                    >
-                      {t(`zoning_${type.toLowerCase()}`)}
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="flex bg-slate-100 p-1 rounded-xl">
-            <button 
-              onClick={() => setActiveTab('inventory')}
-              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2
-                ${activeTab === 'inventory' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}
-              `}
-            >
-              <Package size={14} />
-              {t('inventory')} ({gameState.inventory.length})
-            </button>
-            <button 
-              onClick={() => {
-                if (selectedRideId) setActiveTab('details');
-              }}
-              disabled={!selectedRideId}
-              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2
-                ${activeTab === 'details' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}
-                ${!selectedRideId ? 'opacity-30 cursor-not-allowed' : ''}
-              `}
-            >
-              <Info size={14} />
-              {t('details_tab')}
-            </button>
-          </div>
-
-          <AnimatePresence mode="wait">
-            {selectedRideId ? (
-              <motion.section
-                key="selected-ride"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-4"
-              >
-                {(() => {
-                  const ride = gameState.rides.find(r => r.id === selectedRideId);
-                  if (!ride) return null;
-                  const config = RIDE_CONFIGS[ride.type];
-                  return (
-                    <div className="space-y-4">
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <h3 className="text-sm font-black uppercase tracking-tight text-slate-900">{t(`ride_${config.type}_name`)}</h3>
-                            <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">{t('level_label')} {ride.level}</p>
-                          </div>
-                          <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 text-indigo-600">
-                            {config.icon}
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-white p-2 rounded-xl border border-slate-100">
-                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">{t('status_label')}</p>
-                            <div className="flex items-center gap-1.5">
-                              <div className={`h-1.5 w-1.5 rounded-full ${ride.status === 'OPERATING' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                              <span className={`text-[10px] font-black uppercase ${ride.status === 'OPERATING' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                {t(`status_${ride.status.toLowerCase()}`)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="bg-white p-2 rounded-xl border border-slate-100">
-                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">{t('condition_label')}</p>
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full transition-all duration-500 ${ride.condition < 30 ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                                  style={{ width: `${ride.condition}%` }}
-                                />
-                              </div>
-                              <span className="text-[10px] font-black text-slate-900">{Math.round(ride.condition)}%</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Operator/Mechanic Section */}
-                      <div className="space-y-2">
-                        <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[9px] font-black text-slate-400 uppercase">{config.category === 'FOOD' ? t('vendor_label') : t('operator_label')}</span>
-                            <span className={`text-[9px] font-black uppercase ${ride.operatorId ? 'text-emerald-600' : 'text-rose-600'}`}>
-                              {ride.operatorId ? t('assigned_label') : t('missing_label')}
-                            </span>
-                          </div>
-                          <select 
-                            value={ride.operatorId || ''}
-                            onChange={(e) => {
-                              const staffId = e.target.value || null;
-                              if (engine.assignOperator(ride.id, staffId)) {
-                                setGameState(engine.getState());
-                              }
-                            }}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-[10px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          >
-                            <option value="">{t('auto_assign')}</option>
-                            {gameState.staff
-                              .filter(s => s.type === (config.category === 'FOOD' ? 'VENDOR' : 'OPERATOR'))
-                              .map(s => (
-                                <option key={s.id} value={s.id}>
-                                  {s.type === 'VENDOR' ? t('vendor_label') : t('operator_label')} {s.id.slice(0, 4)} {s.assignedRideId && s.assignedRideId !== ride.id ? `(${t('busy_label')})` : ''}
-                                </option>
-                              ))}
-                          </select>
-                        </div>
-
-                        <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[9px] font-black text-slate-400 uppercase">{t('mechanic_label')}</span>
-                            <span className={`text-[9px] font-black uppercase ${ride.mechanicId ? 'text-emerald-600' : 'text-slate-400'}`}>
-                              {ride.mechanicId ? t('assigned_label') : t('auto_assigning')}
-                            </span>
-                          </div>
-                          <select 
-                            value={ride.mechanicId || ''}
-                            onChange={(e) => {
-                              const staffId = e.target.value || null;
-                              if (engine.assignMechanic(ride.id, staffId)) {
-                                setGameState(engine.getState());
-                              }
-                            }}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-[10px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          >
-                            <option value="">{t('auto_assign')}</option>
-                            {gameState.staff
-                              .filter(s => s.type === 'MECHANIC')
-                              .map(s => (
-                                <option key={s.id} value={s.id}>
-                                  {t('mechanic_label')} {s.id.slice(0, 4)} {s.assignedRideId && s.assignedRideId !== ride.id ? `(${t('busy_label')})` : ''}
-                                </option>
-                              ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => {
-                            if (engine.repairRide(ride.id)) {
-                              audioService.playSFX('repair');
-                              setGameState(engine.getState());
-                            }
-                          }}
-                          disabled={gameState.money < 100 || ride.condition >= 100}
-                          className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 transition-all shadow-lg shadow-slate-200"
-                        >
-                          <Wrench size={14} />
-                          {t('repair_button', { cost: 100 })}
-                        </button>
-                        <div className="bg-white p-2 rounded-xl border border-slate-100 flex flex-col justify-center">
-                          <p className="text-[8px] font-black text-slate-400 uppercase mb-1">
-                            {config.category === 'FOOD' ? t('item_price') : t('ticket_price')}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <DollarSign size={12} className="text-emerald-500" />
-                            <input 
-                              type="number"
-                              value={ride.ticketPrice}
-                              onChange={(e) => {
-                                const val = parseInt(e.target.value) || 0;
-                                engine.updateRidePrice(ride.id, val);
-                                setGameState(engine.getState());
-                              }}
-                              className="w-full bg-transparent text-xs font-black text-slate-900 focus:outline-none"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <button 
-                          onClick={() => {
-                            engine.dismantleRide(ride.id);
-                            audioService.playSFX('sell');
-                            setGameState(engine.getState());
-                          }}
-                          disabled={ride.status === 'DISMANTLING' || ride.status === 'CONSTRUCTING'}
-                          className="rounded-xl bg-indigo-50 border border-indigo-100 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-100 transition-colors disabled:opacity-50"
-                        >
-                          {t('dismantle_button')}
-                        </button>
-                        <button 
-                          onClick={() => {
-                            engine.sellRide(ride.id);
-                            audioService.playSFX('sell');
-                            setSelectedRideId(null);
-                            setGameState(engine.getState());
-                          }}
-                          className="rounded-xl bg-rose-50 border border-rose-100 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 transition-colors"
-                        >
-                          {t('sell')}
-                        </button>
-                      </div>
-                      <button 
-                        onClick={() => setSelectedRideId(null)}
-                        className="w-full rounded-xl bg-white border border-slate-200 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-                      >
-                        {t('deselect')}
-                      </button>
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                {sidebarTab === 'overview' && (
+                  <div className="space-y-6">
+                    <div className="pb-4 border-b border-slate-100 flex items-center justify-between">
+                       <div>
+                          <h1 className="text-xl font-black text-slate-900 truncate">{gameState.company.name}</h1>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('city_name_' + gameState.company.currentCityId)}</p>
+                       </div>
+                       <div className="text-right">
+                          <p className="text-[8px] font-black text-slate-300 uppercase mb-0.5">Rating</p>
+                          <p className="text-lg font-black text-amber-500">{gameState.parkRating.toFixed(1)}</p>
+                       </div>
                     </div>
-                  );
-                })()}
-              </motion.section>
-            ) : selectedVisitorId ? (
-              <motion.section
-                key="selected-visitor"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-4"
-              >
-                {(() => {
-                  const visitor = gameState.visitors.find(v => v.id === selectedVisitorId);
-                  if (!visitor) return null;
-                  return (
-                    <div className="space-y-4">
-                      <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl shadow-sm" style={{ color: visitor.color }}>
-                            👤
-                          </div>
-                          <div>
-                            <h3 className="text-sm font-black uppercase tracking-tight text-slate-900">{t('visitor_label')} {visitor.id.slice(0, 4)}</h3>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">{visitor.state}</p>
-                          </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-white p-2 rounded-xl border border-blue-50">
-                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">{t('happiness')}</p>
-                            <p className={`text-[10px] font-black ${visitor.happiness > 70 ? 'text-emerald-600' : visitor.happiness > 30 ? 'text-amber-600' : 'text-rose-600'}`}>
-                              {Math.floor(visitor.happiness)}%
-                            </p>
-                          </div>
-                          <div className="bg-white p-2 rounded-xl border border-blue-50">
-                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">{t('money')}</p>
-                            <p className="text-[10px] font-black text-blue-600">${Math.floor(visitor.money)}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t('needs')}</p>
-                        <div className="space-y-2">
-                          {[
-                            { label: t('hunger'), value: visitor.hunger, color: 'bg-orange-400' },
-                            { label: t('bladder'), value: visitor.bladder, color: 'bg-blue-400' },
-                            { label: t('stamina'), value: visitor.stamina, color: 'bg-emerald-400' }
-                          ].map((need, i) => (
-                            <div key={i} className="space-y-1">
-                              <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-tight">
-                                <span>{need.label}</span>
-                                <span>{Math.floor(need.value)}%</span>
-                              </div>
-                              <div className="h-1.5 bg-slate-50 rounded-full overflow-hidden">
-                                <div className={`h-full ${need.color} transition-all duration-500`} style={{ width: `${need.value}%` }} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t('recent_thoughts')}</p>
-                        <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                          {visitor.thoughts.length === 0 ? (
-                            <p className="text-[10px] text-slate-400 italic text-center py-2">{t('no_thoughts')}</p>
-                          ) : (
-                            visitor.thoughts.map((thought, i) => (
-                              <div key={i} className="bg-slate-50 p-2 rounded-lg text-[10px] font-medium text-slate-600 flex gap-2 leading-relaxed">
-                                <span className="text-blue-400 shrink-0">💭</span>
-                                <span>{typeof thought === 'string' ? thought : t(thought.key, thought.replacements)}</span>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </div>
-
-                      <button 
-                        onClick={() => setSelectedVisitorId(null)}
-                        className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
-                      >
-                        {t('deselect')}
-                      </button>
-                    </div>
-                  );
-                })()}
-              </motion.section>
-            ) : (
-              <motion.section
-                key="inventory-list"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('your_inventory_label')}</h2>
-                  <div className="flex gap-1">
-                    {['ALL', 'GENTLE', 'THRILL', 'EXTREME'].map(intensity => (
-                      <button
-                        key={intensity}
-                        onClick={() => setInventoryIntensity(intensity as any)}
-                        className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all
-                          ${inventoryIntensity === intensity 
-                            ? 'bg-indigo-600 text-white shadow-sm' 
-                            : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}
-                        `}
-                      >
-                        {intensity === 'ALL' ? t('all_label') : t(`intensity_${intensity.toLowerCase()}`)[0]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {gameState.inventory.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                    <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-slate-300 mb-3 shadow-sm">
-                      <Package size={24} />
-                    </div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('inventory_empty_message')}</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-3">
-                    {gameState.inventory
-                      .filter(ride => {
-                        const config = RIDE_CONFIGS[ride.type];
-                        return inventoryIntensity === 'ALL' || config.intensity === inventoryIntensity;
-                      })
-                      .map(ride => {
-                        const config = RIDE_CONFIGS[ride.type];
-                        const isPlacing = placingRideId === ride.id;
-
-                        return (
-                          <div key={ride.id} className={`group bg-white p-3 rounded-2xl border transition-all ${isPlacing ? 'border-indigo-600 bg-indigo-50/30' : 'border-slate-100 shadow-sm hover:border-indigo-200'}`}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-50 transition-colors">
-                                  {config.icon}
-                                </div>
-                                <div>
-                                  <h4 className="text-[11px] font-black uppercase tracking-tight text-slate-900">{t(`ride_${config.type.toLowerCase()}_name`)}</h4>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{config.width}x{config.height}</span>
-                                    {config.intensity && (
-                                      <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">• {t(`intensity_${config.intensity.toLowerCase()}`)}</span>
-                                    )}
+                    <AnimatePresence mode="wait">
+                      {selectedRideId ? (
+                        <motion.section
+                          key="nav-rail-ride-details"
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -10 }}
+                          className="space-y-4"
+                        >
+                          {(() => {
+                            const ride = gameState.rides.find(r => r.id === selectedRideId);
+                            if (!ride) return null;
+                            const config = RIDE_CONFIGS[ride.type];
+                            return (
+                              <div className="space-y-4">
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                  <div className="flex items-center justify-between mb-4">
+                                    <div className="min-w-0">
+                                      <h3 className="text-sm font-black uppercase tracking-tight text-slate-900 truncate">{ride.customName || t(`ride_${config.type}_name`)}</h3>
+                                      <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Lvl {ride.level}</p>
+                                    </div>
+                                    <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 text-indigo-600 shrink-0">
+                                      {config.icon}
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="bg-white p-2 rounded-xl border border-slate-100">
+                                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Status</p>
+                                      <div className="flex items-center gap-2">
+                                        <div className={`h-1.5 w-1.5 rounded-full ${ride.status === 'OPERATING' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                                        <span className={`text-[9px] font-black uppercase truncate ${ride.status === 'OPERATING' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                          {t(`status_${ride.status.toLowerCase()}`)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="bg-white p-2 rounded-xl border border-slate-100 text-right">
+                                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">HP</p>
+                                      <p className="text-[10px] font-black text-slate-900">{Math.round(ride.condition)}%</p>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                              <div className="flex gap-1.5">
-                                <button
-                                  onClick={() => {
-                                    if (engine.sellInventoryRide(ride.id)) {
-                                      audioService.playSFX('sell');
-                                      setGameState(engine.getState());
-                                    }
-                                  }}
-                                  className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all"
-                                  title={t('sell_button')}
+
+                                <div className="space-y-2">
+                                   <button 
+                                      onClick={() => { if (engine.toggleRideStatus(ride.id)) { audioService.playSFX('click'); setGameState(engine.getState()); } }}
+                                      className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all
+                                         ${ride.status === 'OPERATING' ? 'bg-rose-500 text-white shadow-rose-100' : 'bg-emerald-500 text-white shadow-emerald-100'}
+                                      `}
+                                   >
+                                      {ride.status === 'OPERATING' ? t('close_ride') : t('open_ride')}
+                                   </button>
+                                   <div className="grid grid-cols-2 gap-2">
+                                      <button 
+                                         onClick={() => { if (engine.repairRide(ride.id)) { audioService.playSFX('repair'); setGameState(engine.getState()); } }}
+                                         disabled={gameState.money < 100 || ride.condition >= 100}
+                                         className="py-4 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-30"
+                                      >
+                                         Rep ($100)
+                                      </button>
+                                      <button 
+                                         onClick={() => setSelectedRideId(null)}
+                                         className="py-4 rounded-xl bg-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest"
+                                      >
+                                         Deselect
+                                      </button>
+                                   </div>
+                                </div>
+
+                                <button 
+                                   onClick={() => { if (engine.sellRide(ride.id)) { audioService.playSFX('sell'); setSelectedRideId(null); setGameState(engine.getState()); } }}
+                                   className="w-full py-3 rounded-xl bg-rose-50 text-rose-600 text-[9px] font-black uppercase tracking-widest"
                                 >
-                                  <Trash2 size={14} />
-                                </button>
-                                <button
-                                  onClick={() => setPlacingRideId(isPlacing ? null : ride.id)}
-                                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shadow-md
-                                    ${isPlacing ? 'bg-indigo-600 text-white shadow-indigo-100' : 'bg-slate-900 text-white hover:bg-slate-800 shadow-slate-100'}
-                                  `}
-                                >
-                                  {isPlacing ? t('cancel_button') : t('place_button')}
+                                   Sell Ride
                                 </button>
                               </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    {gameState.inventory.filter(ride => {
-                      const config = RIDE_CONFIGS[ride.type];
-                      return inventoryIntensity === 'ALL' || config.intensity === inventoryIntensity;
-                    }).length === 0 && (
-                      <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">{t('no_items_message', { intensity: inventoryIntensity.toLowerCase() })}</p>
-                      </div>
-                    )}
+                            );
+                          })()}
+                        </motion.section>
+                      ) : selectedVisitorId ? (
+                        <motion.section
+                          key="nav-rail-visitor-details"
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -10 }}
+                          className="space-y-6"
+                        >
+                          {(() => {
+                            const visitor = gameState.visitors.find(v => v.id === selectedVisitorId);
+                            if (!visitor) return null;
+                            return (
+                              <div className="space-y-6">
+                                <div className="bg-slate-900 p-6 rounded-[2.5rem] text-center shadow-xl">
+                                  <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Visitor</p>
+                                  <h3 className="text-sm font-black text-white uppercase truncate">ID-{visitor.id.slice(0, 8)}</h3>
+                                </div>
+                                <div className="space-y-4">
+                                   {[
+                                     { label: 'Happiness', value: visitor.happiness, color: 'bg-emerald-500' },
+                                     { label: 'Hunger', value: visitor.hunger, color: 'bg-orange-500' }
+                                   ].map(stat => (
+                                     <div key={stat.label}>
+                                        <div className="flex justify-between mb-1">
+                                          <span className="text-[9px] font-black text-slate-400 uppercase">{stat.label}</span>
+                                          <span className="text-[10px] font-black text-slate-900">{Math.round(stat.value)}%</span>
+                                        </div>
+                                        <div className="h-1 bg-slate-50 rounded-full overflow-hidden">
+                                           <div className={`h-full ${stat.color}`} style={{ width: `${stat.value}%` }} />
+                                        </div>
+                                     </div>
+                                   ))}
+                                </div>
+                                <button onClick={() => setSelectedVisitorId(null)} className="w-full py-4 bg-slate-100 text-slate-400 text-[9px] font-black uppercase rounded-2xl">Close</button>
+                              </div>
+                            );
+                          })()}
+                        </motion.section>
+                      ) : (
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center py-24 leading-relaxed">
+                           Touch a ride or guest<br/>to see details
+                        </p>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
-              </motion.section>
-            )}
-          </AnimatePresence>
+                {sidebarTab === 'inventory' && (
+                  <div className="space-y-3">
+                    {gameState.inventory.map(ride => (
+                      <div key={ride.id} className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm flex items-center justify-between">
+                         <span className="text-[10px] font-black uppercase">{ride.type}</span>
+                         <button onClick={() => setPlacingRideId(ride.id === placingRideId ? null : ride.id)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase ${placingRideId === ride.id ? 'bg-rose-500 text-white' : 'bg-slate-900 text-white'}`}>
+                            {placingRideId === ride.id ? 'Cancel' : 'Place'}
+                         </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {sidebarTab === 'management' && (
+                  <div className="space-y-4">
+                     <button onClick={() => setIsManagementOpen(true)} className="w-full p-6 bg-slate-900 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all">
+                        Management Console
+                     </button>
+                  </div>
+                )}
+                {sidebarTab === 'zoning' && (
+                  <div className="space-y-4">
+                    {(['FUNFAIR', 'TRUCK', 'STAFF'] as const).map(type => (
+                      <button key={type} onClick={() => { setIsZoningMode(true); setZoningType(type); }} className={`w-full p-5 rounded-[2rem] border-2 transition-all ${zoningType === type ? 'bg-slate-950 border-slate-950 text-white shadow-xl' : 'bg-white border-slate-100 text-slate-400'}`}>
+                         <span className="text-[10px] font-black uppercase tracking-widest">{type} ZONE</span>
+                      </button>
+                    ))}
+                    <button onClick={() => setIsZoningMode(false)} className="w-full py-4 text-[10px] font-black uppercase text-indigo-600 mt-4">Exit Zoning</button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
-          <section className="rounded-2xl bg-slate-900 p-4 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xs font-bold uppercase tracking-widest opacity-60">{t('park_stats')}</h2>
-              <Info size={14} className="opacity-40" />
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users size={16} className="text-indigo-400" />
-                  <span className="text-sm font-medium opacity-80">{t('visitors')}</span>
-                </div>
-                <span className="text-lg font-bold">{gameState.visitors.length}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Package size={16} className="text-indigo-400" />
-                  <span className="text-sm font-medium opacity-80">{t('warehouse')}</span>
-                </div>
-                <span className="text-lg font-bold">{gameState.rides.length + gameState.inventory.length} / {engine.getWarehouseCapacity()}</span>
-              </div>
-            </div>
-          </section>
-        </div>
 
-        <div className="mt-6 pt-6 border-t border-slate-100">
-          <div className="flex items-center justify-between rounded-2xl bg-emerald-50 p-4 border border-emerald-100">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-200">
-                <Coins size={20} />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">{t('balance')}</p>
-                <p className="text-xl font-black text-emerald-900">${Math.floor(gameState.money)}</p>
-              </div>
-            </div>
+  {/* Game View */}
+  <div className={`relative flex-1 transition-colors duration-[3000ms] ${getTimeTheme(gameState.time.hours).bg}`}>
+    {/* Floating Top Bar for Stats */}
+    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-2">
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="flex items-center gap-6 px-7 py-3 bg-white/95 backdrop-blur-md rounded-[1.75rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/50 ring-1 ring-slate-900/5 group"
+      >
+        <div className="flex items-center gap-4 border-r border-slate-100 pr-6">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-100 transition-transform group-hover:scale-110">
+            <Coins size={18} />
+          </div>
+          <div className="flex flex-col justify-center min-w-[90px]">
+            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 leading-none mb-1">{t('balance')}</p>
+            <p className="text-lg font-black text-slate-900 leading-none tabular-nums">${Math.floor(gameState.money).toLocaleString()}</p>
           </div>
         </div>
-      </div>
 
-      {/* Game View */}
-      <div className="relative flex-1 bg-slate-200">
+        <div className="flex items-center gap-4 border-r border-slate-100 pr-6">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500 text-white shadow-lg shadow-indigo-100 transition-transform group-hover:scale-110">
+            <Users size={18} />
+          </div>
+          <div className="flex flex-col justify-center min-w-[60px]">
+            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 leading-none mb-1">{t('visitors')}</p>
+            <p className="text-lg font-black text-slate-900 leading-none tabular-nums">{gameState.visitors.length.toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-slate-900 shadow-lg shadow-amber-100 transition-transform group-hover:scale-110">
+            <Star size={18} fill="currentColor" />
+          </div>
+          <div className="flex flex-col justify-center min-w-[50px]">
+            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 leading-none mb-1">{t('park_rating') || 'RATING'}</p>
+            <p className="text-lg font-black text-slate-900 leading-none tabular-nums">{gameState.parkRating.toFixed(1)}</p>
+          </div>
+        </div>
+
+        {/* Time Overlay inside Top Bar */}
+        <div className="flex items-center gap-4 pl-6 border-l border-slate-100">
+          <div className="text-right min-w-[70px]">
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">
+              {t(`month_${gameState.time.month - 1}`)} {gameState.time.dayOfMonth}
+            </p>
+            <p className="text-lg font-black text-slate-900 leading-none tabular-nums">
+              {gameState.time.hours.toString().padStart(2, '0')}:{gameState.time.minutes.toString().padStart(2, '0')}
+            </p>
+          </div>
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all shadow-sm ${getWeatherColor(gameState.currentWeather.type)} text-white`}>
+            {getWeatherIcon(gameState.currentWeather.type)}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+
+    {/* Sidebar Toggle (Only visible when closed) */}
+    {!isSidebarOpen && (
+      <button 
+        onClick={() => setIsSidebarOpen(true)}
+        className="absolute top-8 left-8 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-xl hover:bg-slate-50 transition-all border-2 border-slate-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none"
+        title={t('show_sidebar')}
+      >
+        <Layout size={24} />
+      </button>
+    )}
+        {/* Right Inventory - Removed in favor of Nav Rail */}
+
         <canvas
           ref={canvasRef}
           onMouseDown={handleMouseDown}
@@ -3571,6 +4644,10 @@ export default function App() {
           onWheel={handleWheel}
           className="cursor-crosshair w-full h-full"
         />
+
+        {/* Daylight Cycle Overlays (Moved here to cover canvas) */}
+        <div className={`absolute inset-0 pointer-events-none z-[30] transition-all duration-[3000ms] mix-blend-multiply ${getTimeTheme(gameState.time.hours).overlay}`} />
+        <div className={`absolute inset-0 pointer-events-none z-[31] transition-all duration-[3000ms] bg-[radial-gradient(circle_at_center,transparent_0%,black_100%)] ${getTimeTheme(gameState.time.hours).vignette}`} />
 
         {/* Controls Overlay */}
         <div className="absolute bottom-8 right-8 flex flex-col gap-3">
@@ -3713,217 +4790,220 @@ export default function App() {
           )}
         </AnimatePresence>
       </div>
+
+
       <AnimatePresence>
-        {isShopOpen && (
+        {isPermitFormOpen && pendingTravelCityId && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl bg-white shadow-2xl flex flex-col"
+              className="w-full max-w-xl bg-white rounded-[3rem] overflow-hidden shadow-2xl shadow-black/50"
             >
-              {/* Header */}
-              <div className="bg-indigo-600 p-8 text-white">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md">
-                      <ShoppingBag size={32} />
-                    </div>
-                    <div>
-                      <h2 className="text-3xl font-black tracking-tight">{t('ride_shop_title')}</h2>
-                      <p className="text-indigo-100 text-sm font-medium">
-                        {t('warehouse')}: {gameState.rides.length + gameState.inventory.length} / {engine.getWarehouseCapacity()}
-                      </p>
+              <div className="bg-indigo-600 p-8 text-white relative">
+                <button 
+                  onClick={() => setIsPermitFormOpen(false)}
+                  className="absolute top-8 right-8 h-10 w-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-all"
+                >
+                  <X size={20} />
+                </button>
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                    <FileText size={28} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-70 mb-1">{t('business_permit')}</h3>
+                    <h2 className="text-2xl font-black">{t('travel_permit_form')}</h2>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('target_city')}</label>
+                    <div className="px-4 py-3 bg-slate-100 rounded-xl font-bold text-slate-900 border border-slate-200">
+                      {t('city_name_' + pendingTravelCityId)}
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setIsShopOpen(false)}
-                    className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-all"
-                  >
-                    <X size={24} />
-                  </button>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('travel_cost')}</label>
+                    <div className="px-4 py-3 bg-emerald-50 rounded-xl font-black text-emerald-600 border border-emerald-100">
+                      ${engine.getTravelCost(pendingTravelCityId).toLocaleString()}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Categories */}
-                <div className="flex flex-col gap-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('purpose_of_stay')}</label>
+                  <select 
+                    value={draftPermit.reason}
+                    onChange={(e) => setDraftPermit({...draftPermit, reason: e.target.value as any})}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-900 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                  >
+                    <option value="BUSINESS">{t('reason_expansion')}</option>
+                    <option value="EVENT">{t('reason_event')}</option>
+                    <option value="TOURISM">{t('reason_cultural')}</option>
+                    <option value="TRADE">{t('reason_trade')}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('funfair_area_rental')}</label>
                   <div className="flex gap-2">
-                    {[
-                      { id: 'ALL', label: t('shop_cat_all'), icon: <ShoppingBag size={14} /> },
-                      { id: 'RIDE', label: t('shop_cat_rides'), icon: <Ticket size={14} /> },
-                      { id: 'FOOD', label: t('shop_cat_food'), icon: <Coffee size={14} /> },
-                      { id: 'FACILITY', label: t('shop_cat_facilities'), icon: <Tent size={14} /> },
-                      { id: 'INFRASTRUCTURE', label: t('shop_cat_infrastructure'), icon: <Layout size={14} /> }
-                    ].map(cat => (
+                    {(['COMMUNITY', 'PRIME', 'VIP'] as const).map(tier => (
                       <button
-                        key={cat.id}
-                        onClick={() => setShopCategory(cat.id as any)}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all
-                          ${shopCategory === cat.id 
-                            ? 'bg-white text-indigo-600 shadow-lg' 
-                            : 'bg-indigo-500/50 text-white hover:bg-indigo-500'}
+                        key={tier}
+                        onClick={() => setDraftPermit({...draftPermit, rentTier: tier})}
+                        className={`flex-1 flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all
+                          ${draftPermit.rentTier === tier 
+                            ? 'border-indigo-600 bg-indigo-50 shadow-sm' 
+                            : 'border-slate-50 bg-slate-50 text-slate-400 hover:border-slate-100'}
                         `}
                       >
-                        {cat.icon}
-                        {cat.label}
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${draftPermit.rentTier === tier ? 'text-indigo-600' : ''}`}>{t(`tier_${tier.toLowerCase()}`)}</span>
+                        <span className="text-[8px] font-bold opacity-60">
+                          {tier === 'COMMUNITY' ? '-20% Rent' : tier === 'VIP' ? '+50% Rent' : 'Standard'}
+                        </span>
                       </button>
                     ))}
                   </div>
+                </div>
 
-                  {shopCategory === 'RIDE' && (
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('insurance_tier')}</label>
                     <div className="flex gap-2">
-                      {[
-                        { id: 'ALL', label: t('shop_intensity_all') },
-                        { id: 'GENTLE', label: t('intensity_gentle') },
-                        { id: 'THRILL', label: t('intensity_thrill') },
-                        { id: 'EXTREME', label: t('intensity_extreme') }
-                      ].map(intensity => (
+                      {(['BASIC', 'PREMIUM', 'FULL', 'NONE'] as const).map(tier => (
                         <button
-                          key={intensity.id}
-                          onClick={() => setShopIntensity(intensity.id as any)}
-                          className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                            ${shopIntensity === intensity.id 
-                              ? 'bg-white/20 text-white border-white' 
-                              : 'bg-transparent text-indigo-200 border-indigo-400/30 hover:text-white hover:border-white/50'}
-                            border
+                          key={tier}
+                          onClick={() => setDraftPermit({...draftPermit, insuranceLevel: tier})}
+                          className={`flex-1 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all border-2
+                            ${draftPermit.insuranceLevel === tier 
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-600 shadow-sm' 
+                              : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}
                           `}
                         >
-                          {intensity.label}
+                          {tier}
                         </button>
                       ))}
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {(Object.keys(RIDE_CONFIGS) as RideType[])
-                    .filter(type => {
-                      const config = RIDE_CONFIGS[type];
-                      const categoryMatch = shopCategory === 'ALL' || config.category === shopCategory;
-                      const intensityMatch = shopIntensity === 'ALL' || config.intensity === shopIntensity || config.category !== 'RIDE';
-                      return categoryMatch && intensityMatch;
-                    })
-                    .map(type => {
-                      const config = RIDE_CONFIGS[type];
-                      const canAfford = gameState.money >= config.cost;
-                      const truckAvailable = gameState.trucks.some(t => !t.assignedRideId);
-                      const warehouseCapacity = config.category === 'INFRASTRUCTURE' || (gameState.rides.length + gameState.inventory.length < engine.getWarehouseCapacity());
-
-                      return (
-                        <div 
-                          key={type}
-                          className={`group relative flex flex-col rounded-3xl border-2 p-6 transition-all duration-300
-                            ${canAfford && truckAvailable && warehouseCapacity
-                              ? 'border-white bg-white shadow-sm hover:shadow-xl hover:-translate-y-1' 
-                              : 'border-slate-100 bg-slate-50/50 opacity-75'}
-                          `}
-                        >
-                          <div className="flex items-start justify-between mb-6">
-                            <div 
-                              className="flex h-16 w-16 items-center justify-center rounded-2xl text-4xl shadow-inner relative"
-                              style={{ backgroundColor: config.color + '15' }}
-                            >
-                              {config.icon}
-                              {type === 'QUEUE_PATH' && (
-                                <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg">
-                                  x20
-                                </span>
-                              )}
-                            </div>
-                            <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest
-                              ${canAfford ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}
-                            `}>
-                              ${config.cost}
-                            </div>
-                          </div>
-
-                          <div className="mb-6">
-                            <h3 className="text-lg font-black text-slate-900 mb-1">{t(`ride_${config.type}_name`)}</h3>
-                            <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                              <span className="px-2 py-0.5 rounded bg-slate-100">{t(`category_${config.category.toLowerCase()}`)}</span>
-                              {config.category === 'RIDE' && (
-                                <span className={`px-2 py-0.5 rounded ${
-                                  config.intensity === 'GENTLE' ? 'bg-emerald-50 text-emerald-600' :
-                                  config.intensity === 'THRILL' ? 'bg-orange-50 text-orange-600' :
-                                  'bg-rose-50 text-rose-600'
-                                }`}>
-                                  {t(`intensity_${config.intensity.toLowerCase()}`)}
-                                </span>
-                              )}
-                              <span>•</span>
-                              <span>{config.width}x{config.height} {t('tiles_label')}</span>
-                            </div>
-                            {!truckAvailable && (
-                              <p className="text-[10px] font-bold text-rose-500 mt-2 uppercase tracking-widest">{t('no_trucks_available_message')}</p>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4 mb-8">
-                            <div className="bg-slate-50 rounded-2xl p-3">
-                              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">{t('income_label')}</p>
-                              <p className="text-sm font-black text-indigo-600">${config.baseIncome}</p>
-                            </div>
-                            <div className="bg-slate-50 rounded-2xl p-3">
-                              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">{t('capacity_label')}</p>
-                              <p className="text-sm font-black text-indigo-600">{config.baseCapacity}</p>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => {
-                              if (engine.buyRide(type)) {
-                                audioService.playSFX('buy');
-                                setGameState(engine.getState());
-                                setIsShopOpen(false);
-                                setActiveTab('inventory');
-                                confetti({
-                                  particleCount: 150,
-                                  spread: 100,
-                                  origin: { y: 0.5 }
-                                });
-                              }
-                            }}
-                            disabled={!canAfford || !truckAvailable || !warehouseCapacity}
-                            className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all
-                              ${canAfford && truckAvailable && warehouseCapacity
-                                ? 'bg-slate-900 text-white hover:bg-indigo-600 shadow-lg shadow-slate-200' 
-                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
-                            `}
-                          >
-                            {!canAfford ? t('insufficient_funds') : !truckAvailable ? t('no_truck_available') : !warehouseCapacity ? t('warehouse_full') : t('purchase_item')}
-                          </button>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="bg-white border-t border-slate-100 p-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-                    <Coins size={20} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">{t('available_balance')}</p>
-                    <p className="text-xl font-black text-slate-900">${gameState.money.toLocaleString()}</p>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('stay_duration')}</label>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="range" min="7" max="30" step="1"
+                        value={draftPermit.days}
+                        onChange={(e) => setDraftPermit({...draftPermit, days: parseInt(e.target.value)})}
+                        className="flex-1 h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                      <span className="text-xs font-black text-slate-900 w-12 text-right">{draftPermit.days} {t('days')}</span>
+                    </div>
                   </div>
                 </div>
-                <p className="text-xs font-medium text-slate-400 italic">
-                  {t('select_item_to_add')}
-                </p>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('owner_signature')}</label>
+                  <input 
+                    type="text"
+                    value={draftPermit.signature}
+                    onChange={(e) => setDraftPermit({...draftPermit, signature: e.target.value})}
+                    placeholder={t('sign_here')}
+                    className="w-full px-4 py-4 rounded-xl border-2 border-slate-100 bg-slate-50 font-serif italic text-lg text-slate-900 focus:border-indigo-600 focus:bg-white outline-none transition-all placeholder:text-slate-300 placeholder:italic"
+                  />
+                </div>
+
+                <div className="pt-4 flex gap-4">
+                  <button 
+                    onClick={() => setIsPermitFormOpen(false)}
+                    className="flex-1 py-4 rounded-2xl bg-slate-100 text-slate-500 text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button 
+                    disabled={!draftPermit.signature || gameState.money < engine.getTravelCost(pendingTravelCityId)}
+                    onClick={() => {
+                      if (engine.confirmTravel(pendingTravelCityId, draftPermit)) {
+                        audioService.playSFX('buy');
+                        setGameState(engine.getState());
+                        setIsPermitFormOpen(false);
+                        setIsManagementOpen(false);
+                        confetti({
+                          particleCount: 200,
+                          spread: 120,
+                          origin: { y: 0.5 }
+                        });
+                      }
+                    }}
+                    className={`flex-[2] py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-indigo-200
+                      ${draftPermit.signature && gameState.money >= engine.getTravelCost(pendingTravelCityId)
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:-translate-y-0.5 active:translate-y-0' 
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
+                    `}
+                  >
+                    {t('register_travel')}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Achievements Overlay - moved to bottom-left to avoid overlaps */}
+      <div className="absolute bottom-8 left-8 z-[200] flex flex-col-reverse gap-4 pointer-events-none">
+        <AnimatePresence>
+          {gameState.newAchievements.map((achievement) => {
+            const Icon = ({ 
+              Flag, DollarSign, Users, FlaskConical, Shield, Globe, Zap, Utensils, Clock, TrendingUp, Package, UserPlus, Star, Wallet, Wrench, Target 
+            } as any)[achievement.icon] || Target;
+
+            return (
+              <motion.div
+                key={achievement.id}
+                initial={{ x: -100, opacity: 0, scale: 0.8 }}
+                animate={{ x: 0, opacity: 1, scale: 1 }}
+                exit={{ x: -100, opacity: 0, scale: 0.8 }}
+                className="pointer-events-auto w-84 bg-slate-900 rounded-[1.5rem] p-5 shadow-2xl border border-white/10 ring-1 ring-white/10 relative overflow-hidden group"
+              >
+                {/* Background particle effect */}
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400 to-transparent animate-shimmer" />
+                <div className="absolute -top-10 -right-10 h-32 w-32 bg-indigo-500/10 rounded-full blur-[40px]" />
+
+                <div className="flex items-center gap-5 relative z-10">
+                  <div className="h-14 w-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-4xl shadow-xl shadow-indigo-900/50 shrink-0 group-hover:rotate-6 transition-transform">
+                    <Icon size={28} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-1">{t('milestone_reached') || 'MILESTONE UNLOCKED'}</h3>
+                    <h4 className="text-sm font-black text-white uppercase tracking-tight truncate leading-tight">{achievement.title}</h4>
+                    <p className="text-[10px] font-medium text-slate-400 mt-1 line-clamp-2 leading-relaxed opacity-80">{achievement.description}</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      engine.clearNewAchievement(achievement.id);
+                      setGameState(engine.getState());
+                    }}
+                    className="p-2 text-slate-500 hover:text-white transition-colors self-start -mt-2 -mr-2"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                
+                {/* Progress countdown bar */}
+                <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-indigo-500 to-emerald-400 w-full animate-progress-extended origin-left" />
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

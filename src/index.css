@@ -16,3 +16,21 @@
     background: #94a3b8;
   }
 }
+
+@keyframes progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress-extended {
+  animation: progress 6s linear forwards;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+}

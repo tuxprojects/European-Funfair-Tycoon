@@ -1,16 +1,31 @@
-import { RideInstance, Visitor, Position, RIDE_CONFIGS, RideIntensity, GameTime, ParkSettings, GameState, CompanyInfo, CITIES, StaffInstance, StaffType, STAFF_CONFIGS, RideType, FinanceStats, Season, WeatherType, WeatherInfo, TruckInstance, GARAGE_CONFIGS, TRUCK_COST, Zone, Loan, Language } from './types';
+import { RideInstance, Visitor, Position, RIDE_CONFIGS, RideIntensity, GameTime, ParkSettings, GameState, CompanyInfo, CITIES, StaffInstance, StaffType, STAFF_CONFIGS, RideType, FinanceStats, Season, WeatherType, WeatherInfo, TruckInstance, GARAGE_CONFIGS, TRUCK_COST, Zone, Loan, Language, ResearchProject, Challenge, Achievement, TravelForm, REGION_OPERATING_MONTHS, RideCategory, ShowmanConnection, RentalAgreement } from './types';
+import { RESEARCH_PROJECTS, INITIAL_UNLOCKED_RIDES } from './researchData';
+import { ACHIEVEMENTS } from './achievementData';
+import { MANUFACTURERS } from './manufacturerData';
 
 export class GameEngine {
   rides: RideInstance[] = [];
   inventory: RideInstance[] = [];
   trucks: TruckInstance[] = [];
   staff: StaffInstance[] = [];
+  connections: ShowmanConnection[] = [];
+  activeRentals: RentalAgreement[] = [];
   visitors: Visitor[] = [];
   zones: Zone[] = [];
   activeLoans: Loan[] = [];
   money: number = 2000;
+  researchPoints: number = 0;
+  parkRating: number = 2.5;
+  activeResearchId: string | null = null;
+  researchProgress: number = 0;
+  completedResearchIds: string[] = [];
+  challenges: Challenge[] = [];
+  achievements: Achievement[] = [...ACHIEVEMENTS];
+  newAchievements: Achievement[] = [];
+  totalMoneyEarned: number = 0;
+  totalCitiesVisited: string[] = [];
   lastUpdate: number = Date.now();
-  time: GameTime = { hours: 8, minutes: 0, day: 1, dayOfWeek: 0, season: 'SPRING', month: 1, dayOfMonth: 1 };
+  time: GameTime = { hours: 8, minutes: 0, day: 1, dayOfWeek: 0, season: 'WINTER', month: 1, dayOfMonth: 1 };
   settings: ParkSettings = { 
     openTime: 8, 
     closeTime: 22, 
@@ -31,6 +46,7 @@ export class GameEngine {
   cities = CITIES;
   finances: FinanceStats = this.getEmptyFinances();
   dailyHistory: FinanceStats[] = [];
+  activePermit: TravelForm | null = null;
   currentWeather: WeatherInfo = {
     type: 'SUNNY',
     temperature: 20,
@@ -64,6 +80,7 @@ export class GameEngine {
         { id: 'truck-2', name: 'Truck 2', x: 50, y: city.mapHeight * 20 + 40 }
       ];
     }
+    this.generateInitialConnections();
   }
 
   private loadFromData(data: any) {
@@ -82,6 +99,8 @@ export class GameEngine {
       targetX: s.targetX ?? s.x ?? 0,
       targetY: s.targetY ?? s.y ?? 0
     }));
+    this.connections = data.connections || [];
+    this.activeRentals = data.activeRentals || [];
     this.trucks = (data.trucks || []).map((t: any) => ({
       ...t,
       x: t.x ?? 0,
@@ -156,6 +175,7 @@ export class GameEngine {
       maintenance: 0,
       loanInterest: 0,
       loanPrincipal: 0,
+      travel: 0,
       other: 0,
       ...(this.finances.expenses || {})
     };
@@ -193,6 +213,19 @@ export class GameEngine {
         ...(day.visitorStats || {})
       }
     }));
+    this.researchPoints = data.researchPoints ?? 0;
+    this.parkRating = data.parkRating ?? 2.5;
+    this.activeResearchId = data.activeResearchId ?? null;
+    this.researchProgress = data.researchProgress ?? 0;
+    this.completedResearchIds = data.completedResearchIds || [];
+    this.challenges = data.challenges || [];
+    this.achievements = (data.achievements || []).map((a: any) => ({
+      ...ACHIEVEMENTS.find(ref => ref.id === a.id),
+      ...a
+    }));
+    if (this.achievements.length === 0) {
+      this.achievements = ACHIEVEMENTS.map(a => ({ ...a }));
+    }
     this.lastSalaryPaymentHour = data.lastSalaryPaymentHour ?? -1;
     this.tutorialStep = data.tutorialStep ?? 0;
     this.currentWeather = data.currentWeather || {
@@ -203,6 +236,7 @@ export class GameEngine {
       description: 'Sunny and pleasant.'
     };
     this.showTutorial = data.showTutorial ?? true;
+    this.newAchievements = data.newAchievements || [];
     this.lastUpdate = Date.now();
     this.visitors = []; // Don't save visitors, they are transient
 
@@ -258,6 +292,12 @@ export class GameEngine {
       inventory: this.inventory,
       staff: this.staff,
       money: this.money,
+      researchPoints: this.researchPoints,
+      parkRating: this.parkRating,
+      activeResearchId: this.activeResearchId,
+      researchProgress: this.researchProgress,
+      completedResearchIds: this.completedResearchIds,
+      challenges: this.challenges,
       time: this.time,
       settings: this.settings,
       company: this.company,
@@ -266,7 +306,10 @@ export class GameEngine {
       activeLoans: this.activeLoans,
       lastSalaryPaymentHour: this.lastSalaryPaymentHour,
       tutorialStep: this.tutorialStep,
-      showTutorial: this.showTutorial
+      showTutorial: this.showTutorial,
+      zones: this.zones,
+      totalMoneyEarned: this.totalMoneyEarned,
+      totalCitiesVisited: this.totalCitiesVisited,
     };
     localStorage.setItem('funfair_tycoon_save', JSON.stringify(data));
   }
@@ -290,10 +333,16 @@ export class GameEngine {
     this.company.homeCityId = cityId;
     this.company.warehouseLevel = 1;
     this.money = 2000;
+    this.researchPoints = 0;
+    this.parkRating = 2.5;
+    this.activeResearchId = null;
+    this.researchProgress = 0;
+    this.completedResearchIds = [];
+    this.challenges = this.generateNewChallenges();
     this.rides = [];
     this.inventory = [];
     this.visitors = [];
-    this.time = { hours: 8, minutes: 0, day: 1, dayOfWeek: 0, season: 'SPRING', month: 1, dayOfMonth: 1 };
+    this.time = { hours: 8, minutes: 0, day: 1, dayOfWeek: 0, season: 'WINTER', month: 1, dayOfMonth: 1 };
     this.finances = this.getEmptyFinances();
     this.dailyHistory = [];
     this.tutorialStep = 0;
@@ -398,7 +447,7 @@ export class GameEngine {
     const loansToRemove: string[] = [];
 
     this.activeLoans.forEach(loan => {
-      const dailyInterest = (loan.remainingPrincipal * loan.interestRate) / 365; // Very simple daily interest
+      const dailyInterest = (loan.remainingPrincipal * loan.interestRate) / 365;
       const principalPayment = Math.min(loan.dailyPayment - dailyInterest, loan.remainingPrincipal);
       
       const totalPayment = dailyInterest + principalPayment;
@@ -410,7 +459,6 @@ export class GameEngine {
         this.finances.expenses.loanInterest += dailyInterest;
         this.finances.expenses.loanPrincipal += principalPayment;
       } else {
-        // Defaulted on payment? For now just add interest to principal
         loan.remainingPrincipal += dailyInterest;
         this.finances.expenses.loanInterest += dailyInterest;
       }
@@ -421,6 +469,148 @@ export class GameEngine {
     });
 
     this.activeLoans = this.activeLoans.filter(l => !loansToRemove.includes(l.id));
+  }
+
+  private processRentals() {
+    this.activeRentals = this.activeRentals.filter(rental => {
+      rental.remainingDays--;
+      
+      if (rental.type === 'RENT_IN') {
+        const cost = rental.dailyRate;
+        this.money -= cost;
+        this.finances.expenses.other += cost;
+      } else {
+        const income = rental.dailyRate;
+        this.money += income;
+        this.finances.income.other += income;
+        this.totalMoneyEarned += income;
+      }
+
+      if (rental.remainingDays <= 0) {
+        if (rental.type === 'RENT_IN') {
+          this.inventory = this.inventory.filter(r => r.id !== rental.rideId);
+          this.rides = this.rides.filter(r => r.id !== rental.rideId);
+        } else {
+          // Ride comes back from RENT_OUT
+          const ride = [...this.inventory, ...this.rides].find(r => r.id === rental.rideId);
+          if (ride) {
+            ride.status = 'MAINTENANCE'; 
+          }
+        }
+        return false;
+      }
+      return true;
+    });
+  }
+
+  generateInitialConnections() {
+    if (this.connections.length > 0) return;
+
+    const names = ['Hans Müller', 'Jean-Pierre', 'Marco Rossi', 'Lars Svensson', 'Vasilis'];
+    const citiesList = ['berlin', 'paris', 'rome', 'stockholm', 'athens'];
+    const specialties: RideCategory[] = ['RIDE', 'STALL', 'FACILITY', 'RIDE', 'STALL'];
+    const ridePool: RideType[][] = [
+      ['ROLLERCOASTER', 'DROP_TOWER', 'TOP_SPIN'],
+      ['FERRIS_WHEEL', 'CAROUSEL', 'ENTERPRISE'],
+      ['PIRATE_SHIP', 'LOG_FLUME', 'WALTZER'],
+      ['SKY_SWING', 'BUNGEE_JUMP', 'SLINGSHOT'],
+      ['GIANT_WHEEL', 'WOODEN_COASTER', 'ZIP_LINE']
+    ];
+
+    this.connections = names.map((name, i) => ({
+      id: `conn-${i}`,
+      name,
+      reputation: 20 + Math.floor(Math.random() * 30),
+      specialty: specialties[i],
+      availableRides: ridePool[i],
+      location: citiesList[i]
+    }));
+  }
+
+  rentRideIn(connectionId: string, rideType: RideType, days: number) {
+    const connection = this.connections.find(c => c.id === connectionId);
+    if (!connection) return false;
+
+    const config = RIDE_CONFIGS[rideType];
+    const dailyRate = Math.floor(config.cost * 0.02);
+    
+    // Transport cost based on distance
+    const currentCity = CITIES.find(c => c.id === this.company.currentCityId) || CITIES[0];
+    const partnerCity = CITIES.find(c => c.id === connection.location) || CITIES[0];
+    const distance = Math.sqrt(Math.pow(currentCity.x - partnerCity.x, 2) + Math.pow(currentCity.y - partnerCity.y, 2));
+    const transportCost = Math.floor(distance * 5);
+
+    if (this.money < transportCost + dailyRate) return false;
+
+    // Create the rented ride instance
+    const rideId = `rented-${Math.random().toString(36).substr(2, 9)}`;
+    const newRide: RideInstance = {
+      id: rideId,
+      type: rideType,
+      x: 0,
+      y: 0,
+      level: 1,
+      price: 5,
+      currentVisitors: 0,
+      lastIncomeTime: Date.now(),
+      status: 'MAINTENANCE',
+      isStaffResting: false,
+      condition: 100,
+      isPlaced: false,
+      buildProgress: 0,
+      avgWaitTime: 0,
+      satisfaction: 100,
+      totalVisitorsServed: 0,
+      totalHappinessGained: 0,
+      queue: []
+    };
+
+    this.money -= transportCost;
+    this.finances.expenses.travel += transportCost;
+    
+    this.inventory.push(newRide);
+    this.activeRentals.push({
+      id: `agreement-${Math.random().toString(36).substr(2, 9)}`,
+      rideId: rideId,
+      type: 'RENT_IN',
+      partnerId: connectionId,
+      dailyRate,
+      remainingDays: days,
+      transportCost,
+      isInitialTransportPaid: true
+    });
+
+    this.saveGame();
+    return true;
+  }
+
+  rentRideOut(rideId: string, connectionId: string, days: number) {
+    const connection = this.connections.find(c => c.id === connectionId);
+    if (!connection) return false;
+
+    const ride = this.inventory.find(r => r.id === rideId);
+    if (!ride) return false;
+
+    const config = RIDE_CONFIGS[ride.type];
+    const dailyRate = Math.floor(config.cost * 0.015);
+
+    // Remove from active usage
+    this.inventory = this.inventory.filter(r => r.id !== rideId);
+    ride.status = 'CONSTRUCTING'; // Effectively "away"
+
+    this.activeRentals.push({
+      id: `agreement-${Math.random().toString(36).substr(2, 9)}`,
+      rideId: rideId,
+      type: 'RENT_OUT',
+      partnerId: connectionId,
+      dailyRate,
+      remainingDays: days,
+      transportCost: 0,
+      isInitialTransportPaid: true
+    });
+
+    this.saveGame();
+    return true;
   }
 
   advanceTutorial() {
@@ -438,7 +628,7 @@ export class GameEngine {
         food: 0, 
         other: 0 
       },
-      expenses: { wages: 0, electricity: 0, rent: 0, maintenance: 0, loanInterest: 0, loanPrincipal: 0, other: 0 },
+      expenses: { wages: 0, electricity: 0, rent: 0, maintenance: 0, loanInterest: 0, loanPrincipal: 0, travel: 0, other: 0 },
       visitorStats: {
         totalVisitors: 0,
         avgHappiness: 0,
@@ -490,32 +680,173 @@ export class GameEngine {
       visitor.money -= pricing.seasonPassPrice;
       this.money += pricing.seasonPassPrice;
       this.finances.income.seasonPasses += pricing.seasonPassPrice;
+      this.updateChallengeProgress('PROFIT', pricing.seasonPassPrice);
     } else if (roll < 0.2 && visitor.money >= pricing.wristbandPrice) {
       visitor.hasWristband = true;
       visitor.money -= pricing.wristbandPrice;
       this.money += pricing.wristbandPrice;
       this.finances.income.wristbands += pricing.wristbandPrice;
+      this.updateChallengeProgress('PROFIT', pricing.wristbandPrice);
     } else if (roll < 0.4 && visitor.money >= pricing.bundlePrice) {
       visitor.remainingBundleRides = pricing.bundleSize;
       visitor.money -= pricing.bundlePrice;
       this.money += pricing.bundlePrice;
       this.finances.income.bundles += pricing.bundlePrice;
+      this.updateChallengeProgress('PROFIT', pricing.bundlePrice);
     }
 
     this.finances.visitorStats.totalVisitors++;
+    this.updateChallengeProgress('VISITORS', 1);
     this.visitors.push(visitor);
   }
 
   getParkRating(): number {
-    if (this.rides.length === 0) return 0;
+    if (this.rides.length === 0) return 20; // Minimal rating for empty park
     
     const rideQuality = this.rides.reduce((acc, r) => acc + r.condition, 0) / this.rides.length;
     const staffHappiness = this.staff.length > 0 
       ? this.staff.reduce((acc, s) => acc + s.happiness, 0) / this.staff.length 
       : 50;
-    const varietyBonus = Math.min(20, new Set(this.rides.map(r => r.type)).size * 5);
     
-    return (rideQuality * 0.4 + staffHappiness * 0.4 + varietyBonus);
+    const varietyCount = new Set(this.rides.map(r => r.type)).size;
+    const varietyBonus = Math.min(30, varietyCount * 3);
+    
+    const avgVisitorHappiness = this.visitors.length > 0
+      ? this.visitors.reduce((acc, v) => acc + v.happiness, 0) / this.visitors.length
+      : 70;
+
+    const rating = (rideQuality * 0.25 + staffHappiness * 0.2 + varietyBonus + avgVisitorHappiness * 0.25);
+    return Math.max(0, Math.min(100, rating));
+  }
+
+  private generateNewChallenges(): Challenge[] {
+    const types: Challenge['type'][] = ['VISITORS', 'PROFIT', 'RESEARCH', 'MAINTENANCE'];
+    const selectedTypes = types.sort(() => 0.5 - Math.random()).slice(0, 3);
+    
+    return selectedTypes.map(type => {
+      let title = '';
+      let desc = '';
+      let target = 0;
+      let rewardMoney = 0;
+      let rewardResearch = 0;
+
+      switch(type) {
+        case 'VISITORS':
+          target = 50 + Math.floor(Math.random() * 150);
+          title = 'Crowd Pleaser';
+          desc = `Welcome ${target} visitors to your park total.`;
+          rewardMoney = target * 5;
+          rewardResearch = Math.floor(target / 10);
+          break;
+        case 'PROFIT':
+          target = 1000 + Math.floor(Math.random() * 4000);
+          title = 'Cash Flow Master';
+          desc = `Earn $${target} from ticket sales.`;
+          rewardMoney = Math.floor(target * 0.2);
+          rewardResearch = 20;
+          break;
+        case 'RESEARCH':
+          target = 100 + Math.floor(Math.random() * 200);
+          title = 'Innovation Hub';
+          desc = `Generate ${target} research points.`;
+          rewardMoney = 500;
+          rewardResearch = Math.floor(target * 0.5);
+          break;
+        case 'MAINTENANCE':
+          target = 5 + Math.floor(Math.random() * 15);
+          title = 'Safe & Sound';
+          desc = `Perform ${target} successful ride repairs.`;
+          rewardMoney = 300;
+          rewardResearch = 30;
+          break;
+      }
+
+      return {
+        id: Math.random().toString(36).substr(2, 9),
+        type,
+        title,
+        description: desc,
+        target,
+        current: 0,
+        rewardMoney,
+        rewardResearch,
+        isCompleted: false
+      };
+    });
+  }
+
+  private updateChallenges(dt: number) {
+    if (this.challenges.length === 0) {
+      this.challenges = this.generateNewChallenges();
+    }
+
+    // Checking for completion happens usually when an action is performed, 
+    // but some are over time.
+    this.challenges.forEach(c => {
+      if (c.isCompleted) return;
+
+      if (c.type === 'VISITORS') {
+        // This is cumulative in this simplified model
+        if (c.current >= c.target) this.completeChallenge(c.id);
+      }
+      // Profit and Research completions are usually triggered by income/generation
+    });
+  }
+
+  private completeChallenge(id: string) {
+    const challenge = this.challenges.find(c => c.id === id);
+    if (!challenge || challenge.isCompleted) return;
+
+    challenge.isCompleted = true;
+    challenge.current = challenge.target;
+    this.money += challenge.rewardMoney;
+    this.researchPoints += challenge.rewardResearch;
+    this.saveGame();
+  }
+
+  startResearch(projectId: string) {
+    const project = RESEARCH_PROJECTS.find(p => p.id === projectId);
+    if (!project) return;
+    if (this.researchPoints < project.cost) return;
+
+    this.researchPoints -= project.cost;
+    this.activeResearchId = projectId;
+    this.researchProgress = 0;
+    this.saveGame();
+  }
+
+  private completeResearch(projectId: string) {
+    if (!this.completedResearchIds.includes(projectId)) {
+      this.completedResearchIds.push(projectId);
+    }
+    this.activeResearchId = null;
+    this.researchProgress = 0;
+    
+    // Add point to research challenge if exists
+    this.updateChallengeProgress('RESEARCH', 25);
+    
+    this.saveGame();
+  }
+
+  updateChallengeProgress(type: Challenge['type'], amount: number) {
+    this.challenges.forEach(c => {
+      if (c.type === type && !c.isCompleted) {
+        c.current += amount;
+        if (c.current >= c.target) {
+          this.completeChallenge(c.id);
+        }
+      }
+    });
+  }
+
+  customizeRide(rideId: string, updates: { name?: string, color?: string }) {
+    const ride = this.rides.find(r => r.id === rideId) || this.inventory.find(r => r.id === rideId);
+    if (!ride) return;
+
+    if (updates.name !== undefined) ride.customName = updates.name;
+    if (updates.color !== undefined) ride.customColor = updates.color;
+    
+    this.saveGame();
   }
 
   getVisitorDemandMultiplier(): number {
@@ -531,14 +862,100 @@ export class GameEngine {
     return (ticketFactor * 0.4 + wristbandFactor * 0.3 + seasonFactor * 0.3 + ratingFactor * 0.5) * this.currentWeather.visitorMultiplier;
   }
 
+  private checkAchievements() {
+    this.achievements.forEach(achievement => {
+      if (achievement.isUnlocked) return;
+
+      let unlocked = false;
+
+      switch (achievement.id) {
+        case 'first_stop':
+          if (this.totalCitiesVisited.length >= 1) unlocked = true;
+          break;
+        case 'millionaire':
+          if (this.totalMoneyEarned >= 1000000) unlocked = true;
+          break;
+        case 'crowd_magnet':
+          if (this.visitors.length >= 500) unlocked = true;
+          break;
+        case 'research_pioneer':
+          if (this.completedResearchIds.length >= 5) unlocked = true;
+          break;
+        case 'safety_first':
+          const allGood = this.rides.length > 0 && this.rides.every(r => r.condition > 90);
+          if (allGood && this.time.day > 5) unlocked = true; 
+          break;
+        case 'continental_tour':
+          const countries = new Set(this.totalCitiesVisited.map(id => CITIES.find(c => c.id === id)?.country).filter(Boolean));
+          if (countries.size >= 5) unlocked = true;
+          break;
+        case 'rollercoaster_tycoon':
+          const coasters = this.rides.filter(r => RIDE_CONFIGS[r.type].type === 'ROLLERCOASTER' || RIDE_CONFIGS[r.type].type === 'WOODEN_COASTER' || RIDE_CONFIGS[r.type].type === 'KIDDIE_COASTER').length;
+          if (coasters >= 3) unlocked = true;
+          break;
+        case 'foodie_paradise':
+          const stalls = new Set(this.rides.filter(r => RIDE_CONFIGS[r.type].category === 'STALL').map(r => r.type)).size;
+          if (stalls >= 5) unlocked = true;
+          break;
+        case 'workaholic':
+          if (this.time.day >= 100) unlocked = true;
+          break;
+        case 'high_roller':
+          if (this.rides.some(r => RIDE_CONFIGS[r.type].cost >= 50000)) unlocked = true;
+          break;
+        case 'first_ride':
+          if (this.rides.length > 0 || this.inventory.length > 0) unlocked = true;
+          break;
+        case 'staff_hero':
+          if (this.staff.length >= 10) unlocked = true;
+          break;
+        case 'loan_shark':
+          if (this.activeLoans.length >= 3) unlocked = true;
+          break;
+        case 'park_legend':
+          if (this.parkRating >= 4.9) unlocked = true;
+          break;
+        case 'big_spender':
+          const dailyExpenses = Object.values(this.finances.expenses).reduce((acc, v) => acc + (v as number), 0);
+          if (dailyExpenses >= 50000) unlocked = true;
+          break;
+        case 'master_mechanic':
+          if (this.staff.some(s => s.type === 'MECHANIC' && s.level >= 5)) unlocked = true;
+          break;
+      }
+
+      if (unlocked) {
+        achievement.isUnlocked = true;
+        achievement.unlockedAt = Date.now();
+        this.newAchievements.push({ ...achievement });
+      }
+    });
+  }
+
+  clearNewAchievement(id: string) {
+    this.newAchievements = this.newAchievements.filter(a => a.id !== id);
+  }
+
   getState(): GameState {
     const city = CITIES.find(c => c.id === this.company.currentCityId) || CITIES[0];
     return {
       money: this.money,
+      researchPoints: this.researchPoints,
+      parkRating: this.parkRating,
+      activeResearchId: this.activeResearchId,
+      researchProgress: this.researchProgress,
+      completedResearchIds: [...this.completedResearchIds],
+      challenges: [...this.challenges],
+      achievements: [...this.achievements],
+      newAchievements: [...this.newAchievements],
+      totalMoneyEarned: this.totalMoneyEarned,
+      totalCitiesVisited: [...this.totalCitiesVisited],
       rides: [...this.rides],
       inventory: [...this.inventory],
       trucks: [...this.trucks],
       staff: [...this.staff],
+      connections: [...this.connections],
+      activeRentals: [...this.activeRentals],
       visitors: [...this.visitors],
       time: { ...this.time },
       currentWeather: { ...this.currentWeather },
@@ -552,6 +969,7 @@ export class GameEngine {
       activeLoans: [...this.activeLoans],
       tutorialStep: this.tutorialStep,
       showTutorial: this.showTutorial,
+      activePermit: this.activePermit ? { ...this.activePermit } : null,
       travelingToCityId: this.travelingToCityId,
       travelProgress: this.travelProgress,
       truckMinigameX: this.truckMinigameX,
@@ -564,6 +982,8 @@ export class GameEngine {
     const dt = (now - this.lastUpdate) / 1000;
     this.lastUpdate = now;
 
+    const isParkOpen = this.canParkOpen().canOpen && !this.settings.isManuallyClosed;
+
     if (this.travelingToCityId) {
       this.updateTravel(dt);
       return this.getState();
@@ -572,6 +992,32 @@ export class GameEngine {
     if (this.settings.isPaused) {
       return this.getState();
     }
+
+    // Update Research
+    if (this.activeResearchId) {
+      const visitorsInPark = this.visitors.length;
+      const researchRate = 0.1 + (visitorsInPark * 0.05); // Faster research with more visitors
+      this.researchProgress += researchRate * dt;
+      
+      const project = RESEARCH_PROJECTS.find(p => p.id === this.activeResearchId);
+      if (project && this.researchProgress >= 100) {
+        this.completeResearch(project.id);
+      }
+    }
+
+    // Earn Research Points passively
+    if (isParkOpen && this.visitors.length > 0) {
+      this.researchPoints += (this.visitors.length * 0.01) * dt;
+    }
+
+    // Update Park Rating
+    this.parkRating = this.getParkRating() / 20; // Normalize 0-100 to 0-5
+
+    // Update Challenges
+    this.updateChallenges(dt);
+
+    // Update Achievements
+    this.checkAchievements();
 
     const city = CITIES.find(c => c.id === this.company.currentCityId) || CITIES[0];
     const mapWidthPx = city.mapWidth * 40;
@@ -596,8 +1042,9 @@ export class GameEngine {
           // Generate Weather for the new day
           this.currentWeather = this.generateWeather(city, this.time.season || 'SPRING');
 
-          // Day transition: Process Loans
+          // Day transition: Process Loans and Rentals
           this.processLoans();
+          this.processRentals();
 
           // Day transition: Save finances to history and reset
           this.dailyHistory.unshift({ ...this.finances });
@@ -608,8 +1055,6 @@ export class GameEngine {
         }
       }
     }
-
-    const isParkOpen = this.isParkOpen();
 
     // Staff Effects
     const staffByType = (type: StaffType) => this.staff.filter(s => s.type === type);
@@ -652,7 +1097,7 @@ export class GameEngine {
     const unassignedVendors = this.staff.filter(s => s.type === 'VENDOR' && !s.assignedRideId);
     const stallsNeedingVendors = this.rides.filter(r => 
       (r.status === 'OPERATIONAL' || r.status === 'CONSTRUCTING') && 
-      !r.operatorId && RIDE_CONFIGS[r.type].category === 'FOOD'
+      !r.operatorId && RIDE_CONFIGS[r.type].category === 'STALL'
     );
 
     for (let i = 0; i < Math.min(unassignedVendors.length, stallsNeedingVendors.length); i++) {
@@ -706,7 +1151,10 @@ export class GameEngine {
       this.finances.expenses.electricity += totalElectricity;
 
       // Rent (based on city size and multiplier)
-      const rent = Math.floor((city.mapWidth * city.mapHeight) / 5 * city.visitorMultiplier);
+      let rent = Math.floor((city.mapWidth * city.mapHeight) / 5 * city.visitorMultiplier);
+      if (this.activePermit?.rentTier === 'COMMUNITY') rent = Math.floor(rent * 0.8);
+      if (this.activePermit?.rentTier === 'VIP') rent = Math.floor(rent * 1.5);
+      
       this.money -= rent;
       this.finances.expenses.rent += rent;
 
@@ -798,7 +1246,7 @@ export class GameEngine {
       
       if (ride.status === 'OPERATIONAL') {
         // Check if it has an operator and they are working
-        const staffType = config.category === 'FOOD' ? 'VENDOR' : 'OPERATOR';
+        const staffType = config.category === 'STALL' ? 'VENDOR' : 'OPERATOR';
         const operator = this.staff.find(s => s.id === ride.operatorId && s.type === staffType);
         if (operator && operator.state === 'WORKING') {
           ride.isStaffResting = false;
@@ -839,6 +1287,7 @@ export class GameEngine {
             // Unassign mechanic so they can go elsewhere
             mechanic.assignedRideId = undefined;
             ride.mechanicId = undefined;
+            this.updateChallengeProgress('MAINTENANCE', 1);
           }
         } else if (mechanic && mechanic.state === 'RESTING') {
           ride.isStaffResting = true;
@@ -962,7 +1411,7 @@ export class GameEngine {
           // Decide what to do next based on needs
           if (v.hunger > 70) {
             // Seek food
-            const foodStalls = this.rides.filter(r => r.status === 'OPERATIONAL' && RIDE_CONFIGS[r.type].category === 'FOOD');
+            const foodStalls = this.rides.filter(r => r.status === 'OPERATIONAL' && RIDE_CONFIGS[r.type].category === 'STALL');
             if (foodStalls.length > 0) {
               const stall = foodStalls[Math.floor(Math.random() * foodStalls.length)];
               this.addThought(v, { key: 'thought_hungry', replacements: { rideName: RIDE_CONFIGS[stall.type].name } });
@@ -1330,7 +1779,7 @@ export class GameEngine {
     if (!ride) return false;
 
     const config = RIDE_CONFIGS[ride.type];
-    const staffType = config.category === 'FOOD' ? 'VENDOR' : 'OPERATOR';
+    const staffType = config.category === 'STALL' ? 'VENDOR' : 'OPERATOR';
 
     // Check if ride already has an operator
     const currentOp = this.staff.find(s => s.assignedRideId === rideId && s.type === staffType);
@@ -1388,7 +1837,7 @@ export class GameEngine {
     if (!ride) return false;
 
     const config = RIDE_CONFIGS[ride.type];
-    const staffType = config.category === 'FOOD' ? 'VENDOR' : 'OPERATOR';
+    const staffType = config.category === 'STALL' ? 'VENDOR' : 'OPERATOR';
 
     // Unassign current operator if any
     if (ride.operatorId) {
@@ -1481,17 +1930,33 @@ export class GameEngine {
   }
 
   private updateTimeDetails() {
-    this.time.season = this.getSeason(this.time.day);
     this.time.month = Math.floor(((this.time.day - 1) % 120) / 10) + 1;
     this.time.dayOfMonth = ((this.time.day - 1) % 10) + 1;
     this.time.dayOfWeek = (this.time.day - 1) % 7;
+    
+    // Update season based on month (120-day year: 10 days per month)
+    // Jan(1), Feb(2), Dec(12) are Winter
+    // Mar(3), Apr(4), May(5) are Spring
+    // Jun(6), Jul(7), Aug(8) are Summer
+    // Sep(9), Oct(10), Nov(11) are Autumn
+    const month = this.time.month;
+    if (month >= 3 && month <= 5) {
+      this.time.season = 'SPRING';
+    } else if (month >= 6 && month <= 8) {
+      this.time.season = 'SUMMER';
+    } else if (month >= 9 && month <= 11) {
+      this.time.season = 'AUTUMN';
+    } else {
+      this.time.season = 'WINTER';
+    }
   }
 
   private getSeason(day: number): Season {
-    // 30 days per season
-    const seasonIndex = Math.floor(((day - 1) % 120) / 30);
-    const seasons: Season[] = ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
-    return seasons[seasonIndex];
+    const month = Math.floor(((day - 1) % 120) / 10) + 1;
+    if (month >= 3 && month <= 5) return 'SPRING';
+    if (month >= 6 && month <= 8) return 'SUMMER';
+    if (month >= 9 && month <= 11) return 'AUTUMN';
+    return 'WINTER';
   }
 
   private generateWeather(city: any, season: Season): WeatherInfo {
@@ -1538,6 +2003,23 @@ export class GameEngine {
   }
 
   canParkOpen(): { canOpen: boolean; reason?: { key: string; replacements?: Record<string, string | number> } } {
+    // Regional seasonal check
+    const city = CITIES.find(c => c.id === this.company.currentCityId) || CITIES[0];
+    const regionMonths = REGION_OPERATING_MONTHS[city.region];
+    if (this.time.month < regionMonths.startMonth || this.time.month > regionMonths.endMonth) {
+      return { 
+        canOpen: false, 
+        reason: { 
+          key: 'reason_seasonal_closure', 
+          replacements: { 
+            region: `region_${city.region}`,
+            startMonth: regionMonths.startMonth,
+            endMonth: regionMonths.endMonth
+          } 
+        } 
+      };
+    }
+
     if (!this.currentWeather.canOpen) {
       return { canOpen: false, reason: { key: 'reason_weather', replacements: { weatherType: this.currentWeather.type.toLowerCase() } } };
     }
@@ -1573,6 +2055,39 @@ export class GameEngine {
       return true;
     }
     return false;
+  }
+
+  skipToNextOpening() {
+    const city = CITIES.find(c => c.id === this.company.currentCityId);
+    if (!city) return;
+
+    const regionMonths = REGION_OPERATING_MONTHS[city.region];
+    const startMonth = regionMonths.startMonth;
+    
+    // Calculate target day (1st day of startMonth)
+    // Month m starts at day (m-1)*10 + 1
+    let targetDayInYear = (startMonth - 1) * 10 + 1;
+    
+    const currentDayInYear = ((this.time.day - 1) % 120) + 1;
+    const currentYear = Math.floor((this.time.day - 1) / 120);
+
+    let nextOpeningDay: number;
+    if (currentDayInYear < targetDayInYear) {
+      // Still in current year
+      nextOpeningDay = currentYear * 120 + targetDayInYear;
+    } else {
+      // Next year
+      nextOpeningDay = (currentYear + 1) * 120 + targetDayInYear;
+    }
+
+    // Advanced time
+    this.time.day = nextOpeningDay;
+    this.time.hours = this.settings.openTime;
+    this.time.minutes = 0;
+    this.updateTimeDetails();
+    
+    this.saveGame();
+    return true;
   }
 
   closePark() {
@@ -1616,6 +2131,11 @@ export class GameEngine {
     
     // Base cost + distance-based cost
     return Math.floor(500 + distance * 10);
+  }
+
+  confirmTravel(cityId: string, form: TravelForm) {
+    this.activePermit = form;
+    return this.travelToCity(cityId);
   }
 
   travelToCity(cityId: string) {
@@ -1715,10 +2235,17 @@ export class GameEngine {
       return false; // No available truck
     }
 
-    if (this.money >= config.cost) {
-      this.money -= config.cost;
+    const manufacturer = config.manufacturerId ? MANUFACTURERS.find(m => m.id === config.manufacturerId) : null;
+    const finalCost = Math.floor(config.cost * (manufacturer?.costMultiplier || 1.0));
+
+    if (this.money >= finalCost) {
+      this.money -= finalCost;
       
-      const batchSize = type === 'QUEUE_PATH' ? 20 : 1;
+      let batchSize = 1;
+      if (type === 'QUEUE_PATH' || type === 'PATH') batchSize = 20;
+      if (type === 'FENCE') batchSize = 10;
+      if (type === 'FLOWER_BED' || type === 'TRASH_CAN') batchSize = 5;
+      
       let firstRideId = '';
 
       for (let i = 0; i < batchSize; i++) {
@@ -1856,7 +2383,7 @@ export class GameEngine {
       } else {
         // Fallback to nearest ride if no adjacent path
         const nearestRide = this.rides
-          .filter(r => RIDE_CONFIGS[r.type].category === 'RIDE' || RIDE_CONFIGS[r.type].category === 'FOOD')
+          .filter(r => RIDE_CONFIGS[r.type].category === 'RIDE' || RIDE_CONFIGS[r.type].category === 'STALL')
           .sort((a, b) => {
             const distA = Math.sqrt(Math.pow(a.x - x, 2) + Math.pow(a.y - y, 2));
             const distB = Math.sqrt(Math.pow(b.x - x, 2) + Math.pow(b.y - y, 2));
@@ -2061,11 +2588,13 @@ export class GameEngine {
       x, y, width, height, type
     };
     this.zones.push(newZone);
+    this.saveGame();
     return this.getState();
   }
 
   removeZone(zoneId: string): GameState {
     this.zones = this.zones.filter(z => z.id !== zoneId);
+    this.saveGame();
     return this.getState();
   }
 
