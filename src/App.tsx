@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from './gameEngine';
-import { RIDE_CONFIGS, RideType, RideIntensity, GRID_SIZE, STAFF_CONFIGS, StaffType, RideCategory, CITIES, GARAGE_CONFIGS, TRUCK_COST, GameState, Achievement, TravelForm, REGION_OPERATING_MONTHS } from './types';
+import { RIDE_CONFIGS, RideType, RideIntensity, GRID_SIZE, STAFF_CONFIGS, StaffType, RideCategory, CITIES, GARAGE_CONFIGS, TRUCK_COST, GameState, Achievement, TravelForm, REGION_OPERATING_MONTHS, MARKETING_CONFIGS, MarketingType } from './types';
 import { 
   Truck,
   Warehouse,
@@ -78,11 +78,18 @@ import {
   Landmark,
   Shield,
   Utensils,
+  Bath,
+  Gamepad,
   Clock,
   ChevronRight,
   PlaneTakeoff,
   Minus,
   Activity,
+  MessageSquare,
+  Megaphone,
+  Share2,
+  Radio,
+  Tv,
 } from 'lucide-react';
 import { RESEARCH_PROJECTS, INITIAL_UNLOCKED_RIDES } from './researchData';
 import { MANUFACTURERS } from './manufacturerData';
@@ -101,6 +108,102 @@ const MONTH_NAMES = [
 ];
 
 const ENGLISH_TRANSLATIONS: Record<string, string> = {
+  travelling_to: 'Travelling to {city}',
+  avoid_obstacles: 'Avoid obstacles to reach your destination',
+  no_market_refusals: 'No potential visitors have been turned away yet.',
+  no_active_loans: 'No active loans or financial obligations.',
+  reputation: 'Showman Reputation',
+  rent_in_market: 'Attractions Available for Rent',
+  rent_out_inventory: 'Offer your Stored Attractions for Rent',
+  day_label: 'day',
+  rented: 'Already Rented',
+  rent_button: 'Rent Now',
+  milestone_reached: 'Milestone Reached!',
+  skip_to_opening: 'Skip to Opening Time',
+  tutorial_complete_title: 'Training Complete!',
+  tutorial_complete_subtitle: 'You are now a Showman boss!',
+  tutorial_complete_desc: 'You have mastered the basics of managing a travelling funfair. Now it is time to build your empire!',
+  start_managing: 'Start My Career',
+  park_rating: 'Park Rating',
+  close_ride: 'Close Attraction',
+  open_ride: 'Open Attraction',
+  price_demand_warning: 'Pricing affects guest demand significantly',
+  pricing_strategy_tip: 'Higher prices may deter guests but increase revenue per visitor.',
+  warehouse_empty: 'Your warehouse is currently empty. Store rides here to transport them.',
+  items_available: 'attractions available',
+  total_staff: 'Personnel Pool',
+  employees: 'Active Staff',
+  avg_happiness: 'Staff Morale',
+  hourly_payroll: 'Hourly Expenses',
+  recruitment_center: 'Hiring Hall',
+  hire_staff: 'Hire Employee',
+  your_team: 'Current Personnel',
+  total_hourly_wage: 'Total Hourly Wage',
+  no_staff_hired: 'You have no employees. Hire some to run your park!',
+  working_label: 'Working',
+  resting_label: 'Resting',
+  idle_label: 'Idle',
+  unassigned: 'Unassigned',
+  fire_staff: 'Terminate Contract',
+  garage_level: 'Fleet Hub Level',
+  capacity_value: 'Fleet Capacity: {current} / {max}',
+  garage_full: 'Garage limit reached',
+  buy_truck_button: 'Purchase Truck (${cost})',
+  your_trucks: 'Vehicle Fleet',
+  transporting: 'In Transit',
+  no_trucks_in_garage: 'No vehicles in your fleet.',
+  search_placeholder: 'Search for cities...',
+  registered_hq: 'Registered Headquarters',
+  market_prospects: 'Market Potential',
+  system_ready: 'Navigation Systems Online',
+  about: 'Regional Information',
+  terrain: 'Ground Surface',
+  map_size: 'Fairground Dimensions',
+  visitor_multiplier: 'Market Multiplier',
+  weather_patterns: 'Climate Overview',
+  reset_confirm_desc: 'This will reset your entire career. Your company and all assets will be permanently deleted.',
+  overview: 'Park Overview',
+  hide_sidebar: 'Hide Controls',
+  show_sidebar: 'Show Controls',
+  park_is_open: 'Park Is Open',
+  park_is_closed: 'Park Is Closed',
+  staff_wages: 'Personnel Wages',
+  electricity: 'Power Utilities',
+  loan_interest: 'Debt Interest',
+  loan_principal: 'Debt Principal',
+  area_rent: 'Ground Rent',
+  expansion_credit: 'Expansion Line of Credit',
+  venture_capital: 'Venture Capital Injection',
+  country_UK: 'United Kingdom',
+  country_FRANCE: 'France',
+  country_GERMANY: 'Germany',
+  country_SPAIN: 'Spain',
+  country_ITALY: 'Italy',
+  country_PORTUGAL: 'Portugal',
+  country_NETHERLANDS: 'Netherlands',
+  country_BELGIUM: 'Belgium',
+  country_SWITZERLAND: 'Switzerland',
+  country_IRELAND: 'Ireland',
+  country_SCOTLAND: 'Scotland',
+  country_WALES: 'Wales',
+  country_NORTHERN_IRELAND: 'Northern Ireland',
+  country_POLAND: 'Poland',
+  reason_no_permit: 'No valid business permit for this city.',
+  reason_seasonal_closure: 'Park is closed for the winter season in the {region}. Expected reopening in month {startMonth}.',
+  reason_weather: 'Severe {weatherType} weather makes operations impossible.',
+  reason_no_rides: 'No operational rides with assigned staff are ready.',
+  reason_outside_hours: 'Park is currently outside of scheduled operating hours.',
+  region_NORTHERN: 'Northern Europe',
+  region_CENTRAL: 'Central Europe',
+  region_SOUTHERN: 'Southern Europe',
+  region_EASTERN: 'Eastern Europe',
+  region_WESTERN: 'Western Europe',
+  terrain_GRASS: 'Grass',
+  terrain_ASPHALT: 'Asphalt',
+  terrain_GRAVEL: 'Gravel',
+  tier_community: 'Community Lot',
+  tier_prime: 'Prime Lot',
+  tier_vip: 'VIP Square',
   marketplace: 'Marketplace',
   operations_group: 'Operations',
   logistics_group: 'Logistics',
@@ -145,9 +248,6 @@ const ENGLISH_TRANSLATIONS: Record<string, string> = {
   reason_cultural: 'Cultural Exchange',
   reason_trade: 'Commercial Trade',
   funfair_area_rental: 'Funfair Area Selection',
-  tier_community: 'Community Lot',
-  tier_prime: 'Prime Lot',
-  tier_vip: 'VIP Square',
   days: 'Days',
   sign_here: 'Sign your name here...',
   details_tab: 'Details',
@@ -213,7 +313,25 @@ const ENGLISH_TRANSLATIONS: Record<string, string> = {
   achievement_first_ride_desc: 'Purchase your very first attraction.',
   achievement_staff_hero_name: 'Team Leader',
   achievement_staff_hero_desc: 'Hire 10 staff members at once.',
+  achievement_loan_shark_name: 'Loan Shark',
+  achievement_loan_shark_desc: 'Have 3 active loans simultaneously.',
+  achievement_park_legend_name: 'Park Legend',
+  achievement_park_legend_desc: 'Reach a perfect 5-star park rating.',
+  achievement_big_spender_name: 'Big Spender',
+  achievement_big_spender_desc: 'Spend more than $50,000 on expenses in a single day.',
+  achievement_master_mechanic_name: 'Master Mechanic',
+  achievement_master_mechanic_desc: 'Reach Level 5 with any Mechanic staff member.',
   achievement_unlocked_title: 'Achievement Unlocked!',
+  research_advanced_thrills_1_name: 'Advanced Thrills I',
+  research_advanced_thrills_1_desc: 'Unlocks higher intensity rides like the Booster and Inversion.',
+  research_food_expansion_1_name: 'Gourmet Treats',
+  research_food_expansion_1_desc: 'Master the art of fast food. Unlocks Burger Joint and Pizza Parlor.',
+  research_high_tech_rides_name: 'High Tech Attractions',
+  research_high_tech_rides_desc: 'State of the art engineering. Unlocks XXL and Top Scan.',
+  research_infrastructure_elite_name: 'Elite Infrastructure',
+  research_infrastructure_elite_desc: 'Better facilities for your guests. Unlocks First Aid and ATM.',
+  research_mega_rollercoasters_name: 'Mega Coasters',
+  research_mega_rollercoasters_desc: 'Giant machines of pure adrenaline. Unlocks Giant Wheel and Power Mouse.',
   current_location: 'Current Location',
   home_city: 'Home City',
   dismantle_first: 'Dismantle First',
@@ -222,6 +340,20 @@ const ENGLISH_TRANSLATIONS: Record<string, string> = {
   total_income: 'Total Income',
   total_expenses: 'Total Expenses',
   net_profit: 'Net Profit',
+  feedback_park_full: "Too crowded, I couldn't even get in!",
+  feedback_low_rating: 'The park has a poor reputation locally.',
+  feedback_bad_weather: 'I wanted to visit, but the weather is too bad.',
+  feedback_too_small: 'The park looks a bit empty and small.',
+  feedback_broken_rides: 'I heard many rides are currently out of order.',
+  feedback_positive: 'Positive Feedback',
+  feedback_negative: 'Negative Feedback',
+  feedback_potential: 'Market Insights',
+  guest_feedback: 'Guest Feedback',
+  no_feedback: 'No detailed feedback collected yet.',
+  marketing_tab: 'Marketing Campaigns',
+  active_visitor_feed: 'Active Visitor Feed',
+  market_refusals: 'Market Refusals',
+  barrier_to_entry: 'Barrier to Entry',
   language: 'Language',
   music_volume: 'Music Volume',
   sfx_volume: 'SFX Volume',
@@ -230,6 +362,19 @@ const ENGLISH_TRANSLATIONS: Record<string, string> = {
   cancel: 'Cancel',
   confirm: 'Confirm',
   park_management: 'Park Management',
+  setup_title: 'Funfair Company Registration',
+  choose_home_city: 'Choose Home City (HQ)',
+  choose_initial_destination: 'Choose First Site',
+  start_career: 'Start Career',
+  home_city_desc: 'Your headquarters where rides are stored and trucks are maintained. You only own land for your warehouse and garage here.',
+  destination_desc: 'Your first fairground tour. Rent a lot and travel to set up your first park.',
+  welcome_boss: 'Welcome, Boss!',
+  setup_step_home: 'Step 1: Headquarters',
+  setup_step_destination: 'Step 2: First Fairground',
+  found_company: 'Found Company',
+  select_hq_location: 'Select Headquarters Location',
+  select_first_fairground: 'Select First Fairground',
+  back_to_hq: 'Back to HQ',
   launch_company: 'Launch Company',
   continue_game: 'Continue Existing Game',
   reset_game_confirm: 'Reset Game?',
@@ -242,171 +387,8 @@ const ENGLISH_TRANSLATIONS: Record<string, string> = {
   hunger: 'Hunger',
   bladder: 'Bladder',
   stamina: 'Stamina',
-  recent_thoughts: 'Recent Thoughts',
-  no_thoughts: 'No thoughts yet...',
-  sell: 'Sell',
-  deselect: 'Deselect',
-  park_stats: 'Park Stats',
-  warehouse: 'Warehouse',
-  balance: 'Balance',
-  exit_zoning: 'Exit Zoning',
-  zoning_mode: 'Zoning Mode',
-  open_ride_shop: 'Open Ride Shop',
-  insufficient_funds: 'Insufficient Funds',
-  no_truck_available: 'No Truck Available',
-  warehouse_full: 'Warehouse Full',
-  purchase_item: 'Purchase Item',
-  available_balance: 'Available Balance',
-  select_item_to_add: 'Select an item to add it to your inventory',
-  company_name: 'Company Name',
-  loans: 'Loans',
-  daily_net_profit: 'Daily Net Profit',
-  visitor_insights: 'Visitor Insights',
-  avg_happiness: 'Avg. Happiness',
-  avg_spend: 'Avg. Spend',
-  recent_performance: 'Recent Performance',
-  park_operations: 'Park Operations',
-  manual_override: 'Manual Override',
-  total_visitors: 'Total Visitors',
-  operating_hours: 'Operating Hours',
-  operating_season: 'Operating Season',
-  open_time: 'Open Time',
-  close_time: 'Close Time',
-  visitor_demand: 'Visitor Demand',
-  standard_entry: 'Standard Entry',
-  single_ride_ticket: 'Single Ride Ticket',
-  ride_bundle: 'Ride Bundle',
-  premium_passes: 'Premium Passes',
-  all_day_wristband: 'All-Day Wristband',
-  season_pass: 'Season Pass',
-  pricing_strategy_tip: 'Pricing Strategy Tip',
-  warehouse_capacity: 'Warehouse Capacity',
-  warehouse_level: 'Warehouse Level',
-  total_staff: 'Total Staff',
-  employees: 'Employees',
-  morale: 'Morale',
-  hourly_payroll: 'Hourly Payroll',
-  per_hour: 'per hour',
-  recruitment_center: 'Recruitment Center',
-  base_salary: 'Base Salary',
-  hiring_fee: 'Hiring Fee',
-  hire_staff: 'Hire Staff',
-  your_team: 'Your Team',
-  total_hourly_wage: 'Total Hourly Wage',
-  no_staff_hired: 'No staff members currently hired',
-  risk_of_quitting: 'Risk of Quitting',
-  assigned: 'Assigned',
-  upgrade_garage: 'Upgrade Garage',
-  max_level_reached: 'Max Level Reached',
-  buy_new_truck: 'Buy New Truck',
-  cost: 'Cost',
-  garage_full: 'Garage Full',
-  buy_truck: 'Buy Truck',
-  your_trucks: 'Your Trucks',
-  transporting: 'Transporting',
-  idle: 'Idle',
-  no_trucks_in_garage: 'No trucks in your garage',
-  travel_to_new_cities: 'Travel to New Cities',
-  search_placeholder: 'Search...',
-  name: 'Name',
-  population: 'Population',
-  travel_cost: 'Travel Cost',
-  multiplier: 'Multiplier',
-  visitors_label: 'Visitors',
-  travel_label: 'Travel',
-  size: 'Size',
-  available_loan_offers: 'Available Loan Offers',
-  day_term: 'Day Term',
-  income_today: 'Income (Today)',
-  ride_tickets: 'Ride Tickets',
-  wristbands_label: 'Wristbands',
-  season_passes_label: 'Season Passes',
-  ticket_bundles: 'Ticket Bundles',
-  food_drinks: 'Food & Drinks',
-  other_label: 'Other',
-  expenses_today: 'Expenses (Today)',
-  staff_wages: 'Staff Wages',
-  electricity: 'Electricity',
-  loan_interest: 'Loan Interest',
-  loan_principal: 'Loan Principal',
-  area_rent: 'Area Rent',
-  maintenance_label: 'Maintenance',
-  upgrade_label: 'Upgrade',
-  stored_attractions: 'Stored Attractions',
-  warehouse_empty: 'Your warehouse is empty.',
-  items_available: 'items available',
-  condition_label: 'Condition',
-  place_label: 'Place',
-  working_label: 'WORKING',
-  resting_label: 'RESTING',
-  idle_label: 'IDLE',
-  lvl_label: 'LVL',
-  travel_button: 'Travel',
-  home_city_label: 'Home City',
-  sound_effects: 'Sound Effects',
-  of_potential: 'of potential',
-  price_demand_warning: 'Higher prices reduce visitor spawn rate',
-  resume_game: 'Resume Game',
-  pause_game: 'Pause Game',
-  level_label: 'Level',
-  status_label: 'Status',
-  wait_time: 'Wait Time',
-  ticket_price: 'Ticket Price',
-  satisfaction_label: 'Satisfaction',
-  staff_resting: 'STAFF RESTING',
-  repair_button: 'Repair',
-  item_price: 'Item Price',
-  service_price: 'Service Price',
-  too_expensive_warning: 'Visitors might think this is too expensive!',
-  fair_price_label: 'A fair price for everyone.',
-  dismantle_button: 'Dismantle',
-  visitor_label: 'Visitor',
-  no_items_message: 'No {intensity} items',
-  place_instruction: 'Click on the grid to place your',
-  cancel_button: 'Cancel',
-  tutorial_step_label: 'Tutorial Step {step}/20',
-  skip_button: 'Skip',
-  tutorial_title_0: 'Place your first ride',
-  tutorial_title_1: 'Create a Truck Zone',
-  tutorial_title_2: 'Hire a Ride Operator',
-  tutorial_title_3: 'Open the Park',
-  tutorial_title_4: 'Earn your first $500',
-  tutorial_title_5: 'Build a Food Stall',
-  tutorial_title_6: 'Reach 50 Visitors',
-  tutorial_title_7: 'Hire a Janitor',
-  tutorial_title_8: 'Take a Loan',
-  tutorial_title_9: 'Reach 100 Visitors',
-  tutorial_title_10: 'Start Research',
-  tutorial_title_11: 'Hire a Mechanic',
-  tutorial_title_12: 'Increase Ticket Price',
-  tutorial_title_13: 'Upgrade Warehouse',
-  tutorial_title_14: 'Customise a Ride',
-  tutorial_title_15: 'Hire Security',
-  tutorial_title_16: 'Buy a New Truck',
-  tutorial_title_17: 'Reach 100 Research Points',
-  tutorial_title_18: 'Travel to New City',
-  tutorial_title_19: 'Become a Tycoon',
-  tutorial_desc_0: 'Open your inventory and place the Tea Cups ride near the entrance.',
-  tutorial_desc_1: "Select the Zone Tool, choose 'Truck Zone', and draw an area for your trucks.",
-  tutorial_desc_2: 'Click on your Tea Cups ride and hire an operator to start running it.',
-  tutorial_desc_3: 'Open the Management Panel and toggle the Park Status to Open.',
-  tutorial_desc_4: 'Watch the visitors arrive and earn money until your balance reaches $2,500.',
-  tutorial_desc_5: 'Visitors get hungry! Place a Hot Dog Stall from your inventory.',
-  tutorial_desc_6: 'Keep your park attractive and wait until you have 50 visitors at once.',
-  tutorial_desc_7: 'A clean park is a happy park! Go to Management > Staff and hire a Janitor.',
-  tutorial_desc_8: 'Need more cash? Go to Management > Loans and take out a Small Business Loan.',
-  tutorial_desc_9: 'Grow your park with more rides and stalls to attract 100 visitors simultaneously.',
-  tutorial_desc_10: 'Go to Research and select a project to start researching new attractions.',
-  tutorial_desc_11: 'Rides break down! Hire a Mechanic in the Staff panel to keep them running.',
-  tutorial_desc_12: 'Maximise profits by increasing the single ride Ticket Price to $7 in Pricing.',
-  tutorial_desc_13: 'Need more storage? Upgrade your Warehouse to Level 2 in Management.',
-  tutorial_desc_14: 'Select an active ride and give it a custom name or unique color.',
-  tutorial_desc_15: 'Keep visitors safe and happy by hiring a Security Guard in the Staff panel.',
-  tutorial_desc_16: 'Go to the Garage and purchase an additional truck for faster transport.',
-  tutorial_desc_17: 'Collect more Research Points by having active visitors in your park.',
-  tutorial_desc_18: 'Ready for a new market? Go to Travel and move your park to another city.',
-  tutorial_desc_19: 'The ultimate goal! Reach $10,000 in total career earnings.',
-  reset_confirm_desc: 'This will permanently delete your current company and all progress. This action cannot be undone.',
+  happiness_label: 'Happiness',
+  staff_morale_label: 'Staff Morale',
   weather_sunny: 'Sunny',
   weather_cloudy: 'Cloudy',
   weather_rainy: 'Rainy',
@@ -529,30 +511,30 @@ const ENGLISH_TRANSLATIONS: Record<string, string> = {
   thought_seen_enough: "I've seen enough. Heading out.",
   thought_too_tired_hungry: 'I\'m too tired or hungry to stay any longer.',
   not_set: 'Not Set',
-  ride_TEA_CUPS_name: 'Tea Cups',
-  ride_FERRIS_WHEEL_name: 'Ferris Wheel',
-  ride_BUMPER_CARS_name: 'Bumper Cars',
-  ride_CAROUSEL_name: 'Carousel',
-  ride_HAUNTED_HOUSE_name: 'Haunted House',
-  ride_ROLLERCOASTER_name: 'Roller Coaster',
-  ride_LOG_FLUME_name: 'Log Flume',
-  ride_PIRATE_SHIP_name: 'Pirate Ship',
+  ride_TEA_CUPS_name: 'Tea Cups (Zamperla)',
+  ride_FERRIS_WHEEL_name: 'Ferris Wheel (Zamperla)',
+  ride_BUMPER_CARS_name: 'Bumper Cars (Zamperla)',
+  ride_CAROUSEL_name: 'Carousel (Zamperla)',
+  ride_HAUNTED_HOUSE_name: 'Haunted House (Technical Park)',
+  ride_ROLLERCOASTER_name: 'Dragon Coaster (Zamperla)',
+  ride_LOG_FLUME_name: 'Log Flume (Technical Park)',
+  ride_PIRATE_SHIP_name: 'Galleon (Zamperla)',
   ride_COTTON_CANDY_name: 'Cotton Candy',
   ride_ICE_CREAM_name: 'Ice Cream',
-  ride_BUNGEE_JUMP_name: 'Bungee Jump',
-  ride_DROP_TOWER_name: 'Drop Tower',
-  ride_SWING_RIDE_name: 'Swing Ride',
+  ride_BUNGEE_JUMP_name: 'Booster (Fabbri)',
+  ride_DROP_TOWER_name: 'Drop Tower (Fabbri)',
+  ride_SWING_RIDE_name: 'Star Flyer (Mondial)',
   ride_FOOD_STALL_name: 'Food Stall',
   ride_RESTROOM_name: 'Restroom',
   ride_BENCH_name: 'Bench',
   ride_TRASH_CAN_name: 'Trash Can',
   ride_CLIMBING_WALL_name: 'Climbing Wall',
-  ride_SLINGSHOT_name: 'Slingshot',
-  ride_TOP_SPIN_name: 'Top Spin',
-  ride_ENTERPRISE_name: 'Enterprise',
-  ride_WALTZER_name: 'Waltzer',
-  ride_HELTER_SKELTER_name: 'Helter Skelter',
-  ride_KIDDIE_COASTER_name: 'Kiddie Coaster',
+  ride_SLINGSHOT_name: 'Inversion (KMG)',
+  ride_TOP_SPIN_name: 'Top Scan (Mondial)',
+  ride_ENTERPRISE_name: 'Afterburner (KMG)',
+  ride_WALTZER_name: 'Sizzler (Wisdom)',
+  ride_HELTER_SKELTER_name: 'Gravitron (Wisdom)',
+  ride_KIDDIE_COASTER_name: 'Family Coaster (Zamperla)',
   ride_DUCK_POND_name: 'Duck Pond',
   ride_SHOOTING_GALLERY_name: 'Shooting Gallery',
   ride_COCONUT_SHY_name: 'Coconut Shy',
@@ -560,10 +542,10 @@ const ENGLISH_TRANSLATIONS: Record<string, string> = {
   ride_PONY_TREK_name: 'Pony Trek',
   ride_CARAVAN_name: 'Staff Caravan',
   ride_QUEUE_PATH_name: 'Queue Path',
-  ride_SKY_SWING_name: 'Sky Swing',
-  ride_GIANT_WHEEL_name: 'Giant Wheel',
-  ride_WOODEN_COASTER_name: 'Wooden Coaster',
-  ride_ZIP_LINE_name: 'Zip Line',
+  ride_SKY_SWING_name: 'XXL (KMG)',
+  ride_GIANT_WHEEL_name: 'Giant Wheel (Mondial)',
+  ride_WOODEN_COASTER_name: 'Power Mouse (Zamperla)',
+  ride_ZIP_LINE_name: 'Pegasus (Technical Park)',
   ride_BURGER_JOINT_name: 'Burger Joint',
   ride_PIZZA_PARLOR_name: 'Pizza Parlor',
   ride_TACO_TRUCK_name: 'Taco Truck',
@@ -640,20 +622,15 @@ const ENGLISH_TRANSLATIONS: Record<string, string> = {
   staff_SECURITY_name: 'Security Guard',
   staff_SECURITY_desc: 'Ensures safety and prevents happiness from dropping too fast.',
   staff_VENDOR_name: 'Vendor',
-  staff_VENDOR_desc: 'Increases secondary income from visitors.',
-  reason_weather: 'Park is closed due to {weatherType} weather.',
-  reason_no_rides: 'No operational rides with operators',
-  reason_outside_hours: 'Outside of scheduled hours',
-  reason_seasonal_closure: 'Park is closed for the season in {region} (Open months: {startMonth}-{endMonth})',
-  skip_to_opening: 'Skip to Opening Season',
+  feedback_permit_expired: 'Our rental agreement for this fairground has expired.',
+  rent_space: 'Rent Space',
+  renew_permit: 'Renew Rental',
   audio_settings: 'Audio Settings',
   legend_current: 'Current',
   legend_home: 'Home',
   legend_available: 'Available',
   back_to_countries: 'Back to Countries',
   cities_label: 'Cities',
-  select_country_label: 'Select a country to view available cities',
-  country_UK: 'UK',
   country_France: 'France',
   country_Germany: 'Germany',
   country_Spain: 'Spain',
@@ -700,13 +677,6 @@ const ENGLISH_TRANSLATIONS: Record<string, string> = {
   population_short: 'pop',
   map_navigation: 'Drag to Pan • Scroll to Zoom',
   potential_destination: 'Potential Destination',
-  about: 'About',
-  map_size: 'Map Size',
-  visitor_multiplier: 'Visitor Multiplier',
-  weather_patterns: 'Weather Patterns',
-  terrain_GRASS: 'Grass',
-  terrain_ASPHALT: 'Asphalt',
-  terrain_GRAVEL: 'Gravel',
   terrain_PLAINS: 'Plains',
   terrain_COASTAL: 'Coastal',
   terrain_MOUNTAIN: 'Mountain',
@@ -726,14 +696,10 @@ const ENGLISH_TRANSLATIONS: Record<string, string> = {
   original_amount: 'Original Amount',
   repay_amount: 'Repay ${amount}',
   small_business_loan: 'Small Business Loan',
-  expansion_credit: 'Expansion Credit',
-  venture_capital: 'Venture Capital',
   today: 'today',
   visitor_stats: 'Visitor Stats',
   pre_opening: 'PRE-OPENING',
   force_park_desc: 'Force the park to open or close regardless of schedule.',
-  park_is_open: 'Park is Open',
-  park_is_closed: 'Park is Closed',
   attractions: 'Attractions',
   auto_assign: 'Auto-Assign',
   busy_label: 'Busy',
@@ -748,21 +714,37 @@ const ENGLISH_TRANSLATIONS: Record<string, string> = {
   auto_assigning: 'Auto-Assigning',
   hourly_salary: 'Hourly Salary',
   underpaid_label: 'Underpaid',
-  well_paid_label: 'Well Paid',
-  min_label: 'Min',
-  max_level: 'Max Level',
   train_button: 'Train (${cost})',
   truck_garage: 'Truck Garage',
-  garage_level: 'Garage Level',
-  capacity_value: 'Capacity: {current} / {max} Trucks',
-  buy_truck_button: 'Buy Truck (${cost})',
-  travelling_to: 'Travelling to {city}',
-  avoid_obstacles: 'Avoid the obstacles! Hits cost money!',
-  search_cities: 'Search cities...',
-  tutorial_complete_title: 'Tutorial Complete',
-  tutorial_complete_subtitle: "You're ready to go!",
-  tutorial_complete_desc: "You've mastered the basics. Now expand your park, travel to new cities, and become a Funfair Tycoon!",
-  start_managing: 'Start Managing',
+};
+
+const adjustColor = (col: string, amt: number) => {
+  if (!col) return col;
+  let usePound = false;
+  let color = col;
+  if (color[0] === "#") {
+    color = color.slice(1);
+    usePound = true;
+  }
+  
+  // Handle 3-digit hex
+  if (color.length === 3) {
+    color = color.split('').map(c => c + c).join('');
+  }
+
+  const num = parseInt(color, 16);
+  if (isNaN(num)) return col;
+
+  let r = (num >> 16) + amt;
+  if (r > 255) r = 255;
+  else if (r < 0) r = 0;
+  let b = ((num >> 8) & 0x00FF) + amt;
+  if (b > 255) b = 255;
+  else if (b < 0) b = 0;
+  let g = (num & 0x0000FF) + amt;
+  if (g > 255) g = 255;
+  else if (g < 0) g = 0;
+  return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
 };
 
 const getWeatherIcon = (type: string) => {
@@ -790,10 +772,30 @@ const getWeatherColor = (type: string) => {
 };
 
 const getTimeTheme = (hours: number) => {
-  if (hours >= 5 && hours < 8) return { bg: 'bg-indigo-200', overlay: 'bg-orange-500/10', vignette: 'opacity-20' };
-  if (hours >= 8 && hours < 17) return { bg: 'bg-slate-200', overlay: 'bg-transparent', vignette: 'opacity-0' };
-  if (hours >= 17 && hours < 20) return { bg: 'bg-amber-100', overlay: 'bg-rose-500/20', vignette: 'opacity-30' };
-  return { bg: 'bg-slate-950', overlay: 'bg-indigo-900/40', vignette: 'opacity-60' };
+  if (hours >= 5 && hours < 8) return { 
+    bg: 'bg-indigo-300', 
+    canvasBg: { GRASS: '#2d5a27', ASPHALT: '#334155', GRAVEL: '#78350f' },
+    overlay: 'bg-orange-500/10', 
+    vignette: 'opacity-20' 
+  };
+  if (hours >= 8 && hours < 17) return { 
+    bg: 'bg-slate-50', 
+    canvasBg: { GRASS: '#ecfdf5', ASPHALT: '#f1f5f9', GRAVEL: '#fffbeb' },
+    overlay: 'bg-transparent', 
+    vignette: 'opacity-0' 
+  };
+  if (hours >= 17 && hours < 21) return { 
+    bg: 'bg-amber-100', 
+    canvasBg: { GRASS: '#166534', ASPHALT: '#475569', GRAVEL: '#92400e' },
+    overlay: 'bg-rose-500/25', 
+    vignette: 'opacity-40' 
+  };
+  return { 
+    bg: 'bg-slate-950', 
+    canvasBg: { GRASS: '#064e3b', ASPHALT: '#0f172a', GRAVEL: '#451a03' },
+    overlay: 'bg-indigo-900/50', 
+    vignette: 'opacity-70' 
+  };
 };
 
 const TruckMinigame = ({ engine, gameState }: { engine: GameEngine, gameState: GameState }) => {
@@ -816,7 +818,12 @@ const TruckMinigame = ({ engine, gameState }: { engine: GameEngine, gameState: G
       return ENGLISH_TRANSLATIONS[key] || countryRaw;
     }
 
-    let text = ENGLISH_TRANSLATIONS[key] || key;
+    let text = ENGLISH_TRANSLATIONS[key];
+    if (!text) {
+      text = key.replace(/_/g, ' ');
+      text = text.charAt(0).toUpperCase() + text.slice(1);
+    }
+
     if (replacements) {
       Object.entries(replacements).forEach(([k, v]) => {
         text = text.replace(`{${k}}`, String(v));
@@ -902,10 +909,11 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [engine] = useState(() => new GameEngine(GameEngine.getSaveData()));
   const [gameState, setGameState] = useState(() => engine.update());
-  const [isSetupOpen, setIsSetupOpen] = useState(!GameEngine.hasSave());
-  const [setupName, setSetupName] = useState('');
+  const [isSetupOpen, setIsSetupOpen] = useState(!gameState.company.hasSetupHomeCity || !gameState.company.hasSetupInitialRental);
+  const [setupStep, setSetupStep] = useState(!gameState.company.hasSetupHomeCity ? 0 : 1);
+  const [setupName, setSetupName] = useState(gameState.company.name || '');
   const [setupCountry, setSetupCountry] = useState('UK');
-  const [setupCity, setSetupCity] = useState('london');
+  const [setupCity, setSetupCity] = useState(gameState.company.homeCityId || 'london');
   const [setupSearch, setSetupSearch] = useState('');
   const [travelSearch, setTravelSearch] = useState('');
   const [selectedRideType, setSelectedRideType] = useState<RideType | null>(null);
@@ -919,6 +927,7 @@ export default function App() {
   const [isInventoryOpen, setIsInventoryOpen] = useState(false); // We'll keep this for the rail toggle logic
   const [isManagementOpen, setIsManagementOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<RideCategory | 'ALL'>('ALL');
+  const [selectedShopRide, setSelectedShopRide] = useState<RideType | null>(null);
   const [inventoryIntensity, setInventoryIntensity] = useState<RideIntensity | 'ALL'>('ALL');
   const [activeManagementTab, setActiveManagementTab] = useState<'settings' | 'travel' | 'staff' | 'budget' | 'warehouse' | 'pricing' | 'garage' | 'finance' | 'achievements' | 'connections' | 'research' | 'challenges' | 'marketplace'>('settings');
   const [selectedCityInfoId, setSelectedCityInfoId] = useState<string | null>(null);
@@ -970,12 +979,51 @@ export default function App() {
       if (city) return city.description;
     }
 
+    // Handle ride names and descriptions
+    if (key.startsWith('ride_') && (key.endsWith('_name') || key.endsWith('_desc'))) {
+      const isDesc = key.endsWith('_desc');
+      const type = key.replace('ride_', '').replace(isDesc ? '_desc' : '_name', '');
+      const config = RIDE_CONFIGS[type as RideType];
+      if (config) {
+        const fallback = isDesc ? `A high-quality ${config.category.toLowerCase()} from ${config.manufacturerId || 'a local vendor'}.` : config.name;
+        return ENGLISH_TRANSLATIONS[key] || fallback;
+      }
+    }
+
+    // Handle staff names and descriptions
+    if (key.startsWith('staff_') && (key.endsWith('_name') || key.endsWith('_desc'))) {
+      const isDesc = key.endsWith('_desc');
+      const type = key.replace('staff_', '').replace(isDesc ? '_desc' : '_name', '');
+      const config = STAFF_CONFIGS[type as StaffType];
+      if (config) {
+        const fallback = isDesc ? config.description : config.name + 's';
+        return ENGLISH_TRANSLATIONS[key] || fallback;
+      }
+    }
+
     if (key.startsWith('country_')) {
       const countryRaw = key.replace('country_', '').replace(/_/g, ' ');
       return ENGLISH_TRANSLATIONS[key] || countryRaw;
     }
 
-    let text = ENGLISH_TRANSLATIONS[key] || key;
+    let text = ENGLISH_TRANSLATIONS[key];
+    
+    // Fallback: If translation missing, remove underscores and capitalize first letter
+    if (!text) {
+      // Handle the case where key might be a value that shouldn't be capitalized
+      if (key === key.toUpperCase() && key.length > 2) {
+        text = key.replace(/_/g, ' ').toLowerCase();
+        text = text.charAt(0).toUpperCase() + text.slice(1);
+      } else {
+        text = key.replace(/_/g, ' ');
+        // If it starts with a common prefix, try to clean it further
+        if (text.startsWith('reason ')) text = text.replace('reason ', '');
+        if (text.startsWith('status ')) text = text.replace('status ', '');
+        if (text.startsWith('category ')) text = text.replace('category ', '');
+        
+        text = text.charAt(0).toUpperCase() + text.slice(1);
+      }
+    }
 
     if (typeof text !== 'string') {
       text = String(text);
@@ -992,6 +1040,39 @@ export default function App() {
   };
 
   // Handle Resize
+  const decorations = React.useMemo(() => {
+    const city = gameState.cities.find(c => c.id === gameState.company.currentCityId) || gameState.cities[0];
+    const width = gameState.currentMapSize.width;
+    const height = gameState.currentMapSize.height;
+    
+    // Seeded random
+    let seed = 0;
+    for (let i = 0; i < city.id.length; i++) seed += city.id.charCodeAt(i);
+    const rnd = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+
+    const count = Math.floor((width * height) / 15); // 1 decor per 15 cells
+    const items = [];
+    for (let i = 0; i < count; i++) {
+        const x = rnd() * width * GRID_SIZE;
+        const y = rnd() * height * GRID_SIZE;
+        // Don't place too close to entrance area (path center at mapHeight/2, x=0..100)
+        const dx = x - 50;
+        const dy = y - (height * GRID_SIZE / 2);
+        const distToEntrance = Math.sqrt(dx * dx + dy * dy);
+        if (distToEntrance < 120) continue;
+
+        const type = rnd() > 0.4 ? 'TREE' : 'ROCK';
+        const variant = Math.floor(rnd() * 3);
+        const size = 0.7 + rnd() * 0.6;
+        const rotation = rnd() * Math.PI * 2;
+        items.push({ x, y, type, variant, size, rotation });
+    }
+    return items;
+  }, [gameState.company.currentCityId, gameState.currentMapSize, gameState.cities]);
+
   useEffect(() => {
     const handleResize = () => {
       const canvas = canvasRef.current;
@@ -1005,6 +1086,71 @@ export default function App() {
     handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, [isSidebarOpen]);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const key = e.key.toLowerCase();
+
+      // Escape to close everything
+      if (e.key === 'Escape') {
+        setIsManagementOpen(false);
+        setIsInventoryOpen(false);
+        setIsPermitFormOpen(false);
+        setIsResetConfirmOpen(false);
+        setSelectedRideId(null);
+        setSelectedVisitorId(null);
+        setSelectedCityInfoId(null);
+        setSelectedRideType(null);
+        setPlacingRideId(null);
+        return;
+      }
+
+      // Actions if modals are closed
+      if (!isManagementOpen && !isSetupOpen && !isPermitFormOpen) {
+        if (key === 'm') {
+          setIsManagementOpen(true);
+          audioService.playSFX('click');
+        }
+        if (key === 'b') {
+          setIsSidebarOpen(prev => !prev);
+          audioService.playSFX('click');
+        }
+        if (key === ' ') {
+          e.preventDefault();
+          engine.togglePause();
+          setGameState(engine.getState());
+          audioService.playSFX('click');
+        }
+      }
+
+      // Tab switching in management modal
+      if (isManagementOpen) {
+        const tabKeys: Record<string, string> = {
+          '1': 'marketplace',
+          '2': 'insights',
+          '3': 'marketing',
+          '4': 'travel',
+          '5': 'pricing',
+          '6': 'research',
+          '7': 'warehouse',
+          '8': 'garage',
+          '9': 'staff',
+          '0': 'finance',
+        };
+        if (tabKeys[e.key]) {
+          setActiveManagementTab(tabKeys[e.key] as any);
+          audioService.playSFX('click');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isManagementOpen, isSetupOpen, isPermitFormOpen, isSidebarOpen, engine]);
 
   // Update render ref
   useEffect(() => {
@@ -1147,6 +1293,25 @@ export default function App() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Polyfill roundRect if missing
+    if (ctx && typeof ctx.roundRect !== 'function') {
+      ctx.roundRect = function(x: number, y: number, w: number, h: number, r: number | number[]) {
+        const radii = Array.isArray(r) ? r : [r, r, r, r];
+        this.beginPath();
+        this.moveTo(x + radii[0], y);
+        this.lineTo(x + w - radii[1], y);
+        this.quadraticCurveTo(x + w, y, x + w, y + radii[1]);
+        this.lineTo(x + w, y + h - radii[2]);
+        this.quadraticCurveTo(x + w, y + h, x + w - radii[2], y + h);
+        this.lineTo(x + radii[3], y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - radii[3]);
+        this.lineTo(x, y + radii[0]);
+        this.quadraticCurveTo(x, y, x + radii[0], y);
+        this.closePath();
+        return this;
+      };
+    }
+
     const time = Date.now() / 1000;
 
     const city = gameState.cities.find(c => c.id === gameState.company.currentCityId) || gameState.cities[0];
@@ -1162,60 +1327,155 @@ export default function App() {
 
     // Draw Terrain Background
     const hours = gameState.time.hours;
-    const isNight = hours < 6 || hours >= 20;
-    const isSunrise = hours >= 6 && hours < 8;
-    const isSunset = hours >= 18 && hours < 20;
+    const theme = getTimeTheme(hours);
+    const isNight = hours < 6 || hours >= 21;
 
-    if (city.terrain === 'GRASS') {
-      if (isNight) ctx.fillStyle = '#064e3b'; // Very dark green
-      else if (isSunrise) ctx.fillStyle = '#14532d'; // Darker green
-      else if (isSunset) ctx.fillStyle = '#166534'; // Mid green
-      else ctx.fillStyle = '#dcfce7'; // Light green
-    } else if (city.terrain === 'ASPHALT') {
-      if (isNight) ctx.fillStyle = '#0f172a'; // Very dark slate
-      else if (isSunrise) ctx.fillStyle = '#1e293b'; // Darker slate
-      else if (isSunset) ctx.fillStyle = '#334155'; // Mid slate
-      else ctx.fillStyle = '#e2e8f0'; // Light slate/gray
-    } else {
-      if (isNight) ctx.fillStyle = '#451a03'; // Darker amber/brown
-      else if (isSunrise) ctx.fillStyle = '#78350f'; // Darker amber
-      else if (isSunset) ctx.fillStyle = '#92400e'; // Mid amber
-      else ctx.fillStyle = '#fef3c7'; // Light amber/gravel
-    }
+    // Helper functions for drawing environment
+    const drawTree = (tx: number, ty: number, size: number, variant: number) => {
+      ctx.save();
+      ctx.translate(tx, ty);
+      ctx.scale(size, size);
+      
+      // Trunk shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.fillRect(1, 0, 3, 10);
+
+      // Trunk
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(-2, 0, 4, 10);
+      
+      // Leaves
+      const leafColors = isNight ? ['#064e3b', '#065f46', '#022c22'] : ['#166534', '#15803d', '#14532d'];
+      ctx.fillStyle = leafColors[variant % 3];
+      
+      ctx.beginPath();
+      ctx.moveTo(-15, 0);
+      ctx.lineTo(0, -25);
+      ctx.lineTo(15, 0);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.moveTo(-12, -12);
+      ctx.lineTo(0, -38);
+      ctx.lineTo(12, -12);
+      ctx.fill();
+      
+      ctx.restore();
+    };
+
+    const drawRock = (tx: number, ty: number, size: number, rotation: number) => {
+      ctx.save();
+      ctx.translate(tx, ty);
+      ctx.rotate(rotation);
+      ctx.scale(size, size);
+      
+      ctx.fillStyle = isNight ? '#334155' : '#64748b';
+      ctx.beginPath();
+      ctx.moveTo(-8, 5);
+      ctx.lineTo(-11, -3);
+      ctx.lineTo(-5, -9);
+      ctx.lineTo(6, -8);
+      ctx.lineTo(10, 3);
+      ctx.lineTo(5, 7);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Highlight
+      ctx.fillStyle = isNight ? '#475569' : '#94a3b8';
+      ctx.beginPath();
+      ctx.moveTo(-5, -9);
+      ctx.lineTo(6, -8);
+      ctx.lineTo(3, -3);
+      ctx.fill();
+      ctx.restore();
+    };
+
+    const drawBirds = () => {
+      const birdTime = time * 0.4;
+      ctx.strokeStyle = isNight ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.4)';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 5; i++) {
+        const bx = ((birdTime * 50 + i * 400 + Math.sin(i) * 100) % (mapWidth + 300)) - 150;
+        const by = (Math.sin(birdTime * 0.7 + i) * 150 + 200 + i * 150) % mapHeight;
+        const wingAnim = Math.sin(time * 12 + i);
+        
+        ctx.beginPath();
+        ctx.moveTo(bx - 6, by + wingAnim * 4);
+        ctx.quadraticCurveTo(bx, by - 3, bx + 6, by + wingAnim * 4);
+        ctx.stroke();
+      }
+    };
+
+    const drawCloudShadows = () => {
+      ctx.fillStyle = isNight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.03)';
+      const cloudSpeed = 15;
+      const cloudSpacing = 500;
+      for (let i = 0; i < 12; i++) {
+        const cx = ((time * cloudSpeed + i * cloudSpacing + Math.cos(i) * 200) % (mapWidth + 600)) - 300;
+        const cy = (i * 177.5) % mapHeight;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 140, 80, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+    
+    ctx.fillStyle = theme.canvasBg[city.terrain as keyof typeof theme.canvasBg] || theme.canvasBg.GRASS;
     ctx.fillRect(0, 0, mapWidth, mapHeight);
     
-    // Subtle texture based on terrain
-    const textureOpacity = isNight ? 0.3 : 1;
+    // Improved organic texture based on terrain
     if (city.terrain === 'GRASS') {
-      ctx.strokeStyle = isNight ? 'rgba(187, 247, 208, 0.2)' : '#bbf7d0';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 200; i++) {
-        const gx = (i * 137.5) % mapWidth;
-        const gy = (i * 271.3) % mapHeight;
-        ctx.beginPath();
-        ctx.moveTo(gx, gy);
-        ctx.lineTo(gx + 2, gy - 4);
-        ctx.stroke();
+      const seed = city.id.length;
+      ctx.fillStyle = isNight ? 'rgba(0,0,0,0.1)' : 'rgba(16, 185, 129, 0.08)';
+      for (let i = 0; i < 600; i++) {
+        const gx = (i * 231.5 + seed * 100) % mapWidth;
+        const gy = (i * 341.3 + seed * 200) % mapHeight;
+        ctx.fillRect(gx, gy, 2, 2);
+      }
+      ctx.fillStyle = isNight ? 'rgba(255,255,255,0.02)' : 'rgba(255, 255, 255, 0.1)';
+      for (let i = 0; i < 300; i++) {
+        const gx = (i * 451.7 + seed * 300) % mapWidth;
+        const gy = (i * 127.9 + seed * 400) % mapHeight;
+        ctx.fillRect(gx, gy, 1, 1);
       }
     } else if (city.terrain === 'ASPHALT') {
-      ctx.strokeStyle = isNight ? 'rgba(203, 213, 225, 0.2)' : '#cbd5e1';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 150; i++) {
+      ctx.fillStyle = isNight ? 'rgba(255,255,255,0.03)' : 'rgba(0, 0, 0, 0.05)';
+      for (let i = 0; i < 400; i++) {
         const gx = (i * 137.5) % mapWidth;
         const gy = (i * 271.3) % mapHeight;
-        ctx.strokeRect(gx, gy, 2, 2);
+        ctx.fillRect(gx, gy, 3, 3);
+      }
+      // Wear patterns
+      ctx.strokeStyle = isNight ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)';
+      ctx.lineWidth = 10;
+      for (let i = 0; i < 10; i++) {
+        const gx = (i * (mapWidth / 10));
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx + 100, mapHeight);
+        ctx.stroke();
       }
     } else {
-      ctx.strokeStyle = isNight ? 'rgba(253, 230, 138, 0.2)' : '#fde68a';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 300; i++) {
+      ctx.fillStyle = isNight ? 'rgba(0,0,0,0.1)' : 'rgba(0, 0, 0, 0.04)';
+      for (let i = 0; i < 500; i++) {
         const gx = (i * 137.5) % mapWidth;
         const gy = (i * 271.3) % mapHeight;
         ctx.beginPath();
-        ctx.arc(gx, gy, 1, 0, Math.PI * 2);
-        ctx.stroke();
+        ctx.arc(gx, gy, 1.5, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
+
+    // Draw Cloud Shadows
+    drawCloudShadows();
+
+    // Draw Static Decorations
+    decorations.forEach(d => {
+      if (d.type === 'TREE') drawTree(d.x, d.y, d.size, d.variant);
+      else drawRock(d.x, d.y, d.size, d.rotation);
+    });
+
+    // Draw Birds
+    drawBirds();
 
     // Draw Zones
     ctx.lineWidth = 2;
@@ -1389,16 +1649,29 @@ export default function App() {
       ctx.fill();
 
       // Base Platform
-      ctx.fillStyle = '#94a3b8';
+      const baseGradient = ctx.createLinearGradient(px, py, px, py + height);
+      baseGradient.addColorStop(0, '#94a3b8');
+      baseGradient.addColorStop(1, '#475569');
+      ctx.fillStyle = baseGradient;
       ctx.beginPath();
       ctx.roundRect(px, py, width, height, 8);
       ctx.fill();
       
       // Main Ride Body
-      ctx.fillStyle = config.color;
+      const rideColor = ride.customColor || config.color;
+      const bodyGradient = ctx.createLinearGradient(px + 4, py + 4, px + 4 + width - 8, py + 4 + height - 8);
+      bodyGradient.addColorStop(0, rideColor);
+      bodyGradient.addColorStop(1, adjustColor(rideColor, -30));
+      
+      ctx.fillStyle = bodyGradient;
       ctx.beginPath();
       ctx.roundRect(px + 4, py + 4, width - 8, height - 8, 12);
       ctx.fill();
+
+      // Highlight/Bevel
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 6, py + 6, width - 12, height - 12);
 
       // Animation Logic
       ctx.save();
@@ -1784,98 +2057,120 @@ export default function App() {
 
     // Draw Visitors
     gameState.visitors.forEach(v => {
-      const bob = Math.abs(Math.sin(time * 10 + parseInt(v.id, 36))) * 3;
+      const bob = Math.abs(Math.sin(time * 10 + parseInt(v.id, 36))) * 4;
+      const legMove = Math.sin(time * 15 + parseInt(v.id, 36)) * 3;
+      
       // Add a small visual offset based on ID to prevent perfect piling
       const visualX = v.x + (parseInt(v.id.slice(-1), 36) % 7 - 3);
       const visualY = v.y + (parseInt(v.id.slice(-2, -1), 36) % 7 - 3);
       
       // Shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
       ctx.beginPath();
-      ctx.ellipse(visualX, visualY + 2, 4, 2, 0, 0, Math.PI * 2);
+      ctx.ellipse(visualX, visualY + 2, 5, 2.5, 0, 0, Math.PI * 2);
       ctx.fill();
+
+      // Legs
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(visualX - 2, visualY);
+      ctx.lineTo(visualX - 2 + (v.state === 'WALKING' ? legMove : 0), visualY + 4);
+      ctx.moveTo(visualX + 2, visualY);
+      ctx.lineTo(visualX + 2 + (v.state === 'WALKING' ? -legMove : 0), visualY + 4);
+      ctx.stroke();
 
       // Body
-      ctx.fillStyle = v.color;
+      const gradient = ctx.createRadialGradient(visualX - 1, visualY - 10 - bob, 1, visualX, visualY - 8 - bob, 8);
+      gradient.addColorStop(0, '#fff');
+      gradient.addColorStop(0.3, v.color);
+      gradient.addColorStop(1, '#000');
+      
+      ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(visualX, visualY - bob, 6, 0, Math.PI * 2);
+      ctx.arc(visualX, visualY - 8 - bob, 5, 0, Math.PI * 2);
       ctx.fill();
       
-      // Happiness bar
-      const barWidth = 12;
-      ctx.fillStyle = '#e5e7eb';
-      ctx.fillRect(visualX - barWidth / 2, visualY - 12 - bob, barWidth, 3);
-      ctx.fillStyle = v.happiness > 50 ? '#10b981' : v.happiness > 20 ? '#f59e0b' : '#ef4444';
-      ctx.fillRect(visualX - barWidth / 2, visualY - 12 - bob, barWidth * (v.happiness / 100), 3);
-
-      // Need indicators
-      if (v.hunger > 70 || v.bladder > 70 || v.stamina < 30) {
-        ctx.font = '10px Arial';
-        ctx.textAlign = 'center';
-        let needIcon = '';
-        if (v.hunger > 70) needIcon = '🌭';
-        else if (v.bladder > 70) needIcon = '🚻';
-        else if (v.stamina < 30) needIcon = '😴';
-        
-        if (needIcon) {
-          ctx.fillText(needIcon, visualX, visualY - 20 - bob);
-        }
-      }
-
-      // State indicators
-      if (v.state === 'EATING') {
-        ctx.font = '10px Arial';
-        ctx.fillText('😋', visualX + 8, visualY - bob);
-      } else if (v.state === 'RESTING') {
-        ctx.font = '10px Arial';
-        ctx.fillText('💤', visualX + 8, visualY - bob);
-      }
-
-      // Little head highlight
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      // Eyes/Face based on happiness
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
       ctx.beginPath();
-      ctx.arc(v.x - 2, v.y - 2 - bob, 2, 0, Math.PI * 2);
+      ctx.arc(visualX - 1.5, visualY - 9 - bob, 1, 0, Math.PI * 2);
+      ctx.arc(visualX + 1.5, visualY - 9 - bob, 1, 0, Math.PI * 2);
       ctx.fill();
 
+      // Status Icon
+      if (v.happiness < 40) {
+        ctx.font = '10px Arial';
+        ctx.fillText('😠', visualX, visualY - 18 - bob);
+      } else if (v.hunger > 70) {
+        ctx.font = '10px Arial';
+        ctx.fillText('🍔', visualX, visualY - 18 - bob);
+      } else if (v.bladder > 70) {
+        ctx.font = '10px Arial';
+        ctx.fillText('🚽', visualX, visualY - 18 - bob);
+      }
+
+      // Selection Highlight
       if (selectedVisitorId === v.id) {
         ctx.strokeStyle = '#3b82f6';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 2]);
         ctx.beginPath();
-        ctx.arc(v.x, v.y - bob, 10, 0, Math.PI * 2);
+        ctx.ellipse(visualX, visualY + 2, 8, 4, 0, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.setLineDash([]);
       }
     });
 
     // Draw Staff
     gameState.staff.forEach(s => {
       const config = STAFF_CONFIGS[s.type];
-      const bob = Math.abs(Math.sin(time * 8 + parseInt(s.id, 36))) * 2;
+      const bob = Math.abs(Math.sin(time * 8 + parseInt(s.id, 36))) * 3;
+      const legMove = Math.sin(time * 12 + parseInt(s.id, 36)) * 2;
       
       // Shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
       ctx.beginPath();
-      ctx.ellipse(s.x, s.y + 2, 5, 2.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(s.x, s.y + 2, 6, 3, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Body
-      ctx.fillStyle = config.color;
+      // Legs
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.arc(s.x, s.y - bob, 7, 0, Math.PI * 2);
+      ctx.moveTo(s.x - 2, s.y);
+      ctx.lineTo(s.x - 2 + legMove, s.y + 4);
+      ctx.moveTo(s.x + 2, s.y);
+      ctx.lineTo(s.x + 2 - legMove, s.y + 4);
+      ctx.stroke();
+
+      // Body (Uniform)
+      const grad = ctx.createLinearGradient(s.x, s.y - 15 - bob, s.x, s.y - bob);
+      grad.addColorStop(0, config.color);
+      grad.addColorStop(1, adjustColor(config.color, -20));
+      
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(s.x - 5, s.y - 12 - bob, 10, 12, 3);
+      ctx.fill();
+
+      // Head
+      ctx.fillStyle = '#ffdbac'; // Skin tone
+      ctx.beginPath();
+      ctx.arc(s.x, s.y - 14 - bob, 4, 0, Math.PI * 2);
       ctx.fill();
       
-      // Icon/Label
+      // Hat/Icon
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y - 16 - bob, 5, Math.PI, 0);
+      ctx.fill();
+      
       ctx.fillStyle = 'white';
       ctx.font = 'bold 8px Inter';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(config.icon, s.x, s.y - bob);
-      
-      // Energy bar
-      const barWidth = 14;
-      ctx.fillStyle = '#e5e7eb';
-      ctx.fillRect(s.x - barWidth / 2, s.y - 14 - bob, barWidth, 3);
-      ctx.fillStyle = s.stamina > 50 ? '#8b5cf6' : s.stamina > 20 ? '#f59e0b' : '#ef4444';
-      ctx.fillRect(s.x - barWidth / 2, s.y - 14 - bob, barWidth * (s.stamina / 100), 3);
+      ctx.fillText(config.icon, s.x, s.y - 17 - bob);
     });
 
     // Draw Trucks
@@ -1914,22 +2209,10 @@ export default function App() {
       ctx.restore();
     });
 
-    // Day/Night Overlay
-    let overlayAlpha = 0;
-    if (hours >= 20 || hours < 5) {
-      overlayAlpha = 0.4; // Night
-    } else if (hours >= 18) {
-      overlayAlpha = (hours - 18) * 0.2; // Sunset
-    } else if (hours < 7) {
-      overlayAlpha = (7 - hours) * 0.2; // Sunrise
-    }
-
-    if (overlayAlpha > 0) {
-      ctx.fillStyle = `rgba(15, 23, 42, ${overlayAlpha})`;
-      ctx.fillRect(0, 0, mapWidth, mapHeight);
-      
-      // Ride lights at night
+    // Ride lights at night
+    if (hours >= 19 || hours < 6) {
       gameState.rides.forEach(ride => {
+        if (ride.status !== 'OPERATIONAL' || !ride.operatorId) return;
         const config = RIDE_CONFIGS[ride.type];
         const px = ride.x * GRID_SIZE;
         const py = ride.y * GRID_SIZE;
@@ -1938,12 +2221,27 @@ export default function App() {
         
         const gradient = ctx.createRadialGradient(
           px + width / 2, py + height / 2, 0,
-          px + width / 2, py + height / 2, width
+          px + width / 2, py + height / 2, width * 1.5
         );
-        gradient.addColorStop(0, `${config.color}44`);
+        gradient.addColorStop(0, `${config.color}66`);
+        gradient.addColorStop(0.5, `${config.color}22`);
         gradient.addColorStop(1, 'transparent');
         ctx.fillStyle = gradient;
-        ctx.fillRect(px - width / 2, py - height / 2, width * 2, height * 2);
+        ctx.beginPath();
+        ctx.arc(px + width / 2, py + height / 2, width * 1.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Small bright spots (bulbs)
+        ctx.fillStyle = '#fff';
+        const timeOffset = time * 5;
+        for (let i = 0; i < 4; i++) {
+          const angle = (i * Math.PI / 2) + timeOffset;
+          const lx = px + width / 2 + Math.cos(angle) * (width / 3);
+          const ly = py + height / 2 + Math.sin(angle) * (height / 3);
+          ctx.beginPath();
+          ctx.arc(lx, ly, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
       });
     }
 
@@ -2096,142 +2394,221 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900 p-0 md:p-4"
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950 p-0 md:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              className="w-full h-full md:h-[90vh] md:max-w-7xl rounded-none md:rounded-[3rem] bg-white p-6 md:p-10 shadow-2xl overflow-hidden flex flex-col"
+              className="w-full h-full md:h-[90vh] md:max-w-7xl rounded-none md:rounded-[3rem] bg-white shadow-2xl overflow-hidden flex flex-col"
             >
-              <div className="flex flex-col lg:flex-row gap-10 h-full overflow-hidden">
-                <div className="w-full lg:w-[400px] flex flex-col justify-center shrink-0">
-                  <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-xl shadow-indigo-500/30">
-                    <Building2 size={32} />
-                  </div>
-                  <h1 className="text-3xl font-black text-slate-900 mb-2 leading-tight">{t('start_empire')}</h1>
-                  <p className="text-slate-500 font-medium mb-8 text-sm">{t('setup_desc')}</p>
-                  
-                  <div className="space-y-6">
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">{t('company_name')}</label>
-                      <input 
-                        type="text" 
-                        value={setupName}
-                        onChange={(e) => setSetupName(e.target.value)}
-                        className="w-full rounded-xl border-2 border-slate-100 bg-slate-50 p-4 text-lg font-bold focus:border-indigo-500 focus:ring-0 transition-all"
-                        placeholder="e.g. DreamWorld Parks"
-                      />
+              <div className="flex flex-col lg:flex-row h-full overflow-hidden">
+                <div className="w-full lg:w-80 bg-slate-900 text-white p-10 flex flex-col shrink-0">
+                  <div className="mb-10 text-center">
+                    <div className="h-16 w-16 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center shadow-xl shadow-indigo-500/20 mb-6 font-black text-2xl">
+                      <LayoutDashboard size={32} />
                     </div>
+                    <h2 className="text-xl font-black tracking-tight leading-none mb-2">{t('welcome_boss')}</h2>
+                    <p className="text-indigo-400 text-[9px] font-black uppercase tracking-widest">{t('setup_title')}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className={`p-5 rounded-2xl border-2 transition-all ${setupStep === 0 ? 'bg-white/10 border-indigo-500' : 'bg-transparent border-white/5 opacity-50'}`}>
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em] mb-1">{t('setup_step_home')}</p>
+                      <p className="text-[10px] font-bold text-white/70 leading-relaxed">{t('home_city_desc')}</p>
+                    </div>
+
+                    <div className={`p-5 rounded-2xl border-2 transition-all ${setupStep === 1 ? 'bg-white/10 border-indigo-500' : 'bg-transparent border-white/5 opacity-50'}`}>
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em] mb-1">{t('setup_step_destination')}</p>
+                      <p className="text-[10px] font-bold text-white/70 leading-relaxed">{t('destination_desc')}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto pt-8 flex flex-col items-center">
+                     <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">
+                      Version 0.2.4 ENTERPRISE
+                    </p>
+                  </div>
+                </div>
+
+                {setupStep === 0 ? (
+                  <div className="flex-1 flex flex-col p-8 md:p-12 bg-white overflow-hidden">
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-8">{t('choose_home_city')}</h3>
                     
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">{t('home_country')}</label>
-                      <div className="grid grid-cols-3 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-                        {Array.from(new Set(CITIES.map(c => c.country))).sort().map(country => (
-                          <button
-                            key={country}
-                            onClick={() => {
-                              setSetupCountry(country);
-                              const firstCity = CITIES.find(c => c.country === country);
-                              if (firstCity) setSetupCity(firstCity.id);
-                            }}
-                            className={`px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border-2
-                              ${setupCountry === country 
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100' 
-                                : 'bg-white text-slate-500 border-slate-100 hover:border-slate-200'}
-                            `}
+                    <div className="space-y-6 flex-1 flex flex-col overflow-hidden">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">
+                          {t('company_name')}
+                        </label>
+                        <input 
+                          type="text" 
+                          value={setupName}
+                          onChange={(e) => setSetupName(e.target.value)}
+                          className="w-full rounded-xl border-2 border-slate-100 bg-slate-50 px-5 py-4 text-base font-black focus:border-indigo-500 focus:ring-0 transition-all shadow-sm"
+                          placeholder="e.g. DreamWorld Parks"
+                        />
+                      </div>
+
+                      <div className="flex-1 flex flex-col overflow-hidden">
+                        <div className="flex items-center justify-between mb-4">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+                            {t('select_hq_location')}
+                          </label>
+                          <div className="flex gap-1 overflow-x-auto pb-2 custom-scrollbar">
+                            {Array.from(new Set(CITIES.map(c => c.country))).sort().map(country => (
+                              <button
+                                key={country}
+                                onClick={() => {
+                                  setSetupCountry(country);
+                                  const firstCity = CITIES.find(c => c.country === country);
+                                  if (firstCity) setSetupCity(firstCity.id);
+                                }}
+                                className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border-2 whitespace-nowrap
+                                  ${setupCountry === country 
+                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' 
+                                    : 'bg-white text-slate-500 border-slate-100 hover:border-slate-200'}
+                                `}
+                              >
+                                {t('country_' + country.replace(/\s+/g, '_'))}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1 pb-4">
+                          {CITIES
+                            .filter(city => city.country === setupCountry)
+                            .map(city => (
+                            <button
+                              key={city.id}
+                              onClick={() => setSetupCity(city.id)}
+                              className={`flex items-center gap-3 rounded-xl border-2 p-3 transition-all
+                                ${setupCity === city.id 
+                                  ? 'border-indigo-600 bg-indigo-50/30 text-indigo-600 shadow-md translate-y-[-2px]' 
+                                  : 'border-slate-50 bg-slate-50 hover:border-slate-100 text-slate-500'}
+                              `}
+                            >
+                              <div className={`h-10 w-10 rounded-lg flex items-center justify-center transition-colors ${setupCity === city.id ? 'bg-indigo-100' : 'bg-slate-200'}`}>
+                                <Globe size={18} />
+                              </div>
+                              <div className="text-left overflow-hidden">
+                                <p className="text-[11px] font-black leading-tight mb-0.5 truncate">{t('city_name_' + city.id)}</p>
+                                <p className="text-[9px] font-black uppercase opacity-60 tracking-widest">
+                                  {city.population.toLocaleString()} pop.
+                                </p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-4">
+                        <button 
+                          disabled={!setupName.trim() || !setupCity}
+                          onClick={() => {
+                            setGameState(engine.setHomeCity(setupCity, setupName));
+                            setSetupStep(1);
+                            audioService.playSFX('click');
+                          }}
+                          className={`flex-1 rounded-xl py-4 text-xs font-black uppercase tracking-widest transition-all
+                            ${setupName.trim() 
+                              ? 'bg-slate-900 text-white hover:bg-black shadow-xl shadow-slate-200' 
+                              : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
+                          `}
+                        >
+                          {t('found_company')}
+                        </button>
+                        {GameEngine.hasSave() && gameState.company.hasSetupHomeCity && gameState.company.hasSetupInitialRental && (
+                          <button 
+                            onClick={() => setIsSetupOpen(false)}
+                            className="px-8 flex items-center justify-center rounded-xl border-2 border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all"
                           >
-                            {t('country_' + country.replace(/\s+/g, '_'))}
+                            {t('continue_game')}
                           </button>
-                        ))}
+                        )}
                       </div>
                     </div>
                   </div>
-
-                  <div className="mt-8 pt-6 border-t border-slate-100">
-                    <button 
-                      disabled={!setupName.trim()}
-                      onClick={() => {
-                        engine.initNewGame(setupName, setupCity);
-                        setGameState(engine.update());
-                        setIsSetupOpen(false);
-                        confetti({
-                          particleCount: 200,
-                          spread: 100,
-                          origin: { y: 0.6 }
-                        });
-                      }}
-                      className={`w-full rounded-xl py-4 text-base font-black uppercase tracking-widest transition-all
-                        ${setupName.trim() 
-                          ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100' 
-                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
-                      `}
-                    >
-                      {t('launch_company')}
-                    </button>
-
-                    {GameEngine.hasSave() && (
-                      <button 
-                        onClick={() => setIsSetupOpen(false)}
-                        className="mt-4 w-full text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors"
-                      >
-                        {t('continue_game')}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex-1 bg-slate-50 rounded-[2rem] p-6 border border-slate-100 flex flex-col overflow-hidden">
-                  <div className="flex items-center justify-between mb-4">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
-                      {t('starting_city_in', { country: t('country_' + setupCountry.replace(/\s+/g, '_')) })}
-                    </label>
-                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
-                      {t('cities_available', { count: CITIES.filter(c => c.country === setupCountry).length })}
-                    </span>
-                  </div>
-                  <div className="relative mb-6">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input 
-                      type="text" 
-                      value={setupSearch}
-                      onChange={(e) => setSetupSearch(e.target.value)}
-                      className="w-full rounded-xl border-2 border-slate-100 bg-white pl-12 pr-4 py-3 text-sm font-bold focus:border-indigo-500 focus:ring-0 transition-all shadow-sm"
-                      placeholder={t('search_cities')}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
-                    {CITIES
-                      .filter(city => city.country === setupCountry)
-                      .filter(city => 
-                        city.name.toLowerCase().includes(setupSearch.toLowerCase())
-                      )
-                      .map(city => (
-                      <button
-                        key={city.id}
-                        onClick={() => setSetupCity(city.id)}
-                        className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition-all
-                          ${setupCity === city.id 
-                            ? 'border-indigo-600 bg-white text-indigo-600 shadow-lg' 
-                            : 'border-white bg-white/50 hover:border-slate-200 text-slate-500'}
-                        `}
-                      >
-                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center transition-colors ${setupCity === city.id ? 'bg-indigo-50' : 'bg-slate-100'}`}>
-                          <Globe size={20} />
+                ) : (
+                  <div className="flex-1 flex flex-col p-8 md:p-12 bg-white overflow-hidden">
+                    <div className="flex items-center justify-between mb-8">
+                       <h3 className="text-2xl font-black text-slate-900 tracking-tight">{t('choose_initial_destination')}</h3>
+                       <button onClick={() => setSetupStep(0)} className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-xl transition-all">← {t('back_to_hq')}</button>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                      <div className="flex items-center justify-between mb-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+                          {t('select_first_fairground')}
+                        </label>
+                        <div className="flex gap-1 overflow-x-auto pb-2 custom-scrollbar">
+                          {Array.from(new Set(CITIES.map(c => c.country))).sort().map(country => (
+                            <button
+                              key={country}
+                              onClick={() => setSelectedTravelCountry(country)}
+                              className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border-2 whitespace-nowrap
+                                ${selectedTravelCountry === country 
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' 
+                                  : 'bg-white text-slate-500 border-slate-100 hover:border-slate-200'}
+                              `}
+                            >
+                              {t('country_' + country.replace(/\s+/g, '_'))}
+                            </button>
+                          ))}
                         </div>
-                        <div className="text-center">
-                          <p className="text-[10px] font-black leading-tight mb-0.5">{t('city_name_' + city.id)}</p>
-                          <p className="text-[9px] font-black uppercase opacity-60 tracking-widest mb-1">{city.population.toLocaleString()} {t('population_short')}</p>
-                          <div className="flex items-center gap-1 justify-center">
-                            <Clock size={10} className="opacity-60" />
-                            <p className="text-[9px] font-black uppercase opacity-60 tracking-widest">
-                              {REGION_OPERATING_MONTHS[city.region].startMonth}-{REGION_OPERATING_MONTHS[city.region].endMonth}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1 pb-4">
+                        {CITIES
+                          .filter(c => !selectedTravelCountry || c.country === selectedTravelCountry)
+                          .map(city => {
+                            const travelCost = engine.getTravelCost(city.id);
+                            const canAfford = gameState.money >= travelCost;
+                            const isSelected = pendingTravelCityId === city.id;
+
+                            return (
+                              <button 
+                                key={city.id}
+                                disabled={!canAfford}
+                                onClick={() => {
+                                  setPendingTravelCityId(city.id);
+                                  setDraftPermit(prev => ({ ...prev, signature: gameState.company.name }));
+                                  setIsPermitFormOpen(true);
+                                }}
+                                className={`flex flex-col gap-3 rounded-xl border-2 p-4 transition-all text-left group
+                                  ${isSelected 
+                                    ? 'border-indigo-600 bg-indigo-50/30 shadow-md translate-y-[-2px]' 
+                                    : canAfford ? 'border-slate-50 bg-slate-50 hover:border-indigo-100' : 'border-slate-50 bg-slate-50/30 opacity-50 grayscale cursor-not-allowed'}
+                                `}
+                              >
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-400 group-hover:text-indigo-500 group-hover:bg-indigo-50'}`}>
+                                    <Plane size={18} />
+                                  </div>
+                                  <div className="flex-1 overflow-hidden">
+                                    <p className={`text-[11px] font-black leading-tight mb-0.5 truncate ${isSelected ? 'text-indigo-600' : 'text-slate-900'}`}>{t('city_name_' + city.id)}</p>
+                                    <p className="text-[9px] font-black uppercase opacity-60 tracking-widest text-slate-500">
+                                      {city.population.toLocaleString()} pop.
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-100">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t('travel_cost')}</span>
+                                    <span className={`text-[10px] font-black ${canAfford ? 'text-emerald-600' : 'text-rose-600'}`}>${travelCost.toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t('multiplier')}</span>
+                                    <span className="text-[10px] font-black text-slate-700">x{city.visitorMultiplier}</span>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -2271,6 +2648,8 @@ export default function App() {
                   <div className="flex-1 overflow-y-auto py-4 px-4 space-y-1 custom-scrollbar">
                     {[
                       { id: 'marketplace', label: t('marketplace'), icon: ShoppingBag, group: 'operations' },
+                      { id: 'insights', label: t('visitor_insights'), icon: MessageSquare, group: 'operations' },
+                      { id: 'marketing', label: t('marketing_tab'), icon: Megaphone, group: 'operations' },
                       { id: 'travel', label: t('travel'), icon: MapIcon, group: 'operations' },
                       { id: 'pricing', label: t('pricing'), icon: DollarSign, group: 'operations' },
                       { id: 'research', label: t('research_tab'), icon: FlaskConical, group: 'operations' },
@@ -2379,120 +2758,574 @@ export default function App() {
                           <ShoppingBag size={24} />
                         </div>
                         <div>
-                          <h2 className="text-xl font-black text-slate-900 tracking-tight">{t('marketplace')}</h2>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('select_item_to_add')}</p>
+                          <div className="flex items-center gap-4">
+                            {selectedShopRide && (
+                              <button 
+                                onClick={() => setSelectedShopRide(null)}
+                                className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"
+                              >
+                                <ArrowLeft size={20} />
+                              </button>
+                            )}
+                            <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                              {selectedShopRide ? t(`ride_${selectedShopRide}_name`) : t('marketplace')}
+                            </h2>
+                          </div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            {selectedShopRide ? t('technical_specifications') : t('select_item_to_add')}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="flex gap-4 p-1 bg-slate-100 rounded-2xl w-fit mb-8">
-                        {(['ALL', 'RIDE', 'FOOD', 'FACILITY', 'INFRASTRUCTURE'] as const).map(cat => (
-                          <button
-                            key={cat}
-                            onClick={() => setShopCategory(cat)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
-                              ${shopCategory === cat ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-indigo-600'}
-                            `}
-                          >
-                            {t(`category_${cat.toLowerCase()}`)}
-                          </button>
-                        ))}
-                      </div>
+                      {!selectedShopRide ? (
+                        <>
+                          <div className="flex gap-4 p-1 bg-slate-100 rounded-2xl w-fit mb-8">
+                            {(['ALL', 'RIDE', 'FOOD', 'FACILITY', 'INFRASTRUCTURE'] as const).map(cat => (
+                              <button
+                                key={cat}
+                                onClick={() => setShopCategory(cat)}
+                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+                                  ${shopCategory === cat ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-indigo-600'}
+                                `}
+                              >
+                                {t(`category_${cat.toLowerCase()}`)}
+                              </button>
+                            ))}
+                          </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {(Object.keys(RIDE_CONFIGS) as RideType[])
-                          .filter(type => {
-                            const config = RIDE_CONFIGS[type];
-                            if (shopCategory !== 'ALL' && config.category !== shopCategory) return false;
-                            return true;
-                          })
-                          .map(type => {
-                            const config = RIDE_CONFIGS[type];
-                            const manufacturer = config.manufacturerId ? MANUFACTURERS.find(m => m.id === config.manufacturerId) : null;
-                            const finalCost = Math.floor(config.cost * (manufacturer?.costMultiplier || 1.0));
-                            const projectForRide = RESEARCH_PROJECTS.find(p => p.unlocksRides.includes(type));
-                            const isLocked = !gameState.completedResearchIds.includes(projectForRide?.id as any) && !Object.values(INITIAL_UNLOCKED_RIDES).flat().includes(type) && projectForRide !== undefined;
-                            const canAfford = gameState.money >= finalCost;
-                            const truckAvailable = gameState.trucks.some(t => !t.assignedRideId);
-                            const warehouseCapacity = config.category === 'INFRASTRUCTURE' || (gameState.rides.length + gameState.inventory.length < engine.getWarehouseCapacity());
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {(Object.keys(RIDE_CONFIGS) as RideType[])
+                              .filter(type => {
+                                const config = RIDE_CONFIGS[type];
+                                if (shopCategory !== 'ALL' && config.category !== shopCategory) return false;
+                                return true;
+                              })
+                              .map(type => {
+                                const config = RIDE_CONFIGS[type];
+                                const manufacturer = config.manufacturerId ? MANUFACTURERS.find(m => m.id === config.manufacturerId) : null;
+                                const finalCost = Math.floor(config.cost * (manufacturer?.costMultiplier || 1.0));
+                                const projectForRide = RESEARCH_PROJECTS.find(p => p.unlocksRides.includes(type));
+                                const isLocked = !gameState.completedResearchIds.includes(projectForRide?.id as any) && !Object.values(INITIAL_UNLOCKED_RIDES).flat().includes(type) && projectForRide !== undefined;
+                                const canAfford = gameState.money >= finalCost;
+                                const truckAvailable = gameState.trucks.some(t => !t.assignedRideId);
+                                const warehouseCapacity = config.category === 'INFRASTRUCTURE' || (gameState.rides.length + gameState.inventory.length < engine.getWarehouseCapacity());
 
-                            return (
-                              <div key={type} className={`group relative flex flex-col rounded-[2.5rem] border bg-white transition-all duration-300 overflow-hidden ${
-                                canAfford && truckAvailable && warehouseCapacity && !isLocked
-                                  ? 'border-slate-200 shadow-sm hover:shadow-2xl hover:border-indigo-400' 
-                                  : 'border-slate-100 bg-slate-50/50 opacity-80'
-                              }`}>
-                                <div className={`p-4 border-b font-mono text-[9px] flex items-center justify-between ${
-                                  isLocked ? 'bg-slate-200 text-slate-500' : 'bg-slate-50 text-slate-400'
-                                }`}>
-                                  <span className="uppercase">{config.category}</span>
-                                  <span className="font-bold uppercase tracking-widest">{config.intensity}</span>
+                                return (
+                                  <div 
+                                    key={type} 
+                                    onClick={() => setSelectedShopRide(type)}
+                                    className={`group relative flex flex-col rounded-[2.5rem] border bg-white transition-all duration-300 overflow-hidden cursor-pointer ${
+                                      canAfford && truckAvailable && warehouseCapacity && !isLocked
+                                        ? 'border-slate-200 shadow-sm hover:shadow-2xl hover:border-indigo-400' 
+                                        : 'border-slate-100 bg-slate-50/50 opacity-80'
+                                    }`}
+                                  >
+                                    <div className={`p-4 border-b font-mono text-[9px] flex items-center justify-between ${
+                                      isLocked ? 'bg-slate-200 text-slate-500' : 'bg-slate-50 text-slate-400'
+                                    }`}>
+                                      <span className="uppercase">{config.category}</span>
+                                      <span className="font-bold uppercase tracking-widest">{config.intensity}</span>
+                                    </div>
+
+                                    <div className="p-8">
+                                      <div className="flex items-start justify-between mb-6">
+                                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-inner transition-colors ${
+                                           isLocked ? 'bg-slate-200 text-slate-400' : 'bg-slate-50 text-indigo-600'
+                                         }`}>
+                                           {config.icon}
+                                         </div>
+                                         <div className="text-right">
+                                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">{t('cost')}</p>
+                                            <p className={`text-2xl font-black tracking-tight ${canAfford ? 'text-slate-900' : 'text-rose-500'}`}>${finalCost.toLocaleString()}</p>
+                                         </div>
+                                      </div>
+
+                                      <div className="mb-6">
+                                        <h3 className="text-lg font-black text-slate-900 tracking-tight leading-tight mb-2 uppercase">{t(`ride_${config.type}_name`)}</h3>
+                                        <p className="text-[10px] text-slate-500 leading-relaxed min-h-[3em]">{t(`ride_${config.type}_desc`)}</p>
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-2 mb-6">
+                                        <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{t('size')}</p>
+                                          <p className="text-[10px] font-black text-slate-900">{config.width}x{config.height}</p>
+                                        </div>
+                                        <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{t('reliability_label') || 'Reliability'}</p>
+                                          <p className="text-[10px] font-black text-slate-900">{manufacturer ? `${(manufacturer.reliabilityBonus * 100).toFixed(0)}%` : '100%'}</p>
+                                        </div>
+                                      </div>
+
+                                      {!isLocked ? (
+                                        <div className="flex items-center gap-2 text-[8px] font-black text-indigo-600 uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
+                                          {t('view_details') || 'View Details'} <ArrowRight size={10} />
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col items-center gap-2 py-2 bg-slate-100 rounded-2xl border border-slate-200">
+                                          <Lock size={14} className="text-slate-400" />
+                                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest text-center leading-tight px-4">
+                                            {t('requires_research')}:<br/>
+                                            <span className="text-indigo-600">{projectForRide?.name}</span>
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </>
+                      ) : (() => {
+                        const config = RIDE_CONFIGS[selectedShopRide];
+                        const manufacturer = config.manufacturerId ? MANUFACTURERS.find(m => m.id === config.manufacturerId) : null;
+                        const finalCost = Math.floor(config.cost * (manufacturer?.costMultiplier || 1.0));
+                        const projectForRide = RESEARCH_PROJECTS.find(p => p.unlocksRides.includes(selectedShopRide));
+                        const isLocked = !gameState.completedResearchIds.includes(projectForRide?.id as any) && !Object.values(INITIAL_UNLOCKED_RIDES).flat().includes(selectedShopRide) && projectForRide !== undefined;
+                        const canAfford = gameState.money >= finalCost;
+                        const truckAvailable = gameState.trucks.some(t => !t.assignedRideId);
+                        const warehouseCapacity = config.category === 'INFRASTRUCTURE' || (gameState.rides.length + gameState.inventory.length < engine.getWarehouseCapacity());
+
+                        return (
+                          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            {/* Left Column: Visuals & Main Info */}
+                            <div className="lg:col-span-8 space-y-8">
+                              <div className="bg-white rounded-[3rem] border-2 border-slate-100 p-12 overflow-hidden relative group shadow-sm transition-all hover:shadow-xl hover:border-slate-200">
+                                <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+                                  <div className="text-[20rem] leading-none">{config.icon}</div>
                                 </div>
-
-                                <div className="p-8">
-                                  <div className="flex items-start justify-between mb-6">
-                                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-inner transition-colors ${
-                                       isLocked ? 'bg-slate-200 text-slate-400' : 'bg-slate-50 text-indigo-600'
-                                     }`}>
-                                       {config.icon}
-                                     </div>
-                                     <div className="text-right">
-                                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">{t('cost')}</p>
-                                        <p className={`text-2xl font-black tracking-tight ${canAfford ? 'text-slate-900' : 'text-rose-500'}`}>${finalCost.toLocaleString()}</p>
-                                     </div>
-                                  </div>
-
-                                  <div className="mb-6">
-                                    <h3 className="text-lg font-black text-slate-900 tracking-tight leading-tight mb-2 uppercase">{t(`ride_${config.type}_name`)}</h3>
-                                    <p className="text-[10px] text-slate-500 leading-relaxed min-h-[3em]">{t(`ride_${config.type}_desc`)}</p>
-                                  </div>
-
-                                  <div className="grid grid-cols-2 gap-2 mb-6">
-                                    <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{t('size')}</p>
-                                      <p className="text-[10px] font-black text-slate-900">{config.width}x{config.height}</p>
+                                
+                                <div className="relative z-10">
+                                  <div className="flex items-center gap-4 mb-8">
+                                    <div className="px-4 py-1.5 bg-indigo-50 rounded-full text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+                                      {config.category}
                                     </div>
-                                    <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{t('reliability_label') || 'Reliability'}</p>
-                                      <p className="text-[10px] font-black text-slate-900">{manufacturer ? `${(manufacturer.reliabilityBonus * 100).toFixed(0)}%` : '100%'}</p>
+                                    <div className="px-4 py-1.5 bg-orange-50 rounded-full text-[10px] font-black text-orange-600 uppercase tracking-widest">
+                                      {config.intensity}
                                     </div>
                                   </div>
 
-                                  {!isLocked ? (
-                                    <button
-                                      disabled={!canAfford || !truckAvailable || !warehouseCapacity}
-                                      onClick={() => {
-                                        if (engine.buyRide(type)) {
-                                          audioService.playSFX('buy');
-                                          setGameState(engine.getState());
-                                          confetti({ particleCount: 50, spread: 60 });
-                                        }
-                                      }}
-                                      className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                        canAfford && truckAvailable && warehouseCapacity 
-                                          ? 'bg-indigo-600 text-white hover:bg-slate-900 shadow-xl shadow-indigo-100' 
-                                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                                      }`}
-                                    >
-                                      {canAfford ? t('buy_button') : t('insufficient_funds')}
-                                    </button>
-                                  ) : (
-                                    <div className="flex flex-col items-center gap-2 py-2 bg-slate-100 rounded-2xl border border-slate-200">
-                                      <Lock size={14} className="text-slate-400" />
-                                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest text-center leading-tight px-4">
-                                        {t('requires_research')}:<br/>
-                                        <span className="text-indigo-600">{projectForRide?.name}</span>
-                                      </p>
+                                  <h1 className="text-5xl font-black text-slate-900 tracking-tighter mb-6 uppercase">
+                                    {t(`ride_${config.type}_name`)}
+                                  </h1>
+
+                                  <p className="text-xl text-slate-500 font-medium max-w-2xl leading-relaxed mb-12">
+                                    {t(`ride_${config.type}_desc`)}
+                                  </p>
+
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('base_cost')}</p>
+                                      <p className="text-2xl font-black text-slate-900 tracking-tight">${config.cost.toLocaleString()}</p>
                                     </div>
-                                  )}
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('capacity')}</p>
+                                      <p className="text-2xl font-black text-slate-900 tracking-tight">{config.baseCapacity} {t('guests')}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('build_time')}</p>
+                                      <p className="text-2xl font-black text-slate-900 tracking-tight">{config.buildTimeHours}h</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('dimensions')}</p>
+                                      <p className="text-2xl font-black text-slate-900 tracking-tight">{config.width}x{config.height}</p>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                            );
-                          })}
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {/* Performance Data */}
+                                <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100">
+                                  <div className="flex items-center gap-3 mb-6">
+                                    <div className="p-2 bg-white rounded-xl shadow-sm text-indigo-600">
+                                      <TrendingUp size={18} />
+                                    </div>
+                                    <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">{t('projections') || 'Projections'}</h3>
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
+                                      <div className="flex items-center gap-3">
+                                        <div className="text-slate-400"><DollarSign size={16} /></div>
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase">{t('suggested_price') || 'Suggested Price'}</p>
+                                      </div>
+                                      <p className="font-black text-slate-900">${config.baseIncome}</p>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
+                                      <div className="flex items-center gap-3">
+                                        <div className="text-slate-400"><Zap size={16} /></div>
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase">{t('energy_usage') || 'Energy Usage'}</p>
+                                      </div>
+                                      <p className="font-black text-slate-900">{config.electricityCost}W/h</p>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
+                                      <div className="flex items-center gap-3">
+                                        <div className="text-slate-400"><Activity size={16} /></div>
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase">{t('reliability_rating') || 'Reliability'}</p>
+                                      </div>
+                                      <p className="font-black text-slate-900">{manufacturer ? `${(manufacturer.reliabilityBonus * 100).toFixed(0)}%` : '100%'}</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Tech Specs */}
+                                <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white">
+                                  <div className="flex items-center gap-3 mb-6">
+                                    <div className="p-2 bg-indigo-500 rounded-xl text-white">
+                                      <Wrench size={18} />
+                                    </div>
+                                    <h3 className="font-black uppercase text-xs tracking-widest text-slate-300">{t('technical_data') || 'Technical Data'}</h3>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t('excitement_label') || 'Excitement'}</p>
+                                      <div className="flex gap-1">
+                                        {[...Array(5)].map((_, i) => (
+                                          <div key={i} className={`h-1 flex-1 rounded-full ${i < (config.intensity === 'EXTREME' ? 5 : config.intensity === 'THRILL' ? 4 : 2) ? 'bg-indigo-400' : 'bg-white/10'}`} />
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t('intensity_label') || 'Intensity'}</p>
+                                      <div className="flex gap-1">
+                                        {[...Array(5)].map((_, i) => (
+                                          <div key={i} className={`h-1 flex-1 rounded-full ${i < (config.intensity === 'EXTREME' ? 5 : config.intensity === 'THRILL' ? 3 : 1) ? 'bg-orange-400' : 'bg-white/10'}`} />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="mt-6 p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
+                                    <p className="text-[10px] text-indigo-400 font-bold leading-relaxed">
+                                      {t('technical_note') || 'High-precision components ensure maximum throughput during seasonal peaks.'}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right Column: Checkout & Manufacturer */}
+                            <div className="lg:col-span-4 space-y-8">
+                              {/* Order Card */}
+                              <div className="bg-white rounded-[2.5rem] border-2 border-slate-100 p-8 shadow-xl shadow-indigo-100/20 sticky top-8">
+                                <div className="mb-8">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{t('final_investment') || 'FINAL INVESTMENT'}</p>
+                                  <div className="flex items-baseline gap-2">
+                                    <h2 className="text-4xl font-black text-slate-900 tracking-tighter">${finalCost.toLocaleString()}</h2>
+                                    {manufacturer && (
+                                      <span className="text-xs font-bold text-slate-400">({manufacturer.costMultiplier}x)</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4 mb-10">
+                                  <div className={`flex items-center gap-4 p-4 rounded-2xl border ${gameState.money >= finalCost ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-rose-50 border-rose-100 text-rose-900'}`}>
+                                    <div className={`h-10 w-10 shrink-0 rounded-xl flex items-center justify-center ${gameState.money >= finalCost ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                                      <Coins size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-[10px] font-black uppercase tracking-widest mb-0.5">{t('funds_check') || 'Funds'}</p>
+                                      <p className="text-xs font-bold">{gameState.money >= finalCost ? t('affordable') : t('cannot_afford')}</p>
+                                    </div>
+                                    {gameState.money >= finalCost ? <CheckCircle2 size={24} className="text-emerald-500" /> : <AlertCircle size={24} className="text-rose-500" />}
+                                  </div>
+
+                                  <div className={`flex items-center gap-4 p-4 rounded-2xl border ${truckAvailable ? 'bg-indigo-50 border-indigo-100 text-indigo-900' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                                    <div className={`h-10 w-10 shrink-0 rounded-xl flex items-center justify-center ${truckAvailable ? 'bg-indigo-500 text-white' : 'bg-slate-300 text-white'}`}>
+                                      <Truck size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-[10px] font-black uppercase tracking-widest mb-0.5">{t('logistics_check') || 'Logistics'}</p>
+                                      <p className="text-xs font-bold">{truckAvailable ? t('truck_ready') : t('trucks_busy')}</p>
+                                    </div>
+                                    {truckAvailable ? <CheckCircle2 size={24} className="text-indigo-500" /> : <Clock size={24} className="text-slate-300" />}
+                                  </div>
+                                </div>
+
+                                {!isLocked ? (
+                                  <button
+                                    disabled={!canAfford || !truckAvailable || !warehouseCapacity}
+                                    onClick={() => {
+                                      if (engine.buyRide(selectedShopRide)) {
+                                        audioService.playSFX('buy');
+                                        setGameState(engine.getState());
+                                        setSelectedShopRide(null);
+                                        confetti({ particleCount: 50, spread: 60 });
+                                      }
+                                    }}
+                                    className={`w-full py-6 rounded-[2rem] text-xs font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${
+                                      canAfford && truckAvailable && warehouseCapacity 
+                                        ? 'bg-indigo-600 text-white hover:bg-slate-900 shadow-2xl shadow-indigo-200' 
+                                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    <Plus size={20} />
+                                    {t('purchase_order') || 'Confirm Purchase'}
+                                  </button>
+                                ) : (
+                                  <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 text-center">
+                                    <Lock size={32} className="mx-auto mb-4 text-slate-300" />
+                                    <p className="text-xs font-bold text-slate-500 mb-2 uppercase tracking-widest">{t('requires_research')}</p>
+                                    <p className="text-lg font-black text-indigo-600 leading-tight uppercase">{projectForRide?.name}</p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Manufacturer Card */}
+                              {manufacturer && (
+                                <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100">
+                                  <div className="flex items-center gap-4 mb-6">
+                                    <div className="h-12 w-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-indigo-600">
+                                      <Factory size={24} />
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manufacturer')}</p>
+                                      <h4 className="font-black text-slate-900 uppercase">{manufacturer.name}</h4>
+                                    </div>
+                                  </div>
+                                  <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                                    {manufacturer.description}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {activeManagementTab === 'insights' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-12">
+                      <div className="flex items-center gap-4 mb-12">
+                        <div className="h-16 w-16 rounded-[2rem] bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-100">
+                          <MessageSquare size={32} />
+                        </div>
+                        <div>
+                          <h2 className="text-3xl font-black text-slate-900 tracking-tight">{t('visitor_insights')}</h2>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('guest_feedback')}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+                        {/* Summary Cards */}
+                        <div className="bg-emerald-50 rounded-[2.5rem] p-8 border border-emerald-100">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-emerald-600 shadow-sm">
+                              <Smile size={24} />
+                            </div>
+                            <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full uppercase tracking-widest">{t('feedback_positive')}</span>
+                          </div>
+                          <h3 className="text-4xl font-black text-emerald-900 tracking-tight mb-1">
+                            {gameState.recentFeedback.filter(f => f.type === 'POSITIVE').length}
+                          </h3>
+                          <p className="text-[10px] font-bold text-emerald-600/60 uppercase tracking-widest">{t('recent_interactions') || 'Recent Interactions'}</p>
+                        </div>
+
+                        <div className="bg-rose-50 rounded-[2.5rem] p-8 border border-rose-100">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-rose-600 shadow-sm">
+                              <Frown size={24} />
+                            </div>
+                            <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-3 py-1 rounded-full uppercase tracking-widest">{t('feedback_negative')}</span>
+                          </div>
+                          <h3 className="text-4xl font-black text-rose-900 tracking-tight mb-1">
+                            {gameState.recentFeedback.filter(f => f.type === 'NEGATIVE').length}
+                          </h3>
+                          <p className="text-[10px] font-bold text-rose-600/60 uppercase tracking-widest">{t('recent_grievances') || 'Recent Grievances'}</p>
+                        </div>
+
+                        <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center text-white shadow-sm">
+                              <Globe size={24} />
+                            </div>
+                            <span className="text-[10px] font-black text-slate-400 bg-white/5 px-3 py-1 rounded-full uppercase tracking-widest">{t('feedback_potential')}</span>
+                          </div>
+                          <h3 className="text-4xl font-black text-white tracking-tight mb-1">
+                            {gameState.recentFeedback.filter(f => f.source === 'POTENTIAL_VISITOR').length}
+                          </h3>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('lost_opportunities') || 'Lost Opportunities'}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                        {/* Feed Filtered for Visitors */}
+                        <div>
+                          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-6 flex items-center gap-3">
+                            <Users size={20} className="text-indigo-600" />
+                            {t('active_visitor_feed') || 'Active Visitor Feed'}
+                          </h3>
+                          <div className="space-y-4">
+                            {gameState.recentFeedback.filter(f => f.source === 'VISITOR').length > 0 ? (
+                              gameState.recentFeedback.filter(f => f.source === 'VISITOR').slice(0, 15).map(feedback => (
+                                <div key={feedback.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                                  <div className="flex items-start gap-4">
+                                    <div className={`h-10 w-10 shrink-0 rounded-xl flex items-center justify-center ${
+                                      feedback.type === 'POSITIVE' ? 'bg-emerald-50 text-emerald-600' : 
+                                      feedback.type === 'NEGATIVE' ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-600'
+                                    }`}>
+                                      {feedback.type === 'POSITIVE' ? <Smile size={20} /> : 
+                                       feedback.type === 'NEGATIVE' ? <Frown size={20} /> : <Meh size={20} />}
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-sm font-bold text-slate-900 leading-snug mb-2">
+                                        {t(feedback.textKey, feedback.replacements)}
+                                      </p>
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1">
+                                          <Clock size={10} className="text-slate-400" />
+                                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                            {Math.floor(feedback.timestamp / 1440) + 1}D {Math.floor((feedback.timestamp % 1440) / 60)}:{String(feedback.timestamp % 60).padStart(2, '0')}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] p-12 text-center">
+                                <MessageSquare size={32} className="mx-auto mb-4 text-slate-300" />
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('no_feedback')}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Feed Filtered for Potential Visitors */}
+                        <div>
+                          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-6 flex items-center gap-3">
+                            <TrendingUp size={20} className="text-indigo-600" />
+                            {t('market_refusals') || 'Market Refusals'}
+                          </h3>
+                          <div className="space-y-4">
+                            {gameState.recentFeedback.filter(f => f.source === 'POTENTIAL_VISITOR').length > 0 ? (
+                              gameState.recentFeedback.filter(f => f.source === 'POTENTIAL_VISITOR').slice(0, 15).map(feedback => (
+                                <div key={feedback.id} className="bg-slate-50 p-6 rounded-3xl border border-slate-200/50">
+                                  <div className="flex items-start gap-4">
+                                    <div className="h-10 w-10 shrink-0 rounded-xl bg-slate-900 flex items-center justify-center text-white">
+                                      <X size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-sm font-bold text-slate-700 leading-snug mb-2 italic">
+                                        "{t(feedback.textKey, feedback.replacements)}"
+                                      </p>
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1 text-rose-500">
+                                          <AlertCircle size={10} />
+                                          <span className="text-[9px] font-black uppercase tracking-widest">{t('barrier_to_entry') || 'Barrier to Entry'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <Clock size={10} className="text-slate-400" />
+                                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                            {Math.floor(feedback.timestamp / 1440) + 1}D {Math.floor((feedback.timestamp % 1440) / 60)}:{String(feedback.timestamp % 60).padStart(2, '0')}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] p-12 text-center">
+                                <TrendingUp size={32} className="mx-auto mb-4 text-slate-300" />
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('no_market_refusals') || 'No market refusals recorded'}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {activeManagementTab === 'marketing' && (
+                    <div className="flex-1 overflow-y-auto p-12 custom-scrollbar animate-in fade-in slide-in-from-bottom-4 duration-500">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="h-16 w-16 rounded-[2rem] bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-100">
+                          <Megaphone size={32} />
+                        </div>
+                        <div>
+                          <h2 className="text-3xl font-black text-slate-900 tracking-tight">{t('marketing')}</h2>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('marketing_desc')}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
+                        {(Object.keys(MARKETING_CONFIGS) as MarketingType[]).map(type => {
+                          const config = MARKETING_CONFIGS[type];
+                          const isActive = gameState.activeMarketing[type];
+                          
+                          return (
+                            <div 
+                              key={type}
+                              className={`relative group flex flex-col rounded-[2.5rem] border-2 transition-all duration-300 p-8 ${
+                                isActive 
+                                  ? 'border-indigo-600 bg-indigo-50/30' 
+                                  : 'border-slate-100 bg-white hover:border-slate-200'
+                              }`}
+                            >
+                              <div className="flex justify-between items-start mb-6">
+                                <div className={`h-14 w-14 rounded-2xl flex items-center justify-center text-2xl ${
+                                  isActive ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 text-slate-400'
+                                }`}>
+                                  {type === 'FLYERS' && <FileText />}
+                                  {type === 'SOCIAL_MEDIA' && <Share2 />}
+                                  {type === 'RADIO' && <Radio />}
+                                  {type === 'TV' && <Tv />}
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('daily_cost')}</p>
+                                  <p className="text-2xl font-black text-slate-900">${config.costPerDay.toLocaleString()}</p>
+                                </div>
+                              </div>
+
+                              <div className="mb-8">
+                                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">
+                                  {t(config.nameKey)}
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-100 shadow-sm">
+                                    <TrendingUp size={12} className="text-emerald-500" />
+                                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                                      +{Math.round(config.visitorBoost * 100)}% {t('visitor_boost')}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => {
+                                  engine.toggleMarketing(type);
+                                  setGameState(engine.getState());
+                                  audioService.playSFX('click');
+                                  if (!isActive) confetti({ particleCount: 30, spread: 40 });
+                                }}
+                                className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                  isActive 
+                                    ? 'bg-slate-900 text-white shadow-xl' 
+                                    : 'bg-indigo-600 text-white hover:bg-slate-900 shadow-xl shadow-indigo-100'
+                                }`}
+                              >
+                                {isActive ? t('marketing_stop') : t('marketing_start')}
+                              </button>
+
+                              {isActive && (
+                                <div className="absolute -top-3 -right-3">
+                                  <div className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-full shadow-lg animate-pulse">
+                                    <Activity size={12} />
+                                    <span className="text-[8px] font-black uppercase tracking-widest">{t('marketing_active')}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
                   {activeManagementTab === 'connections' && (
-                  <section className="space-y-12">
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                      <section className="space-y-12">
                     <div className="flex items-center gap-4 mb-8">
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-xl shadow-indigo-100">
                         <Handshake size={24} />
@@ -2653,8 +3486,9 @@ export default function App() {
                       )}
                     </div>
                   </section>
-                )}
-                {activeManagementTab === 'finance' && (
+                </div>
+              )}
+                  {activeManagementTab === 'finance' && (
                   <div className="space-y-12 max-w-5xl mx-auto">
                     <div className="flex items-center gap-4 mb-8">
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-xl shadow-emerald-100">
@@ -3178,6 +4012,29 @@ export default function App() {
                         </div>
                       </div>
                     </section>
+
+                    {/* Keyboard Shortcuts Help */}
+                    <section>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Layout size={18} className="text-indigo-600" />
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Keyboard Shortcuts</h3>
+                      </div>
+                      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[
+                          { key: 'M', action: 'Toggle Management console' },
+                          { key: 'B', action: 'Toggle Sidebar' },
+                          { key: 'Space', action: 'Pause / Resume Game' },
+                          { key: 'Esc', action: 'Close any modal / Deselect' },
+                          { key: '1-9', action: 'Switch Management Tabs' },
+                          { key: '0', action: 'Switch to Financials Tab' },
+                        ].map(kb => (
+                          <div key={kb.key} className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{kb.action}</span>
+                            <kbd className="px-2 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black min-w-[2rem] text-center">{kb.key}</kbd>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
                   </>
                 )}
 
@@ -3386,7 +4243,7 @@ export default function App() {
                 {activeManagementTab === 'staff' && (
                   <div className="space-y-10">
                     {/* Staff Overview Stats */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('total_staff')}</p>
                         <div className="flex items-baseline gap-2">
@@ -3395,14 +4252,23 @@ export default function App() {
                         </div>
                       </div>
                       <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Housing Capacity</p>
+                        <div className="flex items-baseline gap-2">
+                          <span className={`text-2xl font-black ${gameState.staff.length >= (gameState.rides.filter(r => r.type === 'CARAVAN' && r.status === 'OPERATIONAL').length * 4) ? 'text-rose-600' : 'text-slate-900'}`}>
+                            {gameState.staff.length} / {gameState.rides.filter(r => r.type === 'CARAVAN' && r.status === 'OPERATIONAL').length * 4}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400">Used Slots</span>
+                        </div>
+                      </div>
+                      <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('avg_happiness')}</p>
                         <div className="flex items-baseline gap-2">
                           <span className={`text-2xl font-black ${
                             gameState.staff.length === 0 ? 'text-slate-300' :
-                            (gameState.staff.reduce((acc, s) => acc + s.happiness, 0) / gameState.staff.length) > 70 ? 'text-emerald-600' :
-                            (gameState.staff.reduce((acc, s) => acc + s.happiness, 0) / gameState.staff.length) > 40 ? 'text-amber-600' : 'text-rose-600'
+                            ((gameState.staff.reduce((acc, s) => acc + (s.happiness || 0), 0) / (gameState.staff.length || 1)) > 70) ? 'text-emerald-600' :
+                            ((gameState.staff.reduce((acc, s) => acc + (s.happiness || 0), 0) / (gameState.staff.length || 1)) > 40) ? 'text-amber-600' : 'text-rose-600'
                           }`}>
-                            {gameState.staff.length === 0 ? '0' : Math.floor(gameState.staff.reduce((acc, s) => acc + s.happiness, 0) / gameState.staff.length)}%
+                            {gameState.staff.length === 0 ? '0' : Math.floor(gameState.staff.reduce((acc, s) => acc + (s.happiness || 0), 0) / (gameState.staff.length || 1))}%
                           </span>
                           <span className="text-[10px] font-bold text-slate-400">{t('morale')}</span>
                         </div>
@@ -3410,7 +4276,7 @@ export default function App() {
                       <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('hourly_payroll')}</p>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-2xl font-black text-slate-900">${gameState.staff.reduce((acc, s) => acc + s.salary, 0)}</span>
+                          <span className="text-2xl font-black text-slate-900">${gameState.staff.reduce((acc, s) => acc + (s.salary || 0), 0)}</span>
                           <span className="text-[10px] font-bold text-slate-400">{t('per_hour')}</span>
                         </div>
                       </div>
@@ -3545,20 +4411,41 @@ export default function App() {
                                           </div>
 
                                           {/* Middle Stats Section */}
-                                          <div className="flex items-center gap-6 shrink-0">
-                                            <div className="flex flex-col items-center gap-1 min-w-[3rem]">
+                                          <div className="flex items-center gap-4 shrink-0">
+                                            <div className="flex flex-col items-center gap-1 min-w-[2.5rem]">
                                               <div className={`flex items-center gap-1 ${staff.stamina > 70 ? 'text-emerald-500' : staff.stamina > 30 ? 'text-amber-500' : 'text-rose-500'}`}>
-                                                <Zap size={12} fill="currentColor" />
-                                                <span className="text-[10px] font-black">{Math.floor(staff.stamina)}%</span>
+                                                <Zap size={10} fill="currentColor" />
+                                                <span className="text-[9px] font-black">{Math.floor(staff.stamina)}%</span>
                                               </div>
-                                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter opacity-70">{t('stamina')}</p>
+                                              <p className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter opacity-70">Energy</p>
                                             </div>
-                                            <div className="flex flex-col items-center gap-1 min-w-[3rem]">
-                                              <div className={`flex items-center gap-1 ${happinessColor}`}>
-                                                <HappinessIcon size={12} fill="currentColor" />
-                                                <span className="text-[10px] font-black">{Math.floor(staff.happiness)}%</span>
+                                            <div className="flex flex-col items-center gap-1 min-w-[2.5rem]">
+                                              <div className={`flex items-center gap-1 ${staff.hunger < 30 ? 'text-emerald-500' : staff.hunger < 70 ? 'text-amber-500' : 'text-rose-500'}`}>
+                                                <Utensils size={10} fill="currentColor" />
+                                                <span className="text-[9px] font-black">{Math.floor(staff.hunger)}%</span>
                                               </div>
-                                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter opacity-70">{t('happiness')}</p>
+                                              <p className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter opacity-70">Hunger</p>
+                                            </div>
+                                            <div className="flex flex-col items-center gap-1 min-w-[2.5rem]">
+                                              <div className={`flex items-center gap-1 ${staff.hygiene > 70 ? 'text-emerald-500' : staff.hygiene > 30 ? 'text-amber-500' : 'text-rose-500'}`}>
+                                                <Bath size={10} fill="currentColor" />
+                                                <span className="text-[9px] font-black">{Math.floor(staff.hygiene)}%</span>
+                                              </div>
+                                              <p className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter opacity-70">Hygiene</p>
+                                            </div>
+                                            <div className="flex flex-col items-center gap-1 min-w-[2.5rem]">
+                                              <div className={`flex items-center gap-1 ${staff.fun > 70 ? 'text-emerald-500' : staff.fun > 30 ? 'text-amber-500' : 'text-rose-500'}`}>
+                                                <Gamepad size={10} fill="currentColor" />
+                                                <span className="text-[9px] font-black">{Math.floor(staff.fun)}%</span>
+                                              </div>
+                                              <p className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter opacity-70">Fun</p>
+                                            </div>
+                                            <div className="flex flex-col items-center gap-1 min-w-[2.5rem]">
+                                              <div className={`flex items-center gap-1 ${happinessColor}`}>
+                                                <HappinessIcon size={10} fill="currentColor" />
+                                                <span className="text-[9px] font-black">{Math.floor(staff.happiness)}%</span>
+                                              </div>
+                                              <p className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter opacity-70">Mood</p>
                                             </div>
                                           </div>
 
@@ -3891,11 +4778,17 @@ export default function App() {
                                               </button>
                                             </>
                                           ) : (
-                                            <div className="flex flex-col items-end">
-                                              <span className="px-4 py-2 rounded-2xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100">
-                                                {t('active_site')}
-                                              </span>
-                                            </div>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setPendingTravelCityId(city.id);
+                                                setDraftPermit(prev => ({ ...prev, signature: gameState.company.name }));
+                                                setIsPermitFormOpen(true);
+                                              }}
+                                              className="whitespace-nowrap px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg bg-emerald-600 text-white hover:bg-slate-900 shadow-emerald-100"
+                                            >
+                                              {gameState.activePermit ? t('renew_permit') : t('rent_space')}
+                                            </button>
                                           )}
                                         </div>
                                       </div>
@@ -4338,16 +5231,20 @@ export default function App() {
                   <button
                     key={tab.id}
                     onClick={() => {
-                      setSidebarTab(tab.id);
+                      if (tab.id === 'management') {
+                        setIsManagementOpen(true);
+                      } else {
+                        setSidebarTab(tab.id);
+                      }
                       audioService.playSFX('click');
                     }}
                     className={`relative group flex h-12 w-12 items-center justify-center rounded-2xl transition-all
-                      ${sidebarTab === tab.id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}
+                      ${(sidebarTab === tab.id || (tab.id === 'management' && isManagementOpen)) ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}
                     `}
                     title={tab.label}
                   >
                     {tab.icon}
-                    {sidebarTab === tab.id && (
+                    {(sidebarTab === tab.id || (tab.id === 'management' && isManagementOpen)) && (
                       <motion.div 
                         layoutId="sidebarActiveRailIndicator"
                         className="absolute -left-1 w-1.5 h-6 bg-indigo-500 rounded-full"
@@ -4385,6 +5282,7 @@ export default function App() {
                       setGameState(engine.getState());
                       audioService.playSFX('click');
                     }}
+                    title="Pause / Resume [Space]"
                     className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
                       gameState.settings.isPaused ? 'bg-amber-400 text-slate-900 shadow-lg shadow-amber-100' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
                     }`}
@@ -4547,7 +5445,7 @@ export default function App() {
                 {sidebarTab === 'management' && (
                   <div className="space-y-4">
                      <button onClick={() => setIsManagementOpen(true)} className="w-full p-6 bg-slate-900 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all">
-                        Management Console
+                        Management Console [M]
                      </button>
                   </div>
                 )}
@@ -4577,51 +5475,75 @@ export default function App() {
         animate={{ y: 0, opacity: 1 }}
         className="flex items-center gap-6 px-7 py-3 bg-white/95 backdrop-blur-md rounded-[1.75rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/50 ring-1 ring-slate-900/5 group"
       >
-        <div className="flex items-center gap-4 border-r border-slate-100 pr-6">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-100 transition-transform group-hover:scale-110">
-            <Coins size={18} />
+        <div className="flex items-center gap-4 border-r border-slate-100 pr-8">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-100 transition-transform group-hover:scale-110">
+            <Coins size={22} />
           </div>
-          <div className="flex flex-col justify-center min-w-[90px]">
-            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 leading-none mb-1">{t('balance')}</p>
-            <p className="text-lg font-black text-slate-900 leading-none tabular-nums">${Math.floor(gameState.money).toLocaleString()}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 border-r border-slate-100 pr-6">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500 text-white shadow-lg shadow-indigo-100 transition-transform group-hover:scale-110">
-            <Users size={18} />
-          </div>
-          <div className="flex flex-col justify-center min-w-[60px]">
-            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 leading-none mb-1">{t('visitors')}</p>
-            <p className="text-lg font-black text-slate-900 leading-none tabular-nums">{gameState.visitors.length.toLocaleString()}</p>
+          <div className="flex flex-col justify-center min-w-[140px]">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 leading-none mb-1">{t('balance')}</p>
+            <p className="text-2xl font-black text-slate-900 leading-none tabular-nums">${Math.floor(gameState.money || 0).toLocaleString()}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-slate-900 shadow-lg shadow-amber-100 transition-transform group-hover:scale-110">
-            <Star size={18} fill="currentColor" />
+        <div className="flex items-center gap-4 border-r border-slate-100 pr-8">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-500 text-white shadow-lg shadow-indigo-100 transition-transform group-hover:scale-110">
+            <Users size={22} />
           </div>
-          <div className="flex flex-col justify-center min-w-[50px]">
-            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 leading-none mb-1">{t('park_rating') || 'RATING'}</p>
-            <p className="text-lg font-black text-slate-900 leading-none tabular-nums">{gameState.parkRating.toFixed(1)}</p>
+          <div className="flex flex-col justify-center min-w-[80px]">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 leading-none mb-1">{t('visitors')}</p>
+            <p className="text-2xl font-black text-slate-900 leading-none tabular-nums">{(gameState.visitors?.length || 0).toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 pr-8">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-slate-900 shadow-lg shadow-amber-100 transition-transform group-hover:scale-110">
+            <Star size={22} fill="currentColor" />
+          </div>
+          <div className="flex flex-col justify-center min-w-[70px]">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 leading-none mb-1">{t('park_rating') || 'RATING'}</p>
+            <p className="text-2xl font-black text-slate-900 leading-none tabular-nums">{(gameState.parkRating || 0).toFixed(1)}</p>
           </div>
         </div>
 
         {/* Time Overlay inside Top Bar */}
         <div className="flex items-center gap-4 pl-6 border-l border-slate-100">
-          <div className="text-right min-w-[70px]">
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">
+          <div className="text-right min-w-[80px]">
+            <p className="text-xs font-black uppercase tracking-wider text-slate-400 leading-none mb-1 text-right">
               {t(`month_${gameState.time.month - 1}`)} {gameState.time.dayOfMonth}
             </p>
-            <p className="text-lg font-black text-slate-900 leading-none tabular-nums">
+            <p className="text-2xl font-black text-slate-900 leading-none tabular-nums">
               {gameState.time.hours.toString().padStart(2, '0')}:{gameState.time.minutes.toString().padStart(2, '0')}
             </p>
           </div>
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all shadow-sm ${getWeatherColor(gameState.currentWeather.type)} text-white`}>
+          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all shadow-sm ${getWeatherColor(gameState.currentWeather.type)} text-white`}>
             {getWeatherIcon(gameState.currentWeather.type)}
           </div>
         </div>
       </motion.div>
+
+      {/* Seasonal Skip Shortcut */}
+      {(() => {
+        const canOpen = engine.canParkOpen();
+        if (!canOpen.canOpen && canOpen.reason?.key === 'reason_seasonal_closure' && !gameState.settings.isManuallyClosed) {
+          return (
+            <motion.button
+              initial={{ x: 20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              onClick={() => {
+                if (engine.skipToNextOpening()) {
+                  setGameState(engine.getState());
+                  audioService.playSFX('click');
+                }
+              }}
+              className="flex items-center gap-3 px-5 py-3.5 bg-indigo-600 text-white rounded-[1.5rem] shadow-xl hover:bg-indigo-700 transition-all font-black text-xs uppercase tracking-widest ring-4 ring-indigo-500/20 active:scale-95"
+            >
+              <FastForward size={18} />
+              {t('skip_to_opening')}
+            </motion.button>
+          );
+        }
+        return null;
+      })()}
     </div>
 
     {/* Sidebar Toggle (Only visible when closed) */}
@@ -4629,7 +5551,7 @@ export default function App() {
       <button 
         onClick={() => setIsSidebarOpen(true)}
         className="absolute top-8 left-8 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-xl hover:bg-slate-50 transition-all border-2 border-slate-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none"
-        title={t('show_sidebar')}
+        title={`${t('show_sidebar')} [B]`}
       >
         <Layout size={24} />
       </button>
@@ -4798,7 +5720,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4"
+            className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -4930,7 +5852,17 @@ export default function App() {
                   <button 
                     disabled={!draftPermit.signature || gameState.money < engine.getTravelCost(pendingTravelCityId)}
                     onClick={() => {
-                      if (engine.confirmTravel(pendingTravelCityId, draftPermit)) {
+                      if (!gameState.company.hasSetupInitialRental) {
+                        setGameState(engine.setInitialLocationRental(pendingTravelCityId, draftPermit));
+                        setIsSetupOpen(false);
+                        audioService.playSFX('buy');
+                        setIsPermitFormOpen(false);
+                        confetti({
+                          particleCount: 200,
+                          spread: 120,
+                          origin: { y: 0.5 }
+                        });
+                      } else if (engine.confirmTravel(pendingTravelCityId, draftPermit)) {
                         audioService.playSFX('buy');
                         setGameState(engine.getState());
                         setIsPermitFormOpen(false);

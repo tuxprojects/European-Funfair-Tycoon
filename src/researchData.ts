@@ -4,7 +4,7 @@ export const RESEARCH_PROJECTS: ResearchProject[] = [
   {
     id: 'advanced_thrills_1',
     name: 'Advanced Thrills I',
-    description: 'Unlocks higher intensity rides like the Bungee Jump and Slingshot.',
+    description: 'Unlocks higher intensity rides like the Booster and Inversion.',
     cost: 100,
     tier: 1,
     unlocksRides: ['BUNGEE_JUMP', 'SLINGSHOT'],
@@ -22,7 +22,7 @@ export const RESEARCH_PROJECTS: ResearchProject[] = [
   {
     id: 'high_tech_rides',
     name: 'High Tech Attractions',
-    description: 'State of the art engineering. Unlocks Enterprise and Top Spin.',
+    description: 'State of the art engineering. Unlocks XXL and Top Scan.',
     cost: 200,
     tier: 2,
     unlocksRides: ['ENTERPRISE', 'TOP_SPIN'],
@@ -40,7 +40,7 @@ export const RESEARCH_PROJECTS: ResearchProject[] = [
   {
     id: 'mega_rollercoasters',
     name: 'Mega Coasters',
-    description: 'Giant machines of pure adrenaline. Unlocks Giant Wheel and Wooden Coaster.',
+    description: 'Giant machines of pure adrenaline. Unlocks Giant Wheel and Power Mouse.',
     cost: 500,
     tier: 3,
     unlocksRides: ['GIANT_WHEEL', 'WOODEN_COASTER'],

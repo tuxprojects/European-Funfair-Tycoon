@@ -105,6 +105,8 @@ export interface CompanyInfo {
   name: string;
   currentCityId: string;
   homeCityId?: string;
+  hasSetupHomeCity: boolean;
+  hasSetupInitialRental: boolean;
   warehouseLevel: number;
   garageLevel: number;
 }
@@ -143,6 +145,7 @@ export interface FinanceStats {
     electricity: number;
     rent: number;
     maintenance: number;
+    marketing: number;
     loanInterest: number;
     loanPrincipal: number;
     travel: number;
@@ -212,6 +215,51 @@ export interface TravelForm {
   rentTier?: 'COMMUNITY' | 'PRIME' | 'VIP';
 }
 
+export interface FeedbackEntry {
+  id: string;
+  timestamp: number; // game minutes
+  textKey: string;
+  replacements?: Record<string, string | number>;
+  type: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
+  source: 'VISITOR' | 'POTENTIAL_VISITOR';
+}
+
+export type MarketingType = 'FLYERS' | 'SOCIAL_MEDIA' | 'RADIO' | 'TV';
+
+export interface MarketingCampaign {
+  id: MarketingType;
+  nameKey: string;
+  costPerDay: number;
+  visitorBoost: number; // multiplier
+}
+
+export const MARKETING_CONFIGS: Record<MarketingType, MarketingCampaign> = {
+  FLYERS: {
+    id: 'FLYERS',
+    nameKey: 'marketing_flyers',
+    costPerDay: 50,
+    visitorBoost: 0.15,
+  },
+  SOCIAL_MEDIA: {
+    id: 'SOCIAL_MEDIA',
+    nameKey: 'marketing_social_media',
+    costPerDay: 200,
+    visitorBoost: 0.4,
+  },
+  RADIO: {
+    id: 'RADIO',
+    nameKey: 'marketing_radio',
+    costPerDay: 500,
+    visitorBoost: 0.8,
+  },
+  TV: {
+    id: 'TV',
+    nameKey: 'marketing_tv',
+    costPerDay: 1500,
+    visitorBoost: 1.5,
+  },
+};
+
 export interface GameState {
   money: number;
   researchPoints: number;
@@ -231,6 +279,8 @@ export interface GameState {
   connections: ShowmanConnection[];
   activeRentals: RentalAgreement[];
   visitors: Visitor[];
+  recentFeedback: FeedbackEntry[];
+  activeMarketing: Record<MarketingType, boolean>;
   time: GameTime;
   currentWeather: WeatherInfo;
   settings: ParkSettings;
@@ -270,7 +320,9 @@ export const CITIES: City[] = [
     mapHeight: 30,
     terrain: 'GRASS',
     population: 8982000,
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 0,
+    y: 0
   },
   {
     id: 'manchester',
@@ -305,6 +357,8 @@ export const CITIES: City[] = [
     terrain: 'GRASS',
     population: 1144919,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 0,
+    y: 100
   },
   {
     id: 'liverpool',
@@ -319,6 +373,8 @@ export const CITIES: City[] = [
     terrain: 'ASPHALT',
     population: 496784,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -50,
+    y: 200
   },
   {
     id: 'glasgow',
@@ -371,6 +427,8 @@ export const CITIES: City[] = [
     terrain: 'GRASS',
     population: 362756,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -100,
+    y: 100
   },
   {
     id: 'belfast',
@@ -385,6 +443,8 @@ export const CITIES: City[] = [
     terrain: 'ASPHALT',
     population: 341877,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -200,
+    y: 350
   },
   {
     id: 'bristol',
@@ -399,6 +459,8 @@ export const CITIES: City[] = [
     terrain: 'GRASS',
     population: 467099,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: -100,
+    y: 50
   },
   {
     id: 'leeds',
@@ -413,6 +475,8 @@ export const CITIES: City[] = [
     terrain: 'ASPHALT',
     population: 812000,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 50,
+    y: 200
   },
   {
     id: 'newcastle',
@@ -427,6 +491,8 @@ export const CITIES: City[] = [
     terrain: 'GRAVEL',
     population: 300196,
     weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 100,
+    y: 300
   },
   {
     id: 'paris',
@@ -440,7 +506,9 @@ export const CITIES: City[] = [
     mapHeight: 30,
     terrain: 'ASPHALT',
     population: 2148000,
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 100,
+    y: -250
   },
   {
     id: 'berlin',
@@ -454,7 +522,9 @@ export const CITIES: City[] = [
     mapHeight: 25,
     terrain: 'GRAVEL',
     population: 3769000,
-    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES }
+    weatherProbabilities: { ...DEFAULT_WEATHER_PROBABILITIES },
+    x: 600,
+    y: 0
   },
   {
     id: 'lisbon',
@@ -5239,7 +5309,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '☕',
     buildTimeHours: 2,
     electricityCost: 5,
-    manufacturerId: 'vintage'
+    manufacturerId: 'zamperla'
   },
   CAROUSEL: {
     type: 'CAROUSEL',
@@ -5255,7 +5325,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🎠',
     buildTimeHours: 4,
     electricityCost: 8,
-    manufacturerId: 'vintage'
+    manufacturerId: 'zamperla'
   },
   BUMPER_CARS: {
     type: 'BUMPER_CARS',
@@ -5271,7 +5341,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🚗',
     buildTimeHours: 6,
     electricityCost: 15,
-    manufacturerId: 'ironworks'
+    manufacturerId: 'zamperla'
   },
   FERRIS_WHEEL: {
     type: 'FERRIS_WHEEL',
@@ -5287,13 +5357,13 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🎡',
     buildTimeHours: 8,
     electricityCost: 12,
-    manufacturerId: 'ironworks'
+    manufacturerId: 'zamperla'
   },
   ROLLERCOASTER: {
     type: 'ROLLERCOASTER',
     category: 'RIDE',
     intensity: 'EXTREME',
-    name: 'Rollercoaster',
+    name: 'Dragon Coaster',
     cost: 15000,
     baseIncome: 10,
     baseCapacity: 12,
@@ -5303,7 +5373,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🎢',
     buildTimeHours: 12,
     electricityCost: 40,
-    manufacturerId: 'skyline'
+    manufacturerId: 'zamperla'
   },
   FOOD_STALL: {
     type: 'FOOD_STALL',
@@ -5364,7 +5434,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '👻',
     buildTimeHours: 6,
     electricityCost: 10,
-    manufacturerId: 'ironworks'
+    manufacturerId: 'technical_park'
   },
   LOG_FLUME: {
     type: 'LOG_FLUME',
@@ -5380,7 +5450,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🛶',
     buildTimeHours: 10,
     electricityCost: 25,
-    manufacturerId: 'future_fun'
+    manufacturerId: 'technical_park'
   },
   DROP_TOWER: {
     type: 'DROP_TOWER',
@@ -5396,13 +5466,13 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🗼',
     buildTimeHours: 8,
     electricityCost: 30,
-    manufacturerId: 'skyline'
+    manufacturerId: 'fabbri'
   },
   SWING_RIDE: {
     type: 'SWING_RIDE',
     category: 'RIDE',
     intensity: 'GENTLE',
-    name: 'Swing Ride',
+    name: 'Star Flyer',
     cost: 3000,
     baseIncome: 5,
     baseCapacity: 20,
@@ -5412,13 +5482,13 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🎪',
     buildTimeHours: 5,
     electricityCost: 12,
-    manufacturerId: 'budget_rides'
+    manufacturerId: 'mondial'
   },
   PIRATE_SHIP: {
     type: 'PIRATE_SHIP',
     category: 'RIDE',
     intensity: 'THRILL',
-    name: 'Pirate Ship',
+    name: 'Galleon',
     cost: 3500,
     baseIncome: 6,
     baseCapacity: 24,
@@ -5428,7 +5498,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🏴‍☠️',
     buildTimeHours: 6,
     electricityCost: 18,
-    manufacturerId: 'ironworks'
+    manufacturerId: 'zamperla'
   },
   COTTON_CANDY: {
     type: 'COTTON_CANDY',
@@ -5464,7 +5534,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     type: 'BUNGEE_JUMP',
     category: 'RIDE',
     intensity: 'EXTREME',
-    name: 'Bungee Jump',
+    name: 'Booster',
     cost: 12000,
     baseIncome: 15,
     baseCapacity: 2,
@@ -5474,13 +5544,13 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🧗',
     buildTimeHours: 6,
     electricityCost: 5,
-    manufacturerId: 'future_fun'
+    manufacturerId: 'fabbri'
   },
   SLINGSHOT: {
     type: 'SLINGSHOT',
     category: 'RIDE',
     intensity: 'EXTREME',
-    name: 'Slingshot',
+    name: 'Inversion',
     cost: 18000,
     baseIncome: 20,
     baseCapacity: 2,
@@ -5490,13 +5560,13 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🚀',
     buildTimeHours: 10,
     electricityCost: 50,
-    manufacturerId: 'skyline'
+    manufacturerId: 'kmg'
   },
   TOP_SPIN: {
     type: 'TOP_SPIN',
     category: 'RIDE',
     intensity: 'EXTREME',
-    name: 'Top Spin',
+    name: 'Top Scan',
     cost: 9500,
     baseIncome: 12,
     baseCapacity: 20,
@@ -5506,13 +5576,13 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🔄',
     buildTimeHours: 8,
     electricityCost: 35,
-    manufacturerId: 'skyline'
+    manufacturerId: 'mondial'
   },
   ENTERPRISE: {
     type: 'ENTERPRISE',
     category: 'RIDE',
     intensity: 'THRILL',
-    name: 'Enterprise',
+    name: 'Afterburner',
     cost: 7500,
     baseIncome: 9,
     baseCapacity: 24,
@@ -5522,13 +5592,13 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🎡',
     buildTimeHours: 7,
     electricityCost: 25,
-    manufacturerId: 'ironworks'
+    manufacturerId: 'kmg'
   },
   WALTZER: {
     type: 'WALTZER',
     category: 'RIDE',
     intensity: 'THRILL',
-    name: 'Waltzer',
+    name: 'Sizzler',
     cost: 4500,
     baseIncome: 7,
     baseCapacity: 16,
@@ -5538,13 +5608,13 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🌀',
     buildTimeHours: 5,
     electricityCost: 15,
-    manufacturerId: 'budget_rides'
+    manufacturerId: 'wisdom'
   },
   HELTER_SKELTER: {
     type: 'HELTER_SKELTER',
     category: 'RIDE',
     intensity: 'GENTLE',
-    name: 'Helter Skelter',
+    name: 'Gravitron',
     cost: 2800,
     baseIncome: 5,
     baseCapacity: 10,
@@ -5554,13 +5624,13 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🗼',
     buildTimeHours: 4,
     electricityCost: 2,
-    manufacturerId: 'vintage'
+    manufacturerId: 'wisdom'
   },
   KIDDIE_COASTER: {
     type: 'KIDDIE_COASTER',
     category: 'RIDE',
     intensity: 'GENTLE',
-    name: 'Kiddie Coaster',
+    name: 'Family Coaster',
     cost: 3500,
     baseIncome: 5,
     baseCapacity: 8,
@@ -5570,7 +5640,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🎢',
     buildTimeHours: 6,
     electricityCost: 15,
-    manufacturerId: 'budget_rides'
+    manufacturerId: 'zamperla'
   },
   DUCK_POND: {
     type: 'DUCK_POND',
@@ -5666,7 +5736,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     type: 'SKY_SWING',
     category: 'RIDE',
     intensity: 'EXTREME',
-    name: 'Sky Swing',
+    name: 'XXL',
     cost: 11000,
     baseIncome: 14,
     baseCapacity: 12,
@@ -5676,7 +5746,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🪁',
     buildTimeHours: 9,
     electricityCost: 28,
-    manufacturerId: 'skyline'
+    manufacturerId: 'kmg'
   },
   GIANT_WHEEL: {
     type: 'GIANT_WHEEL',
@@ -5692,13 +5762,13 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🎡',
     buildTimeHours: 15,
     electricityCost: 20,
-    manufacturerId: 'ironworks'
+    manufacturerId: 'mondial'
   },
   WOODEN_COASTER: {
     type: 'WOODEN_COASTER',
     category: 'RIDE',
     intensity: 'THRILL',
-    name: 'Wooden Coaster',
+    name: 'Power Mouse',
     cost: 12000,
     baseIncome: 9,
     baseCapacity: 18,
@@ -5708,13 +5778,13 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🎢',
     buildTimeHours: 14,
     electricityCost: 30,
-    manufacturerId: 'vintage'
+    manufacturerId: 'zamperla'
   },
   ZIP_LINE: {
     type: 'ZIP_LINE',
     category: 'RIDE',
     intensity: 'THRILL',
-    name: 'Zip Line',
+    name: 'Pegasus',
     cost: 4500,
     baseIncome: 8,
     baseCapacity: 1,
@@ -5724,7 +5794,7 @@ export const RIDE_CONFIGS: Record<RideType, RideConfig> = {
     icon: '🚠',
     buildTimeHours: 5,
     electricityCost: 5,
-    manufacturerId: 'future_fun'
+    manufacturerId: 'technical_park'
   },
   BURGER_JOINT: {
     type: 'BURGER_JOINT',
@@ -6048,6 +6118,7 @@ export interface Visitor {
   hasWristband: boolean;
   hasSeasonPass: boolean;
   remainingBundleRides: number;
+  lastRidePaidPrice?: number;
 }
 
 export const GRID_SIZE = 40;
@@ -6060,6 +6131,7 @@ export interface StaffConfig {
   baseSalary: number;
   description: string;
   icon: string;
+  color: string;
 }
 
 export const STAFF_CONFIGS: Record<StaffType, StaffConfig> = {
@@ -6068,35 +6140,40 @@ export const STAFF_CONFIGS: Record<StaffType, StaffConfig> = {
     name: 'Ride Operator',
     baseSalary: 15, // per hour
     description: 'Required to run rides. Higher level increases ride safety.',
-    icon: '👤'
+    icon: '👤',
+    color: '#3b82f6'
   },
   MECHANIC: {
     type: 'MECHANIC',
     name: 'Mechanic',
     baseSalary: 25,
     description: 'Repairs rides and reduces wear and tear.',
-    icon: '🔧'
+    icon: '🔧',
+    color: '#fbbf24'
   },
   JANITOR: {
     type: 'JANITOR',
     name: 'Janitor',
     baseSalary: 12,
     description: 'Keeps the park clean, improving visitor happiness.',
-    icon: '🧹'
+    icon: '🧹',
+    color: '#10b981'
   },
   SECURITY: {
     type: 'SECURITY',
     name: 'Security Guard',
     baseSalary: 18,
     description: 'Ensures safety and prevents happiness from dropping too fast.',
-    icon: '👮'
+    icon: '👮',
+    color: '#ef4444'
   },
   VENDOR: {
     type: 'VENDOR',
     name: 'Vendor',
     baseSalary: 14,
     description: 'Increases secondary income from visitors.',
-    icon: '🍦'
+    icon: '🍦',
+    color: '#8b5cf6'
   }
 };
 
@@ -6108,9 +6185,13 @@ export interface StaffInstance {
   hiredTime: number;
   lastPaidTime: number;
   assignedRideId?: string;
+  caravanId: string; // The caravan they live in
   happiness: number; // 0-100
   stamina: number; // 0-100
-  state: 'WORKING' | 'RESTING' | 'IDLE';
+  hunger: number; // 0-100
+  hygiene: number; // 0-100
+  fun: number; // 0-100
+  state: 'WORKING' | 'RESTING' | 'IDLE' | 'SEEKING_NEEDS';
   restingAtId?: string; // ID of the caravan they are resting in
   x: number;
   y: number;
